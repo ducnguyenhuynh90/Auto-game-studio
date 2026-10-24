@@ -3,7 +3,7 @@ import { analytics } from '../core/analytics';
 import { BALANCE, RARITY_COLOR, RECIPES_BY_ID, SPECIES_BY_ID, TIERS, tierFor } from '../core/data';
 import { agingLevel, bestJarFill, useGadget, canFerment, jarDegrees, openJar, productPrice, recipeFor, sealJar, sellProduct, type Product } from '../core/state';
 import { sfx, vibrate } from '../render/audio';
-import { COLORS, H, W, clamp01, drawFish, drawJar, ease, outlinedText, panel, rr, star, text, type Ctx } from '../render/draw';
+import { COLORS, H, W, clamp01, drawFish, drawJar, drawPointer, ease, outlinedText, panel, rr, star, text, type Ctx } from '../render/draw';
 import type { Game, Scene } from '../game';
 
 export class JarFillOverlay implements Scene {
@@ -307,11 +307,17 @@ export class RevealOverlay implements Scene {
         const tip = this.agingLvl < BALANCE.maxAging ? 'Tip: let jars age longer (more trips) for higher °N' : 'Tip: perfect catches make fresher, stronger sauce';
         text(ctx, tip, W / 2, 668, 13, 'rgba(255,255,255,0.7)');
         const price = productPrice(s, this.product);
-        this.game.button(ctx, 'sell', 30, 700, 200, 76, `Sell ${price}`, () => this.sell(), { color: COLORS.good, dark: '#2f7a3b', coin: true, size: 26, pulse: true });
-        this.game.button(ctx, 'keep', 240, 700, 120, 76, 'Keep', () => {
-          analytics.track('keep_product', { recipe: this.recipeId, degrees: this.degrees });
-          this.game.pop(this);
-        }, { color: '#8a7a66', dark: '#5f5244', size: 22, sub: 'sell later' });
+        if (s.stats.sold === 0) {
+          // First bottle: one clear action. A playtester chose "Keep" here and never found the sale.
+          this.game.button(ctx, 'sell', 40, 700, W - 80, 76, `Sell for ${price}`, () => this.sell(), { color: COLORS.good, dark: '#2f7a3b', coin: true, size: 28, pulse: true });
+          drawPointer(ctx, W - 92, 724, this.t);
+        } else {
+          this.game.button(ctx, 'sell', 30, 700, 200, 76, `Sell ${price}`, () => this.sell(), { color: COLORS.good, dark: '#2f7a3b', coin: true, size: 26, pulse: true });
+          this.game.button(ctx, 'keep', 240, 700, 120, 76, 'Store', () => {
+            analytics.track('keep_product', { recipe: this.recipeId, degrees: this.degrees });
+            this.game.pop(this);
+          }, { color: '#8a7a66', dark: '#5f5244', size: 22, sub: 'sell later' });
+        }
       }
     }
   }

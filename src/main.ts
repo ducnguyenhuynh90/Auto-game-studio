@@ -54,6 +54,13 @@ if (import.meta.env.DEV && params.has('scene')) {
 }
 
 startPlaySummary();
+// Runtime errors are product evidence too (a playtester reloaded 3 times in 90 s and we couldn't tell why).
+let errorsReported = 0;
+const reportError = (msg: string) => {
+  if (errorsReported++ < 5) analytics.track('js_error', { msg: msg.slice(0, 160), scene: game.scene?.name ?? 'boot' });
+};
+window.addEventListener('error', (e) => reportError(String(e.message)));
+window.addEventListener('unhandledrejection', (e) => reportError(String((e as PromiseRejectionEvent).reason)));
 analytics.funnelStep('first_launch');
 analytics.track('session_start', { trips: game.state.stats.trips, coins: game.state.coins, returning: game.state.stats.catches > 0 });
 

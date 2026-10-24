@@ -494,3 +494,21 @@ export class Particles {
     }
   }
 }
+
+/** Bobbing tutorial hand pointing down-left at (x, y). */
+export function drawPointer(ctx: Ctx, x: number, y: number, t: number): void {
+  const bob = Math.sin(t * 5) * 8;
+  ctx.save();
+  ctx.translate(x + 18, y + 26 + bob);
+  ctx.rotate(-0.5);
+  ctx.fillStyle = '#fff';
+  ctx.strokeStyle = COLORS.ink;
+  ctx.lineWidth = 3;
+  rr(ctx, -8, -30, 16, 40, 8);
+  ctx.fill();
+  ctx.stroke();
+  rr(ctx, -14, 0, 30, 30, 10);
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}

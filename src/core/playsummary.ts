@@ -23,10 +23,13 @@ export interface PlaySummary {
   /** Screen where the last session ended (from app_hidden). */
   lastScreen: string;
   activeSec: number;
+  lastError?: string;
+  /** Furthest sea sailed to. */
+  seas?: string[];
 }
 
 const MAX_SESSIONS = 120;
-const COUNTED = ['cast', 'hook', 'catch', 'fish_lost', 'trip_start', 'trip_end', 'jar_seal', 'jar_open', 'sell_product', 'keep_product', 'sell_fish', 'upgrade', 'dex_new', 'screen', 'session_start'];
+const COUNTED = ['js_error', 'mission_complete', 'level_up', 'gadget_use', 'sail', 'cast', 'hook', 'catch', 'fish_lost', 'trip_start', 'trip_end', 'jar_seal', 'jar_open', 'sell_product', 'keep_product', 'sell_fish', 'upgrade', 'dex_new', 'screen', 'session_start'];
 
 export function emptySummary(iid: string, now: number): PlaySummary {
   return { v: 1, iid, firstSeen: now, lastSeen: now, sessions: [], funnel: {}, counts: {}, lost: {}, species: {}, screens: {}, perfect: 0, bestDegrees: 0, goals: [], lastScreen: '', activeSec: 0 };
@@ -63,6 +66,13 @@ export function applyEvent(s: PlaySummary, ev: AnalyticsEvent): PlaySummary {
     case 'screen':
       s.screens ??= {};
       s.screens[String(p.name)] = (s.screens[String(p.name)] ?? 0) + 1;
+      break;
+    case 'js_error':
+      s.lastError = String(p.msg ?? '');
+      break;
+    case 'trip_start':
+      s.seas ??= [];
+      if (p.sea && !s.seas.includes(String(p.sea))) s.seas.push(String(p.sea));
       break;
     case 'app_hidden':
       s.lastScreen = String(p.scene ?? '');

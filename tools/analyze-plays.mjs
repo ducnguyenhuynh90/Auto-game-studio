@@ -40,3 +40,8 @@ console.log(`  opened Fishdex at least once: ${pct(docs.filter((d) => (d.screens
 const lastScreens = {};
 for (const d of docs) lastScreens[d.lastScreen || '?'] = (lastScreens[d.lastScreen || '?'] ?? 0) + 1;
 console.log(`  last screen when leaving: ${JSON.stringify(lastScreens)}`);
+console.log(`  players with JS errors: ${pct(docs.filter((d) => (d.counts?.js_error ?? 0) > 0).length)}  ${docs.map((d) => d.lastError).filter(Boolean).slice(0, 3).join(' | ')}`);
+const seaReach = {};
+for (const d of docs) for (const x of d.seas ?? []) seaReach[x] = (seaReach[x] ?? 0) + 1;
+console.log(`  seas fished: ${JSON.stringify(seaReach)} · missions/player: ${(sum((d) => d.counts?.mission_complete) / Math.max(1, n)).toFixed(1)} · tangles: ${sum((d) => d.lost?.tangled)} of ${sum((d) => d.counts?.cast)} casts`);
+console.log(`  stored instead of selling the first bottle: ${pct(docs.filter((d) => (d.counts?.keep_product ?? 0) > 0 && d.funnel?.first_sale === undefined).length)}`);

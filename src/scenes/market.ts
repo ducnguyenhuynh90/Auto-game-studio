@@ -4,7 +4,7 @@ import { SPECIES_BY_ID, UPGRADES, UPGRADES_BY_ID, tierFor, type UpgradeId } from
 import { goalPair } from '../core/goals';
 import { buyUpgrade, productPrice, sellFish, sellProduct, upgradeCost } from '../core/state';
 import { sfx } from '../render/audio';
-import { COLORS, H, W, clamp01, drawBottle, drawCoin, ease, outlinedText, panel, rr, text, type Ctx } from '../render/draw';
+import { COLORS, H, W, clamp01, drawBottle, drawCoin, drawPointer, ease, outlinedText, panel, rr, text, type Ctx } from '../render/draw';
 import type { Game, Scene } from '../game';
 
 export class MarketOverlay implements Scene {
@@ -87,6 +87,7 @@ export class MarketOverlay implements Scene {
       if (s.shelf.length > 5) text(ctx, `+${s.shelf.length - 5}`, 360, 170, 16);
       const total = s.shelf.reduce((sum, p) => sum + productPrice(s, p), 0);
       this.game.button(ctx, 'sellall', 40, 230, W - 80, 56, `Sell all  +${total}`, () => this.sellAll(), { color: COLORS.good, dark: '#2f7a3b', size: 22, pulse: true });
+      if (s.stats.sold === 0) drawPointer(ctx, W - 96, 252, this.t);
     }
     // --- Bucket ---
     const fishValue = s.bucket.reduce((sum, f) => sum + SPECIES_BY_ID[f.species].raw, 0);

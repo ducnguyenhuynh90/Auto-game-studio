@@ -1,8 +1,8 @@
 # Directional targets. These are hypotheses, not doctrine. Revisions must be documented in studio/DECISIONS.md.
 # Benchmarks researched 2026-10 (vendor blogs, GameAnalytics summaries): median casual D1≈22%, D7≈4%, D30≈0.7%;
 # top-10% ≈ 40/12/4; puzzle ≈ 32/13/5. Our D1 38% / D7 14% target is roughly top-decile, which is intended.
-product_state: VERTICAL_SLICE   # CONCEPT | PROTOTYPE | VERTICAL_SLICE | INTERNAL_ALPHA | EXTERNAL_ALPHA | SOFT_LAUNCH | PMF_CANDIDATE | PMF_VALIDATED
-real_player_evidence: none      # no real players yet; nothing below has been measured
+product_state: INTERNAL_ALPHA   # first real (internal) player data arrived 2026-10-24, n=1
+real_player_evidence: n=1 internal player (see studio/LEARNINGS.md)
 targets:
   tutorial_completion: 0.85      # proxy: goal 'sell1' reached
   d1_retention: 0.38

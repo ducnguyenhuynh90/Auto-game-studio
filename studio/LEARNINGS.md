@@ -30,3 +30,10 @@ Only [PLAYER] entries count as product evidence.
   still missing (coins pile up after about 3 h). Backlog.
 - [DESIGN] The real game makes legendaries easier than the sim does: players see five shadows and pick
   the glowing one. Watch real legendary-catch timing.
+- [PLAYER n=1] 2026-10-24, first real playtest (build 1.x, possibly the founder): 4.7 active minutes over
+  3 page loads in 90 s; 99 s from launch to first cast; reached the first reveal at 273 s, then chose "Keep",
+  opened the market twice and never sold. Left on the village screen. Perfect catches 1/9 (bots: ~15/15).
+  → The first sale is a tutorial cliff: the first reveal now offers only "Sell", and a hand points at
+    "Sell all" in the market until the first sale. JS errors are now tracked to explain reloads.
+  → Real reel skill is far below bot skill: never gate story progress on perfect play (already fixed in 2.0).
+  n=1, so these are leads, not conclusions.

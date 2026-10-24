@@ -1,7 +1,7 @@
 {
   "updated": "2026-10-24",
-  "product_state": "VERTICAL_SLICE",
-  "real_player_evidence": "none",
+  "product_state": "INTERNAL_ALPHA",
+  "real_player_evidence": "1 player (2026-10-24): stalled at the first sale after choosing Keep; 1/9 perfect catches. Too small to conclude anything; see LEARNINGS.",
   "build": "Vite + TypeScript. three.js 3D world (src/render3d) under a 2D canvas UI layer (src/scenes). Pure rules in src/core (unit-tested).",
   "how_to_run": "npm install && npm run dev  (open http://localhost:5173, ?reset=1 wipes the save, ?seed=N, ?speed=N)",
   "how_to_test": "npm test ; npm run build ; npx vite preview --port 4173 & node tools/playtest.mjs --trips 6 --skill 0.7 --shots (playtests run against the preview build; HMR reloads break bot runs on the dev server)",
@@ -11,7 +11,8 @@
   "recent_results": [
     "Build 2.0 (founder direction D-007): goal + next banner, Captain's Log, Captain XP/levels, cast tangle risk, 5 gear lines (rod/line/hook/bait/boat), 3D sea chart with 5 seas × 4 missions, relics, Mystery Crate gadgets, 12 new species and 4 new recipes, per-sea 3D scenery and boats.",
     "[SIM] Progression sim (tools/sim.ts): story finishes at all skills 0.4-0.8. Reef at 10-30 min, Abyss at 2.4-3.3 h. It caught and fixed a perfect-catch softlock and an economy that maxed gear in 40 min.",
-    "[SIM] Browser bot on the real UI: 10 trips, lagoon story → Turtle Buddy relic → sailed to the Reef, 6 missions, no errors."
+    "[SIM] Browser bot on the real UI: 10 trips, lagoon story → Turtle Buddy relic → sailed to the Reef, 6 missions, no errors.",
+    "Build 2.1: first reveal shows only 'Sell' until the first sale, market hand pointer, js_error telemetry, analyzer reports errors, seas fished, tangles and stored-not-sold."
   ],
   "constraints": [
     "No real-money gambling, no randomized paid rewards (needs founder/legal approval).",
