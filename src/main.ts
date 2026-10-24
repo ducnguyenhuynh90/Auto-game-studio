@@ -3,6 +3,8 @@ import { resetSave } from './core/save';
 import { Game } from './game';
 import { H, W } from './render/draw';
 import { World } from './render3d/world';
+import { fishIcon } from './render3d/icons';
+import { setFishIconProvider } from './render/draw';
 import { FishingScene } from './scenes/fishing';
 import { VillageScene } from './scenes/village';
 import { RevealOverlay } from './scenes/jar';
@@ -17,6 +19,7 @@ const worldCanvas = document.getElementById('world') as HTMLCanvasElement;
 const seed = Number(params.get('seed') ?? Date.now() % 1e9);
 const game = new Game(seed);
 game.world = new World(worldCanvas);
+setFishIconProvider(fishIcon);
 if (params.has('speed')) game.timeScale = Number(params.get('speed'));
 
 game.goVillage = () => game.setScene(new VillageScene(game));

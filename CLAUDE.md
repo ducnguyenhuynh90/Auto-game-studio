@@ -9,7 +9,7 @@ the biggest problem and the next action. Then read PRODUCT.md and SUCCESS.yaml.
 - `npm test`: unit tests for the game rules (`tests/`).
 - `npm run build`: typecheck + production build to `dist/`.
 - `node tools/playtest.mjs --trips 6 --skill 0.7 --shots`: bot plays the real game in headless
-  Chromium (dev server must be running), writes screenshots + `playtest-output/report.json`.
+  Chromium against `npx vite preview --port 4173` (build first; the dev server's HMR reloads kill bot runs), writes screenshots + `playtest-output/report.json`.
 - `node tools/flow.mjs "<query>" <prefix> "wait:800;tap:x,y;down:x,y;up:x,y;shot:name"`: scripted screenshots.
 - Playwright is preinstalled globally; tools load it through `createRequire`. Do not `npm i playwright`.
 

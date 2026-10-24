@@ -17,7 +17,8 @@ const trips = Number(args.trips ?? 8);
 const skill = Number(args.skill ?? 0.7);
 const speed = Number(args.speed ?? 3);
 const shots = args.shots === 'true';
-const base = args.url ?? 'http://localhost:5173/';
+// Default: the production preview (npm run build && npx vite preview --port 4173), immune to HMR reloads.
+const base = args.url ?? 'http://localhost:4173/';
 const outDir = args.out ?? 'playtest-output';
 mkdirSync(outDir, { recursive: true });
 
@@ -39,7 +40,8 @@ await page.evaluate(({ skill }) => {
   };
   let wait = 0;
   let aimTarget = null;
-  let reactDelay = 0;
+  let biteStart = null;
+  let biteNeed = 0;
   const seen = new Set();
   const shot = (name) => {
     if (!seen.has(name)) {
@@ -139,13 +141,17 @@ await page.evaluate(({ skill }) => {
           else if (f.holdTime > 3) g.pointerUp(195, 500);
         } else if (f.phase === 'bite') {
           shot('fish_bite');
-          reactDelay += dt * g.timeScale;
-          const need = 0.25 + (1 - skill) * 0.9 * Math.random();
-          if (reactDelay > need) {
+          // Reaction is measured on the game clock (headless frame rates are low and uneven).
+          if (biteStart === null) {
+            biteStart = g.time;
+            biteNeed = 0.3 + (1 - skill) * 0.9 * Math.random();
+          }
+          if (g.time - biteStart > biteNeed) {
             g.pointerDown(195, 500);
-            reactDelay = 0;
+            biteStart = null;
           }
         } else if (f.phase === 'reel') {
+          biteStart = null;
           const r = f.reel;
           if (r.progress > 0.6) shot('fish_reel');
           const noise = (Math.random() - 0.5) * (1 - skill) * 0.5;

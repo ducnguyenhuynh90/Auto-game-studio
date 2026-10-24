@@ -89,13 +89,28 @@ export const ease = {
 export const clamp01 = (t: number) => Math.max(0, Math.min(1, t));
 
 // ---------- Fish ----------
+/** Optional provider of pre-rendered 3D fish images (set by main.ts when WebGL is available). */
+let iconProvider: ((species: string) => CanvasImageSource | null) | null = null;
+export function setFishIconProvider(fn: (species: string) => CanvasImageSource | null): void {
+  iconProvider = fn;
+}
+
 export function drawFish(ctx: Ctx, speciesId: string, x: number, y: number, len: number, opts: { flip?: boolean; wiggle?: number; angle?: number; alpha?: number } = {}): void {
   const sp = SPECIES_BY_ID[speciesId];
   ctx.save();
   ctx.translate(x, y);
   if (opts.angle) ctx.rotate(opts.angle);
   if (opts.flip) ctx.scale(-1, 1);
-  ctx.globalAlpha = opts.alpha ?? 1;
+  ctx.globalAlpha *= opts.alpha ?? 1;
+  const icon = iconProvider?.(speciesId);
+  if (icon) {
+    // the icon frames a 1-unit fish in 1.24 units; a gentle bob replaces the 2D tail wiggle
+    const size = len * 1.24;
+    ctx.rotate(Math.sin(opts.wiggle ?? 0) * 0.05);
+    ctx.drawImage(icon, -size / 2, -size / 2, size, size);
+    ctx.restore();
+    return;
+  }
   const w = opts.wiggle ?? 0;
   if (sp.id === 'crab') drawCrab(ctx, sp, len);
   else if (sp.id === 'squid') drawSquid(ctx, sp, len, w);
