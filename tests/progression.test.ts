@@ -98,7 +98,7 @@ describe('progression', () => {
     expect(seaLock(s, SEAS_BY_ID.lagoon)).toBeNull();
     expect(seaLock(s, SEAS_BY_ID.reef)).toMatch(/boat/i);
     s.upgrades.boat = 1;
-    expect(seaLock(s, SEAS_BY_ID.reef)).toMatch(/Home Lagoon/);
+    expect(seaLock(s, SEAS_BY_ID.reef)).toMatch(/Phú Quốc/);
     s.missionsDone = SEAS_BY_ID.lagoon.missions.map((m) => m.id);
     expect(seaLock(s, SEAS_BY_ID.reef)).toBeNull();
   });
@@ -138,7 +138,7 @@ describe('goal banner', () => {
     expect(pair.next).not.toBeNull();
     s.goalsDone = GOALS.map((g) => g.id);
     pair = goalPair(s);
-    expect(pair.current!.chapter).toBe('Home Lagoon');
+    expect(pair.current!.chapter).toBe('Phú Quốc');
     expect(pair.next!.text).toBe(SEAS_BY_ID.lagoon.missions[1].text);
     s.missionsDone = SEAS_BY_ID.lagoon.missions.map((m) => m.id);
     pair = goalPair(s);

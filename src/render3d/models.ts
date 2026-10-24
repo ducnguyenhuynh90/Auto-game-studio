@@ -779,3 +779,260 @@ export function makeSunburst(color = '#ffe6a0'): THREE.Mesh {
   geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   return new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.25, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
 }
+
+/** Small shrine on a sea rock, inspired by Phú Quốc's Dinh Cậu (a temple-lighthouse on the rocks). */
+export function makeShrine(): THREE.Group {
+  const g = new THREE.Group();
+  const rock = mesh(new THREE.DodecahedronGeometry(0.9, 0), toon('#8a8478'));
+  outline(rock, 1.03);
+  rock.scale.set(1.2, 0.7, 1);
+  rock.position.y = 0.2;
+  g.add(rock);
+  const base = mesh(new THREE.BoxGeometry(0.7, 0.5, 0.6), toon('#f2e6c8'));
+  outline(base, 1.04);
+  base.position.y = 0.95;
+  g.add(base);
+  const roof = mesh(new THREE.ConeGeometry(0.62, 0.38, 4), toon('#c0392b'));
+  outline(roof, 1.04);
+  roof.rotation.y = Math.PI / 4;
+  roof.position.y = 1.38;
+  g.add(roof);
+  const tip = mesh(new THREE.SphereGeometry(0.07, 8, 6), toon('#f2c14e', { emissive: '#5a4000' }), false);
+  tip.position.y = 1.62;
+  g.add(tip);
+  const door = mesh(new THREE.BoxGeometry(0.2, 0.3, 0.02), toon('#7a1f16'), false);
+  door.position.set(0, 0.87, 0.31);
+  g.add(door);
+  return g;
+}
+
+/** Phú Quốc-style wooden fermenting barrel (thùng gỗ), the island's signature. */
+export function makeBarrel(): THREE.Group {
+  const g = new THREE.Group();
+  const prof = [
+    [0, 0],
+    [0.36, 0],
+    [0.42, 0.25],
+    [0.44, 0.5],
+    [0.42, 0.75],
+    [0.36, 1],
+    [0, 1],
+  ].map(([r, y]) => new THREE.Vector2(r, y));
+  const body = mesh(new THREE.LatheGeometry(prof, 18), toon('#9a6a3a'));
+  outline(body, 1.04);
+  g.add(body);
+  for (const y of [0.18, 0.82]) {
+    const hoop = mesh(new THREE.TorusGeometry(0.41, 0.025, 4, 18), toon('#3a2a1a'), false);
+    hoop.rotation.x = Math.PI / 2;
+    hoop.position.y = y;
+    g.add(hoop);
+  }
+  return g;
+}
+
+// ---------- Evolution stages: one model per upgrade level ----------
+
+/** Rods evolve: bamboo → red lacquer with gold bands → carbon with a reel → master rod with a dragon head. */
+export function makeRod(level: number): THREE.Group {
+  const g = new THREE.Group();
+  const len = 2.4;
+  const colors = ['#c9a66b', '#b03a2e', '#2b2b30', '#f2ead8'];
+  const shaft = mesh(new THREE.CylinderGeometry(0.018, 0.034, len, 8), toon(colors[level] ?? colors[0]));
+  shaft.position.y = len / 2;
+  g.add(shaft);
+  if (level === 0) {
+    // bamboo nodes
+    for (let i = 1; i < 6; i++) {
+      const node = mesh(new THREE.TorusGeometry(0.03 - i * 0.002, 0.008, 4, 10), toon('#9a7a45'), false);
+      node.rotation.x = Math.PI / 2;
+      node.position.y = (i / 6) * len;
+      g.add(node);
+    }
+  } else {
+    // decorative bands
+    for (let i = 1; i <= level + 1; i++) {
+      const band = mesh(new THREE.TorusGeometry(0.032, 0.01, 4, 12), toon('#f2c14e', { emissive: '#3a2a00' }), false);
+      band.rotation.x = Math.PI / 2;
+      band.position.y = 0.25 + i * 0.16;
+      g.add(band);
+    }
+  }
+  const grip = mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.35, 10), toon(level >= 2 ? '#1a1a1a' : '#6e4423'));
+  grip.position.y = 0.18;
+  g.add(grip);
+  if (level >= 2) {
+    const reel = mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.07, 14), toon(level === 3 ? '#f2c14e' : '#8a8f96'));
+    reel.rotation.z = Math.PI / 2;
+    reel.position.set(0.08, 0.45, 0);
+    g.add(reel);
+  }
+  if (level === 3) {
+    // dragon head at the tip
+    const head = mesh(new THREE.ConeGeometry(0.07, 0.2, 6), toon('#2f8f6a'));
+    head.position.y = len + 0.08;
+    g.add(head);
+    for (const s of [-1, 1]) {
+      const horn = mesh(new THREE.ConeGeometry(0.015, 0.1, 4), toon('#f2c14e'), false);
+      horn.position.set(s * 0.04, len + 0.17, 0);
+      horn.rotation.z = -s * 0.5;
+      g.add(horn);
+    }
+  }
+  const tip = new THREE.Object3D();
+  tip.name = 'tip';
+  tip.position.y = len;
+  g.add(tip);
+  return g;
+}
+
+export function makeSpool(level: number): THREE.Group {
+  const g = new THREE.Group();
+  const colors = ['#c9b48a', '#f4f0e6', '#3aa0d9', '#e0a21a'];
+  const core = mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.36, 20), toon(colors[level]));
+  outline(core, 1.04);
+  g.add(core);
+  for (const y of [-0.21, 0.21]) {
+    const rim = mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.06, 20), toon('#6e4423'));
+    rim.position.y = y;
+    g.add(rim);
+  }
+  // more line wound = longer reach
+  for (let i = 0; i < level + 1; i++) {
+    const wrap = mesh(new THREE.TorusGeometry(0.33 + i * 0.025, 0.015, 4, 20), toon(colors[level]), false);
+    wrap.rotation.x = Math.PI / 2;
+    wrap.position.y = -0.12 + i * 0.08;
+    g.add(wrap);
+  }
+  g.rotation.x = 0.5;
+  return g;
+}
+
+export function makeHookModel(level: number): THREE.Group {
+  const g = new THREE.Group();
+  const colors = ['#8a7a66', '#6b6f75', '#c9d1d9', '#f2c14e'];
+  const mat = toon(colors[level], level === 3 ? { emissive: '#4a3000' } : {});
+  const shank = mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.8, 8), mat);
+  shank.position.y = 0.4;
+  g.add(shank);
+  const bend = mesh(new THREE.TorusGeometry(0.2, 0.035, 8, 16, Math.PI * (level === 0 ? 0.6 : 1.1)), mat);
+  bend.rotation.z = Math.PI;
+  bend.position.set(0.2, 0, 0);
+  g.add(bend);
+  const eye = mesh(new THREE.TorusGeometry(0.07, 0.025, 6, 12), mat);
+  eye.position.y = 0.85;
+  g.add(eye);
+  if (level >= 1) {
+    const barb = mesh(new THREE.ConeGeometry(0.04, 0.14, 6), mat);
+    barb.position.set(0.4, 0.07, 0);
+    g.add(barb);
+  }
+  if (level === 3) {
+    for (let i = 0; i < 3; i++) {
+      const scale = mesh(new THREE.SphereGeometry(0.05, 6, 4), toon('#2f8f6a'), false);
+      scale.position.set(0, 0.25 + i * 0.18, 0.03);
+      g.add(scale);
+    }
+  }
+  return g;
+}
+
+export function makeBaitModel(level: number): THREE.Group {
+  const g = new THREE.Group();
+  if (level === 0) {
+    const bread = mesh(new THREE.BoxGeometry(0.6, 0.35, 0.4), toon('#e8c88a'));
+    outline(bread, 1.05);
+    g.add(bread);
+    const crust = mesh(new THREE.BoxGeometry(0.62, 0.08, 0.42), toon('#b07a3a'), false);
+    crust.position.y = 0.17;
+    g.add(crust);
+  } else if (level === 1) {
+    for (let i = 0; i < 6; i++) {
+      const seg = mesh(new THREE.SphereGeometry(0.11 - i * 0.01, 10, 8), toon('#f08a5a'));
+      const a = (i / 6) * 2.2;
+      seg.position.set(Math.cos(a) * 0.3, Math.sin(a) * 0.3, 0);
+      g.add(seg);
+    }
+  } else if (level === 2) {
+    for (let i = 0; i < 3; i++) {
+      const strip = mesh(new THREE.BoxGeometry(0.12, 0.6, 0.05), toon('#f4e0e8'));
+      outline(strip, 1.05);
+      strip.position.x = (i - 1) * 0.18;
+      strip.rotation.z = (i - 1) * 0.25;
+      g.add(strip);
+    }
+  } else {
+    // glow worms
+    for (let i = 0; i < 3; i++) {
+      const worm = mesh(new THREE.CapsuleGeometry(0.06, 0.4, 4, 8), toon('#a8ff9a', { emissive: '#3aa040' }));
+      worm.position.x = (i - 1) * 0.2;
+      worm.rotation.z = Math.sin(i * 2) * 0.6;
+      g.add(worm);
+    }
+    g.add(new THREE.PointLight(0xa8ff9a, 1.2, 2));
+  }
+  return g;
+}
+
+/** A tiny village diorama for each village stage (see core/evolution.ts VILLAGE_STAGES). */
+export function makeVillageDiorama(stage: number): THREE.Group {
+  const g = new THREE.Group();
+  const sand = mesh(new THREE.CylinderGeometry(2.2, 2.4, 0.4, 20), toon('#f0d9a6'), false);
+  g.add(sand);
+  const grass = mesh(new THREE.CylinderGeometry(1.9, 2.0, 0.2, 20), toon('#8cc265'), false);
+  grass.position.y = 0.2;
+  g.add(grass);
+  const house = makeHouse(stage >= 2 ? 6 : 1);
+  house.scale.setScalar(stage >= 2 ? 0.7 : 0.6);
+  house.position.set(-0.6, 0.3, -0.5);
+  g.add(house);
+  const jarCount = [1, 2, 3, 4][stage];
+  for (let i = 0; i < jarCount; i++) {
+    const j = makeJar();
+    j.group.scale.setScalar(0.35);
+    j.group.position.set(-0.6 + i * 0.4, 0.3, 1.0);
+    g.add(j.group);
+  }
+  const palm = makePalm(1.6);
+  palm.position.set(1.4, 0.3, -0.6);
+  g.add(palm);
+  if (stage >= 1) {
+    const stall = makeMarket(stage >= 3 ? 2 : stage >= 2 ? 1 : 0);
+    stall.scale.setScalar(0.55);
+    stall.position.set(1.0, 0.3, 0.2);
+    g.add(stall);
+    for (let i = 0; i < 5; i++) {
+      const l = makeLantern(i % 2 ? '#f2b233' : '#e8443a');
+      l.scale.setScalar(0.7);
+      l.position.set(-1.4 + i * 0.7, 1.7, -1.2);
+      g.add(l);
+    }
+  }
+  if (stage >= 2) {
+    for (let i = 0; i < 2; i++) {
+      const b = makeBarrel();
+      b.scale.setScalar(0.4);
+      b.position.set(-1.5 + i * 0.35, 0.3, 0.4);
+      g.add(b);
+    }
+    const boat = makeBoat(2);
+    boat.scale.setScalar(0.4);
+    boat.position.set(1.6, -0.05, 1.6);
+    g.add(boat);
+  }
+  if (stage >= 3) {
+    const shrine = makeShrine();
+    shrine.scale.setScalar(0.45);
+    shrine.position.set(-1.7, 0.1, -1.6);
+    g.add(shrine);
+    // festival bunting across the village
+    const colors = ['#e8443a', '#f2c14e', '#3aa0d9', '#5fae52', '#a35bd6'];
+    for (let i = 0; i < 9; i++) {
+      const tri = mesh(new THREE.ConeGeometry(0.09, 0.2, 3), toon(colors[i % colors.length]), false);
+      tri.rotation.z = Math.PI;
+      const u = i / 8;
+      tri.position.set(-1.6 + u * 3.2, 2.2 - Math.sin(u * Math.PI) * 0.35, 0.2);
+      g.add(tri);
+    }
+  }
+  return g;
+}

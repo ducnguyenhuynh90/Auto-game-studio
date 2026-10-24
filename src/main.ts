@@ -6,9 +6,10 @@ import { Game } from './game';
 import { H, W } from './render/draw';
 import { World } from './render3d/world';
 import { FpsGovernor, detectQuality, loadAutoQuality, loadQualitySetting, saveAutoQuality, saveQualitySetting, type Quality, type QualitySetting } from './render3d/quality';
-import { characterPortrait, fishIcon } from './render3d/icons';
+import { characterPortrait, fishIcon, stagePreview } from './render3d/icons';
+import type { Track } from './core/evolution';
 import type { CharacterId } from './core/story';
-import { setFishIconProvider, setPortraitProvider } from './render/draw';
+import { setFishIconProvider, setPortraitProvider, setStageProvider } from './render/draw';
 import { FishingScene } from './scenes/fishing';
 import { VillageScene } from './scenes/village';
 import { MapScene } from './scenes/map';
@@ -53,6 +54,7 @@ const governor = new FpsGovernor(() => {
 });
 setFishIconProvider(fishIcon);
 setPortraitProvider((id) => characterPortrait(id as CharacterId));
+setStageProvider((track, level) => stagePreview(track as Track, level));
 if (params.has('speed')) game.timeScale = Number(params.get('speed'));
 
 game.goVillage = () => game.setScene(new VillageScene(game));

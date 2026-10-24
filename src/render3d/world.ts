@@ -5,6 +5,7 @@ import { RARITY_COLOR, RECIPES_BY_ID, SPECIES_BY_ID, TIERS, tierFor, type SeaId 
 import { hasRelic } from '../core/items';
 import { SEAS_BY_ID, seaLock } from '../core/seas';
 import { agingLevel, villageLevel, type GameState } from '../core/state';
+import { villageStage } from '../core/evolution';
 import { H, W } from '../render/draw';
 import type { Game } from '../game';
 import type { FishingScene } from '../scenes/fishing';
@@ -18,6 +19,9 @@ import {
   makeFisherman,
   makeCharacter,
   makeTurtle,
+  makeShrine,
+  makeRod,
+  makeBarrel,
   makeHouse,
   makeJar,
   makeLantern,
@@ -152,7 +156,8 @@ class FishingRig {
   private turtle: THREE.Group | null = null;
   private fisher = makeFisherman();
   private rod = new THREE.Group();
-  private rodTip = new THREE.Object3D();
+  private rodTip: THREE.Object3D = new THREE.Object3D();
+  private rodLevel = -1;
   private line: THREE.Line;
   private bobber = new THREE.Group();
   private reticle: THREE.Mesh;
@@ -199,11 +204,7 @@ class FishingRig {
     this.fisher.position.set(0.15, 0.2, 0.1);
     this.fisher.rotation.y = Math.PI + 0.25;
     this.boat.add(this.fisher);
-    const rodMesh = mesh(new THREE.CylinderGeometry(0.018, 0.03, 2.4, 6), toon('#5a3a1a'));
-    rodMesh.position.y = 1.2;
-    this.rod.add(rodMesh);
-    this.rodTip.position.y = 2.4;
-    this.rod.add(this.rodTip);
+    this.setRod(0);
     this.rod.position.set(0.4, 0.8, -0.1);
     this.boat.add(this.rod);
     // line
@@ -243,23 +244,30 @@ class FishingRig {
       this.root.add(g);
       return g;
     };
-    // Lagoon: reeds and floating leaves
+    // Phú Quốc: palm sandbars, fishing buoys and the shrine rock on the horizon
     const lagoon = group('lagoon');
     sides.forEach(([x, z], i) => {
-      const clump = new THREE.Group();
-      for (let k = 0; k < 5; k++) {
-        const reed = mesh(new THREE.CylinderGeometry(0.03, 0.05, 1 + (k % 3) * 0.35, 5), toon(k % 2 ? '#6aa84f' : '#7dbb5a'), false);
-        reed.position.set((k - 2) * 0.14, 0.4, (k % 2) * 0.12);
-        reed.rotation.z = (k - 2) * 0.12;
-        clump.add(reed);
+      if (i % 2 === 0) {
+        const bar = mesh(new THREE.CylinderGeometry(0.7, 0.9, 0.2, 12), toon('#f0d9a6'), false);
+        bar.scale.z = 0.6;
+        bar.position.set(x * 1.05, 0, z);
+        lagoon.add(bar);
+        const p = makePalm(1.2 + (i % 3) * 0.3);
+        p.position.set(x * 1.05, 0.1, z);
+        lagoon.add(p);
+      } else {
+        for (let k = 0; k < 2; k++) {
+          const buoy = mesh(new THREE.SphereGeometry(0.13, 10, 8), toon(k ? '#ffffff' : '#e74c3c'), false);
+          buoy.position.set(x * (0.8 + k * 0.1), 0.06, z - k * 0.8);
+          buoy.name = 'buoy';
+          lagoon.add(buoy);
+        }
       }
-      clump.position.set(x, 0, z);
-      lagoon.add(clump);
-      const pad = mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.03, 12, 1, false, 0.4, Math.PI * 1.8), toon('#5fae52'), false);
-      pad.position.set(x * 0.85, 0.05, z - 1.4);
-      pad.rotation.y = i;
-      lagoon.add(pad);
     });
+    const shrine = makeShrine();
+    shrine.position.set(5, 0, -24);
+    shrine.scale.setScalar(1.6);
+    lagoon.add(shrine);
     // Reef: coral heads breaking the surface, plus rocks
     const reef = group('reef');
     const coral = ['#ff7a8a', '#ffb347', '#c77dff', '#ff6f61'];
@@ -346,6 +354,16 @@ class FishingRig {
     return out;
   }
 
+  /** The rod in Lan's hands follows the rod upgrade (bamboo → lacquer → carbon → dragon). */
+  private setRod(level: number): void {
+    if (level === this.rodLevel) return;
+    this.rodLevel = level;
+    for (const c of [...this.rod.children]) discard(c);
+    const r = makeRod(level);
+    this.rod.add(r);
+    this.rodTip = r.getObjectByName('tip')!;
+  }
+
   private setBoat(kind: number): void {
     if (kind === this.boatKind) return;
     this.boatKind = kind;
@@ -371,9 +389,12 @@ class FishingRig {
       for (const [id, g] of this.props) g.visible = id === f.sea;
       this.islands.visible = f.sea !== 'trench';
     }
+    const home = this.props.get('lagoon');
+    if (home?.visible) for (const b of home.children) if (b.name === 'buoy') b.position.y = 0.06 + Math.sin(t * 2 + b.position.z) * 0.04;
     const jellies = this.props.get('trench');
     if (jellies?.visible) for (const j of jellies.children) if (j.name === 'jelly') j.position.y = -0.05 + Math.sin(t * 1.5 + j.position.x) * 0.12;
     this.setBoat(game.state.upgrades.boat);
+    this.setRod(game.state.upgrades.rod);
     // Rùa rides along once the Lagoon story is done
     if (hasRelic(game.state.relics, 'turtle') && !this.turtle) {
       this.turtle = makeTurtle();
@@ -617,6 +638,20 @@ class VillageRig {
     this.fisher.position.set(-1.6, 0.2, 0.6);
     this.fisher.scale.setScalar(0.85);
     this.root.add(this.fisher);
+    // Phú Quốc landmarks: the shrine rock by the dock, wooden mắm barrels beside the house
+    const shrine = makeShrine();
+    shrine.position.set(-2.3, -0.2, -6.6);
+    shrine.scale.setScalar(0.9);
+    this.root.add(shrine);
+    for (const [x, z] of [
+      [-3.0, -1.4],
+      [-2.55, -1.15],
+    ] as const) {
+      const b = makeBarrel();
+      b.position.set(x, 0.15, z);
+      b.scale.setScalar(0.55);
+      this.root.add(b);
+    }
     this.root.add(this.dyn);
     this.root.add(this.shelfBottles);
   }
@@ -624,11 +659,13 @@ class VillageRig {
   /** Rebuild the parts of the village that depend on upgrades. */
   private rebuild(s: GameState): void {
     const lvl = villageLevel(s);
-    const key = [s.jars.length, s.upgrades.boat, s.upgrades.salt, s.upgrades.stall, lvl >= 6, lvl >= 3 ? lvl : 0].join(',');
+    // the village visibly evolves through the same four stages as its roadmap (core/evolution.ts)
+    const stage = villageStage(s);
+    const key = [s.jars.length, s.upgrades.boat, s.upgrades.salt, s.upgrades.stall, stage, lvl].join(',');
     if (key === this.key) return;
     this.key = key;
     for (const c of [...this.dyn.children]) discard(c);
-    const house = makeHouse(lvl);
+    const house = makeHouse(stage >= 2 ? 6 : 1);
     house.position.set(-1.7, 0.15, -2.9);
     house.rotation.y = 0.25;
     this.dyn.add(house);
@@ -664,7 +701,31 @@ class VillageRig {
     }
     // lantern string grows with prosperity
     this.lanterns = [];
-    if (lvl >= 3) {
+    if (stage >= 3) {
+      // Pearl of Phú Quốc: a second house and festival bunting
+      const h2 = makeHouse(6);
+      h2.scale.setScalar(0.75);
+      h2.position.set(2.9, 0.15, 3.4);
+      h2.rotation.y = -0.6;
+      this.dyn.add(h2);
+      const colors = ['#e8443a', '#f2c14e', '#3aa0d9', '#5fae52', '#a35bd6'];
+      for (let i = 0; i < 12; i++) {
+        const tri = mesh(new THREE.ConeGeometry(0.12, 0.26, 3), toon(colors[i % colors.length]), false);
+        tri.rotation.z = Math.PI;
+        const u = i / 11;
+        tri.position.set(-3 + u * 6, 3.0 - Math.sin(u * Math.PI) * 0.5, 0.6);
+        this.dyn.add(tri);
+      }
+    }
+    if (stage >= 2) {
+      // Busy Harbour: a second boat at the dock
+      const extra = makeBoat(1);
+      extra.scale.setScalar(0.6);
+      extra.rotation.y = Math.PI / 2;
+      extra.position.set(3.6, -0.2, -5.4);
+      this.dyn.add(extra);
+    }
+    if (stage >= 1) {
       const n = Math.min(9, lvl + 1);
       for (let i = 0; i < n; i++) {
         const u = (i + 1) / (n + 1);
@@ -874,6 +935,10 @@ class MapRig {
       h.scale.setScalar(0.5);
       h.position.set(-0.3, 0.3, 0);
       g.add(h);
+      const sh = makeShrine();
+      sh.scale.setScalar(0.35);
+      sh.position.set(0.9, 0.1, 0.8);
+      g.add(sh);
       const p = makePalm(1.4);
       p.position.set(0.7, 0.3, 0.2);
       g.add(p);

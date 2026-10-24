@@ -104,6 +104,15 @@ export function portrait(id: string): CanvasImageSource | null {
   return portraitProvider?.(id) ?? null;
 }
 
+/** Optional provider of 3D evolution-stage previews (track, level). */
+let stageProvider: ((track: string, level: number) => CanvasImageSource | null) | null = null;
+export function setStageProvider(fn: (track: string, level: number) => CanvasImageSource | null): void {
+  stageProvider = fn;
+}
+export function stageImage(track: string, level: number): CanvasImageSource | null {
+  return stageProvider?.(track, level) ?? null;
+}
+
 export function drawFish(ctx: Ctx, speciesId: string, x: number, y: number, len: number, opts: { flip?: boolean; wiggle?: number; angle?: number; alpha?: number } = {}): void {
   const sp = SPECIES_BY_ID[speciesId];
   ctx.save();

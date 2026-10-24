@@ -43,3 +43,20 @@
   next jar). Trip gadgets are used from the item bar while aiming; Magic Salt is used on the jar screen.
 - **Relics:** Turtle Buddy (+1 cast), Ancient Compass (rares glow), Dragon Jar Glaze (2× aging),
   Storm Kite (½ waits), Heart of the Sea (+3°N every batch).
+
+## Evolution roadmaps (build 2.5)
+- Every upgrade line (Rod, Line, Hook, Bait, Ship, Jar Yard, Salt House, Market Stall) and the **Village**
+  has a roadmap: a climbing road of stages, each with its own 3D model, name and stat
+  (`src/core/evolution.ts`, `src/scenes/evolution.ts`). Done = green check, NOW = glowing gold,
+  next = Evolve button, future = dark "?" silhouette with its name, stat and price as a goal to aim for.
+- Open it by tapping any Market card (each shows a 3D thumbnail of its next stage) or the "Your Village" card.
+- **Upgrades show in play:** the rod in Lan's hands changes per level (bamboo → red lacquer → carbon with
+  reel → master rod with a dragon head); the ship model per level; the village evolves through
+  Fishing Hamlet → Mắm Village (lanterns) → Busy Harbour (big house, second boat) → Pearl of Phú Quốc
+  (second house, festival bunting).
+
+## Phú Quốc (island 1)
+- The first sea is **Phú Quốc**, the Pearl Island (Đảo Ngọc): Vietnam's most famous fish-sauce island
+  (protected-origin nước mắm from cá cơm, aged in wooden barrels). In game: Lan's village sits under a
+  small shrine on a sea rock (inspired by Dinh Cậu), wooden mắm barrels stand by the house, and the
+  sea has palm sandbars and fishing buoys. The sea id stays `lagoon` for save compatibility.

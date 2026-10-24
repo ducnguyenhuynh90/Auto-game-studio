@@ -2,9 +2,11 @@
 import { analytics } from '../core/analytics';
 import { SPECIES_BY_ID, UPGRADES, UPGRADES_BY_ID, tierFor, type UpgradeId } from '../core/data';
 import { goalPair } from '../core/goals';
+import { VILLAGE_STAGES, villageStage } from '../core/evolution';
+import { EvolutionOverlay } from './evolution';
 import { buyUpgrade, productPrice, sellFish, sellProduct, upgradeCost } from '../core/state';
 import { sfx } from '../render/audio';
-import { COLORS, H, W, clamp01, drawBottle, drawCoin, drawPointer, ease, outlinedText, panel, rr, text, type Ctx } from '../render/draw';
+import { COLORS, H, W, clamp01, stageImage, drawBottle, drawCoin, drawPointer, ease, outlinedText, panel, rr, text, type Ctx } from '../render/draw';
 import type { Game, Scene } from '../game';
 
 export class MarketOverlay implements Scene {
@@ -124,15 +126,20 @@ export class MarketOverlay implements Scene {
       const lvl = s.upgrades[u.id];
       const next = u.levels[lvl + 1];
       const cost = upgradeCost(s, u.id);
+      // tapping the card (not the price) opens this item's evolution roadmap
+      this.game.hitArea(`evo_${u.id}`, 26, y, W - 52, 76, () => this.game.push(new EvolutionOverlay(this.game, u.id)));
+      const thumb = stageImage(u.id, Math.min(lvl + 1, u.levels.length - 1));
       ctx.fillStyle = '#fff';
       rr(ctx, 26, y, W - 52, 76, 14);
       ctx.fill();
       ctx.strokeStyle = u.id === goalUp ? COLORS.accent : 'rgba(43,33,24,0.25)';
       ctx.lineWidth = u.id === goalUp ? 3 : 2;
       ctx.stroke();
+      if (thumb) ctx.drawImage(thumb, W - 196, y + 8, 60, 60);
       text(ctx, `${u.name}: ${u.levels[lvl].name}`, 40, y + 16, 11, 'rgba(43,33,24,0.55)', 'left', 800);
+      text(ctx, 'Roadmap ›', W - 166, y + 70, 9, '#3a8fd9', 'center', 900);
       text(ctx, next ? `→ ${next.name}` : 'Maxed out!', 40, y + 34, 16, COLORS.ink, 'left', 900);
-      text(ctx, fit(ctx, next ? next.desc : u.levels[lvl].desc, W - 52 - 150, '600 11px sans-serif'), 40, y + 54, 11, 'rgba(43,33,24,0.7)', 'left', 600);
+      text(ctx, fit(ctx, next ? next.desc : u.levels[lvl].desc, W - 52 - 210, '600 11px sans-serif'), 40, y + 54, 11, 'rgba(43,33,24,0.7)', 'left', 600);
       for (let p = 0; p < u.levels.length - 1; p++) {
         ctx.fillStyle = p < lvl ? COLORS.accent : 'rgba(43,33,24,0.15)';
         rr(ctx, 40 + p * 22, y + 64, 18, 6, 3);
@@ -143,27 +150,27 @@ export class MarketOverlay implements Scene {
         this.game.button(ctx, `up_${u.id}`, W - 136, y + 14, 100, 48, String(cost), () => this.buy(u.id, cost, y), { coin: true, disabled: !afford, color: COLORS.accent, size: 19, pulse: u.id === goalUp && afford });
       }
     });
+    if (this.tab === 'village') {
+      const y = 396 + 3 * 82;
+      const vs = villageStage(s);
+      this.game.hitArea('evo_village', 26, y, W - 52, 76, () => this.game.push(new EvolutionOverlay(this.game, 'village')));
+      ctx.fillStyle = '#fff6dd';
+      rr(ctx, 26, y, W - 52, 76, 14);
+      ctx.fill();
+      ctx.strokeStyle = COLORS.gold;
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      const img = stageImage('village', vs);
+      if (img) ctx.drawImage(img, 32, y + 4, 68, 68);
+      text(ctx, 'YOUR VILLAGE', 110, y + 18, 11, 'rgba(43,33,24,0.55)', 'left', 900);
+      text(ctx, VILLAGE_STAGES[vs].name, 110, y + 38, 17, COLORS.ink, 'left', 900);
+      text(ctx, `${VILLAGE_STAGES[vs].local} · stage ${vs + 1}/${VILLAGE_STAGES.length}`, 110, y + 58, 11, 'rgba(43,33,24,0.7)', 'left', 700);
+      text(ctx, 'Roadmap ›', W - 40, y + 38, 13, '#3a8fd9', 'right', 900);
+    }
   }
 
   private buy(id: UpgradeId, cost: number, y: number): void {
-    const s = this.game.state;
-    if (!buyUpgrade(s, id)) return;
-    const u = UPGRADES_BY_ID[id];
-    sfx.upgrade();
-    this.game.shake = 0.25;
-    this.game.particles.burst(W - 88, y + 38, 30, [COLORS.gold, COLORS.accent, '#fff'], { speed: 260, kind: 'confetti', size: 7, g: 400 });
-    analytics.track('upgrade', { id, level: s.upgrades[id], cost });
-    analytics.funnelStep('first_upgrade', { id });
-    const sub: Partial<Record<UpgradeId, string>> = {
-      boat: 'New seas on the Sea Chart',
-      jars: 'A new jar is in your yard',
-      line: 'You can cast into deeper water',
-      bait: 'Rare fish bite more often',
-      hook: 'Longer bite window, tougher line',
-      rod: 'Wider green zone when reeling',
-    };
-    this.game.toast(`${u.levels[s.upgrades[id]].name}!`, COLORS.good, sub[id]);
-    this.game.commit();
+    purchaseUpgrade(this.game, id, cost, W - 88, y + 38);
   }
 
   /** The upgrade the current goal asks for, so it can be highlighted. */
@@ -189,4 +196,27 @@ function fit(ctx: Ctx, s: string, maxW: number, font: string): string {
   let t = s;
   while (t.length > 3 && ctx.measureText(t + '…').width > maxW) t = t.slice(0, -1);
   return t.trimEnd() + '…';
+}
+
+/** Buys an upgrade with the full celebration (shared by the Market and the evolution roadmap). */
+export function purchaseUpgrade(game: Game, id: UpgradeId, cost: number, x: number, y: number): boolean {
+  const s = game.state;
+  if (!buyUpgrade(s, id)) return false;
+  const u = UPGRADES_BY_ID[id];
+  sfx.upgrade();
+  game.shake = 0.25;
+  game.particles.burst(x, y, 30, [COLORS.gold, COLORS.accent, '#fff'], { speed: 260, kind: 'confetti', size: 7, g: 400 });
+  analytics.track('upgrade', { id, level: s.upgrades[id], cost });
+  analytics.funnelStep('first_upgrade', { id });
+  const sub: Partial<Record<UpgradeId, string>> = {
+    boat: 'New seas on the Sea Chart',
+    jars: 'A new jar is in your yard',
+    line: 'You can cast into deeper water',
+    bait: 'Rare fish bite more often',
+    hook: 'Longer bite window, tougher line',
+    rod: 'Wider green zone when reeling',
+  };
+  game.toast(`Evolved: ${u.levels[s.upgrades[id]].name}!`, COLORS.good, sub[id]);
+  game.commit();
+  return true;
 }

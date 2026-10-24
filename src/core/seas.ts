@@ -37,9 +37,9 @@ const cap = (v: number, t: number): [number, number] => [Math.min(v, t), t];
 export const SEAS: Sea[] = [
   {
     id: 'lagoon',
-    name: 'Home Lagoon',
-    local: 'Đầm nhà',
-    blurb: 'Calm water by the village. Anchovies for mắm.',
+    name: 'Phú Quốc',
+    local: 'Đảo Ngọc · the Pearl Island',
+    blurb: 'Home. Cá cơm here make the famous Phú Quốc mắm.',
     boat: 0,
     gadgets: ['sonar', 'salt'],
     relic: 'turtle',
@@ -47,7 +47,7 @@ export const SEAS: Sea[] = [
     missions: [
       { id: 'l_good', text: 'Land 3 fresh catches (★★+)', progress: (s) => cap(seaStat(s, 'lagoon', 'goods'), 3), reward: { coins: 15, xp: 40 } },
       { id: 'l_sardine', text: 'Catch 5 Sardines', progress: (s) => cap(caught(s, 'sardine'), 5), reward: { coins: 20, xp: 40, gadget: 'sonar' } },
-      { id: 'l_fine', text: 'Brew a Fine sauce (22°N+)', progress: (s) => cap(bestDegrees(s) >= 22 ? 1 : 0, 1), reward: { coins: 30, xp: 60 } },
+      { id: 'l_fine', text: 'Brew a Fine Phú Quốc sauce (22°N+)', progress: (s) => cap(bestDegrees(s) >= 22 ? 1 : 0, 1), reward: { coins: 30, xp: 60 } },
       { id: 'l_mackerel', text: 'Catch a deep-water Mackerel', progress: (s) => cap(caught(s, 'mackerel'), 1), reward: { coins: 40, xp: 80, gadget: 'salt' } },
     ],
   },

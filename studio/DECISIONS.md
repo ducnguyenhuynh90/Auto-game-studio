@@ -76,3 +76,13 @@ built, but as ONE connected system rather than separate features:
   shrinks if players skip it (EXP-004).
 - Cultural care: real proverb, the carp/Dragon Gate legend and mắm tôm are used respectfully. A native
   Vietnamese speaker should review the lines before public launch (backlog).
+
+## D-010 · 2026-10-24 · Founder request: evolution roadmaps + Phú Quốc as island 1
+- Roadmaps make upgrade goals visible ahead of time (named future stages with prices), turning
+  "buy +1" into "work toward the Master Rod". The stats are computed from the real balance numbers.
+- Upgrades now change the models in play (rod, ship, village stages), so progress is visible, not abstract.
+- Phú Quốc fits the product exactly: it is Vietnam's most famous fish-sauce origin. Only island 1 was
+  renamed, as asked. Option for later (founder call): map the other seas to real places along the coast
+  (An Thới coral reefs, Mekong/Cà Mau mangroves, Hạ Long for Dragon Bay; keep the Abyss fictional to
+  avoid sensitive maritime areas).
+- A national flag was deliberately not used in the village dioramas (festival bunting instead).

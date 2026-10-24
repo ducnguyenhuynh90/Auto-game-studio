@@ -30,7 +30,7 @@ export interface Species {
 const ALL: SeaId[] = ['lagoon', 'reef', 'delta', 'bay', 'trench'];
 
 export const SPECIES: Species[] = [
-  // Home Lagoon
+  // Phú Quốc (sea id 'lagoon' kept for save compatibility)
   { id: 'anchovy', name: 'Anchovy', local: 'Cá cơm', rarity: 1, seas: ['lagoon', 'reef', 'bay'], weight: 40, size: [7, 12], sauce: 16, raw: 3, difficulty: 0.1, color: '#8fb8c9', belly: '#e6f2f5', fin: '#5f8ea3', depth: 0.25 },
   { id: 'sardine', name: 'Sardine', local: 'Cá trích', rarity: 1, seas: ['lagoon'], weight: 26, size: [12, 20], sauce: 13, raw: 4, difficulty: 0.18, color: '#6f9bc4', belly: '#dfe9f3', fin: '#4a7499', depth: 0.42 },
   { id: 'scad', name: 'Scad', local: 'Cá nục', rarity: 2, seas: ['lagoon', 'reef'], weight: 14, size: [18, 28], sauce: 12, raw: 8, difficulty: 0.3, color: '#7d8fa8', belly: '#e8e2cf', fin: '#d9b44a', depth: 0.55 },
@@ -169,7 +169,7 @@ export const UPGRADES: UpgradeDef[] = [
     kind: 'gear',
     name: 'Boat',
     levels: [
-      { name: 'Basket Boat', cost: 0, desc: 'A round thúng chai. Lagoon only.' },
+      { name: 'Basket Boat', cost: 0, desc: 'A round thúng chai. Phú Quốc waters only.' },
       { name: 'Wooden Boat', cost: 220, desc: 'Sail to the Coral Reef.' },
       { name: 'Junk Sailboat', cost: 1500, desc: 'Sail to the Mangrove Delta and Dragon Bay.' },
       { name: 'Iron Trawler', cost: 12000, desc: 'Brave the Abyss.' },

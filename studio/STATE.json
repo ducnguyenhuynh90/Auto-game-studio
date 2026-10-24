@@ -14,7 +14,8 @@
     "[SIM] Browser bot on the real UI: 10 trips, lagoon story → Turtle Buddy relic → sailed to the Reef, 6 missions, no errors.",
     "Build 2.1: first reveal shows only 'Sell' until the first sale, market hand pointer, js_error telemetry, analyzer reports errors, seas fished, tangles and stored-not-sold.",
     "Build 2.2: quality tiers + FPS governor (weak-device proxy 2-3 → 15-23 fps), service worker offline cache + split three.js chunk + PWA manifest, accounts: claude.ai cloud save live in the playtest; Google/Apple/Facebook login built on Firebase and dormant until the founder creates the project (docs/TECHNICAL.md has the steps).",
-    "Build 2.4 (founder request): Pixar-structured story. Hero Lan, mentor Bà Năm, sidekick Rùa, rival Mr. Tốc, guides Chú Tư and Cô Hạnh. 12 skippable Story Spine scenes across 5 chapters, a giver and reason for every mission, 3D portraits, Rùa rides the boat. docs/STORY.md is the bible; EXP-004 measures skip rate."
+    "Build 2.4 (founder request): Pixar-structured story. Hero Lan, mentor Bà Năm, sidekick Rùa, rival Mr. Tốc, guides Chú Tư and Cô Hạnh. 12 skippable Story Spine scenes across 5 chapters, a giver and reason for every mission, 3D portraits, Rùa rides the boat. docs/STORY.md is the bible; EXP-004 measures skip rate.",
+    "Build 2.5 (founder request): evolution roadmaps with 3D stage models for all 8 upgrade lines + the village (4 named stages); the rod/ship/village visibly evolve in play; island 1 is now Phú Quốc (shrine rock, wooden barrels, sandbars)."
   ],
   "constraints": [
     "No real-money gambling, no randomized paid rewards (needs founder/legal approval).",

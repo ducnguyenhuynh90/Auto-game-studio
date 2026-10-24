@@ -11,7 +11,10 @@ what the player feels in their thumbs. (Pixar: theme should come from the world,
 
 ## 1 · The hero
 
-**Lan, 14**, the last kid in a fading fishing village on Vietnam's central coast.
+**Lan, 14**, the last kid in a fading fishing village on **Phú Quốc**, the Pearl Island (Đảo Ngọc)
+in the Gulf of Thailand. Phú Quốc is Vietnam's most famous fish-sauce island: its nước mắm, made from
+local cá cơm (anchovy) and aged in big wooden barrels, has protected-origin status. Her village is a small
+fishing hamlet on the island's coast, below a little shrine on a sea rock.
 
 | Pixar character tool | Lan |
 |---|---|
@@ -30,7 +33,7 @@ Gameplay mirror: the overcast **tangle** is Lan's flaw made tactile; **aging sta
 | Character | Role | Want / truth | Details |
 |---|---|---|---|
 | **Bà Năm** (Grandma Năm) | Mentor | The village's fish-sauce master. Her **memory is fading**; she remembers through *taste*. Each relic Lan brings back unlocks a memory of the lost family recipe. | Purple áo bà ba, grey bun, bamboo ladle. Speaks in proverbs. Lives in the village (the 3D villager). |
-| **Rùa** (Old Turtle) | Sidekick | Ancient sea turtle who joins Lan's boat after the Lagoon story (the Turtle Buddy relic). Never speaks; blinks. Secretly the guardian of the five seas. | Mossy shell, a barnacle "crown". Comic timing: slow blink after Lan rushes. |
+| **Rùa** (Old Turtle) | Sidekick | Ancient sea turtle who joins Lan's boat after the Phú Quốc story (the Turtle Buddy relic). Never speaks; blinks. Secretly the guardian of the five seas. | Mossy shell, a barnacle "crown". Comic timing: slow blink after Lan rushes. |
 | **Ông Tốc** (Mr. Tốc, "Speed") | Rival / mirror | Owner of **InstaMắm Co.**, factory fish sauce in 3 minutes. Wants to buy the village jars. Not evil: grew up poor and believes speed is the only way out. **He is Lan's flaw grown up.** | Shiny suit, sunglasses, a stopwatch he checks constantly. |
 | **Chú Tư** (Uncle Tư) | Delta guide | Prawn fisherman who loves mắm tôm and jokes about its smell. Teaches humility: good things can smell bad. | Muddy boots, laughs at his own jokes. |
 | **Cô Hạnh** (Ms. Hạnh) | Dragon Bay guide | Lighthouse keeper who tells the legend of **cá chép hóa rồng**, the carp that leaps the Dragon Gate and becomes a dragon. | Lantern, calm voice, knows every tide. |
@@ -39,7 +42,7 @@ Gameplay mirror: the overcast **tangle** is Lan's flaw made tactile; **aging sta
 
 | Beat | Story | When it plays |
 |---|---|---|
-| **Once upon a time…** | …in a little fishing village, Lan helped her grandmother make fish sauce the slow, old way. | Intro scene (first launch) |
+| **Once upon a time…** | …in a little fishing village on Phú Quốc, Lan helped her grandmother make fish sauce the slow, old way. | Intro scene (first launch) |
 | **Every day…** | …Lan fished at dawn and dreamed of faster things: speedboats, the city, quick money. | Intro scene |
 | **One day…** | …a storm smashed the jar yard. Bà Năm's memory slipped, and the family's legendary recipe was lost. And Mr. Tốc arrived with an offer to buy everything. | Intro scene |
 | **Because of that…** | …Lan promised to rebuild the jar yard and find the recipe again, before the village is sold. | Tutorial (first sale, first gear) |
@@ -52,7 +55,7 @@ Gameplay mirror: the overcast **tangle** is Lan's flaw made tactile; **aging sta
 | Chapter | Title | Lesson | Mentor | Memory unlocked (relic) |
 |---|---|---|---|---|
 | 0 · Tutorial | *The Promise* | Start small. | Bà Năm | — |
-| 1 · Home Lagoon | *Fresh Hands* | Care: fresh fish, gentle line. | Bà Năm | "The recipe begins with care." (Turtle Buddy joins) |
+| 1 · Phú Quốc | *Fresh Hands of Phú Quốc* | Care: fresh fish, gentle line. | Bà Năm | "The recipe begins with care." (Turtle Buddy joins) |
 | 2 · Coral Reef | *Into the Deep* | Courage: go where it's scary. | Rùa | "Rare fish from deep water." (Ancient Compass) |
 | 3 · Mangrove Delta | *Muddy Roots* | Humility: the smelliest jar can be the best. | Chú Tư | "The jar must breathe." (Dragon Jar Glaze) |
 | 4 · Dragon Bay | *The Dragon Gate* | Perseverance: the carp leaps a thousand times. | Cô Hạnh | "Wait for the right moment." (Storm Kite) |

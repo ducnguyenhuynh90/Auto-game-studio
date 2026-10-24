@@ -45,7 +45,7 @@ export const SCENES: StoryScene[] = [
     chapter: { number: 'Chapter 0', title: 'The Promise' },
     when: (s) => s.stats.casts === 0,
     lines: [
-      { who: 'nam', text: 'Once upon a time, our village made the finest fish sauce on the coast…' },
+      { who: 'nam', text: 'On Phú Quốc, our village once made the finest fish sauce in all of Vietnam…' },
       { who: 'lan', text: 'Bà! The storm smashed the jar yard. Only one jar survived!' },
       { who: 'nam', text: 'And my old head forgot our family recipe. The Dragon Gate Reserve…' },
       { who: 'toc', text: 'Sell me the village, granny. My factory makes sauce in 3 minutes!' },
@@ -70,14 +70,14 @@ export const SCENES: StoryScene[] = [
     lines: [
       { who: 'toc', text: 'New gear, kid? Cute. My factory made ten thousand bottles while you fished.' },
       { who: 'lan', text: '…Ten thousand? Maybe I should hurry up…' },
-      { who: 'nam', text: 'A river that rushes carries only sand. Finish the Lagoon story first.' },
+      { who: 'nam', text: 'A river that rushes carries only sand. Finish the Phú Quốc story first.' },
       { who: 'lan', text: 'Okay, okay. Một, hai, ba, kéo! Let\'s fish.' },
     ],
   },
   {
     id: 'done_lagoon',
     where: 'village',
-    chapter: { number: 'Chapter 1 complete', title: 'Fresh Hands' },
+    chapter: { number: 'Chapter 1 complete', title: 'Fresh Hands of Phú Quốc' },
     when: (s) => relic(s, 'turtle'),
     lines: [
       { who: 'rua', text: '…' },
@@ -198,8 +198,8 @@ export function markSeen(s: GameState, id: string): void {
 /** Who asked for each mission, why, and what they say when it's done (Pixar: every scene wants something). */
 export const MISSION_STORY: Record<string, { giver: CharacterId; why: string; done: string }> = {
   l_good: { giver: 'nam', why: 'Fresh fish make honest sauce. Show me gentle hands.', done: 'Gentle hands! The jars will thank you.' },
-  l_sardine: { giver: 'nam', why: 'The village needs sardines for the festival table.', done: 'Five sardines! The neighbours will eat tonight.' },
-  l_fine: { giver: 'nam', why: 'Make a Fine sauce, so I know the old ways still live.', done: 'Fine indeed. My memory stirs…' },
+  l_sardine: { giver: 'nam', why: 'Sardines for the Hàm Ninh market tomorrow morning.', done: 'Five sardines! The neighbours will eat tonight.' },
+  l_fine: { giver: 'nam', why: 'Phú Quốc mắm is famous everywhere. Make one worthy of the name.', done: 'Real Phú Quốc mắm. My memory stirs…' },
   l_mackerel: { giver: 'lan', why: 'Big mackerel swim deep. Time for a longer line!', done: 'Deep water isn\'t so scary after all.' },
   r_snapper: { giver: 'rua', why: 'Rùa keeps staring at a red shadow by the coral…', done: 'Rùa blinked twice. I think that\'s a "well done".' },
   r_squid: { giver: 'nam', why: 'Squid ink for the recipe notes, I think. Or for supper.', done: 'Enough squid for notes AND supper!' },
