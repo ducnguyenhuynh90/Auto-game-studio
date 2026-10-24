@@ -5,22 +5,20 @@
   "build": "Vite + TypeScript. three.js 3D world (src/render3d) under a 2D canvas UI layer (src/scenes). Pure rules in src/core (unit-tested).",
   "how_to_run": "npm install && npm run dev  (open http://localhost:5173, ?reset=1 wipes the save, ?seed=N, ?speed=N)",
   "how_to_test": "npm test ; npm run build ; npx vite preview --port 4173 & node tools/playtest.mjs --trips 6 --skill 0.7 --shots (playtests run against the preview build; HMR reloads break bot runs on the dev server)",
-  "current_objective": "Get the CATCH→CRAFT→REVEAL→PROGRESS slice in front of real players and measure the first-session funnel.",
+  "current_objective": "Get real players onto build 2.0 (progression layer) and measure whether visible goals + the sea story lengthen sessions and bring players back (EXP-003).",
   "biggest_known_problem": "Zero real-player evidence. The playable link and analytics now exist; the blocker is getting 5-10 casual players to open it.",
   "active_experiment": "EXP-001: does the 3D jar reveal plus 'ferments while you fish' drive a second fishing trip? (needs real players)",
   "recent_results": [
-    "Founder asked for cute three.js 3D: the world, fishing, catch trophy and jar reveal are now 3D; UI fish icons are rendered from the 3D models.",
-    "[SIM] A skilled bot (0.7) lands 13-15 of 15 casts, mostly perfect; a low-skill bot (0.3) lands 20 of 20 with only 4 perfect. Skill currently drives quality (°N, coins) far more than catch success.",
-    "Published playtest build 1.1 as a claude.ai Artifact with a per-player summary store and an analysis script. The store was verified empty with the access rules working (ordinary players cannot read other players' data).",
-    "Playtest build 1.2 published: Reef vs Lagoon scenery, ambient surf and gulls, a tip-giving villager, a market pulse on the goal's upgrade, and a fix for the dock-early exploit (only full trips age jars).",
-    "[SIM] GPU memory is bounded (232 → 255 geometries from trip 2 to trip 6). About 180 draw calls and 30k triangles per frame."
+    "Build 2.0 (founder direction D-007): goal + next banner, Captain's Log, Captain XP/levels, cast tangle risk, 5 gear lines (rod/line/hook/bait/boat), 3D sea chart with 5 seas × 4 missions, relics, Mystery Crate gadgets, 12 new species and 4 new recipes, per-sea 3D scenery and boats.",
+    "[SIM] Progression sim (tools/sim.ts): story finishes at all skills 0.4-0.8. Reef at 10-30 min, Abyss at 2.4-3.3 h. It caught and fixed a perfect-catch softlock and an economy that maxed gear in 40 min.",
+    "[SIM] Browser bot on the real UI: 10 trips, lagoon story → Turtle Buddy relic → sailed to the Reef, 6 missions, no errors."
   ],
   "constraints": [
     "No real-money gambling, no randomized paid rewards (needs founder/legal approval).",
     "No sensitive personal data. Analytics uses an anonymous random install id only.",
     "Founder approval is needed before spending money (hosting beyond free tiers, paid UA)."
   ],
-  "next_recommended_action": "1) FOUNDER: share the playtest link (Contributor access, or people in your org) with 5-10 casual players; ask them to play on two different days. 2) When data arrives: ArtifactData list plays → tools/analyze-plays.mjs, then fix the largest funnel drop. 3) Until then, only cheap and reversible polish: no new systems without evidence.",
+  "next_recommended_action": "1) FOUNDER: share the playtest link with 5-10 casual players. 2) Pull plays/ and run tools/analyze-plays.mjs: check tutorial completion, tangle rate, missions-log opens and the sea reached. 3) Known gaps: no late coin sink; bot reels perfectly so real reel difficulty is unknown; 24 species is more than evidence justifies, so trim whatever players don't engage with.",
   "playtest_link": "https://claude.ai/artifact/Vmwfyv5LjKtVFc31t6mdwG (private claude.ai Artifact; the founder shares it from the page's Share menu)",
   "analytics": "Each signed-in player at Contributor level or above (or an org member) writes one summary doc to plays/<viewer id> in the artifact store; only the owner can read it. Pull: ArtifactData list collection=plays out_dir=<dir>, then node tools/analyze-plays.mjs <dir>. Viewers without write access still play; their data stays local only.",
   "how_to_publish": "node tools/build-artifact.mjs, then Artifact publish of dist-artifact/mam-village.html to the URL above (pass url from a new session after an Artifact read)."

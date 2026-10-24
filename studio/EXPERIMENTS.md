@@ -22,3 +22,16 @@
   "Vertical slice v0 (2D canvas)" is kept in git history as the control).
 - **Guardrails:** load time < 3 s on mid-range phones; frame rate ≥ 50 fps; crash-free ≥ 99.5%.
 - **Result:** not measured. Visual QA by screenshots only.
+
+## EXP-003 · Visible goal chain + sea story increases session length and return rate
+- **Problem:** after the tutorial the old goal list ran out of clear direction, and the founder wanted
+  the current and next goal always visible, plus long-term reasons to return.
+- **Hypothesis:** a GOAL + NEXT banner and a five-sea story route with relic rewards will raise median
+  active minutes per session and D1/D7 return versus build 1.2.
+- **Primary metric:** median active minutes (playsummary.activeSec); D1 (analyze-plays).
+- **Secondary:** mission completions per player, sea reached, Captain level, Missions-log opens (screens.missions).
+- **Guardrails:** tutorial completion (first_sale/first_catch) must not drop; tangles should stay under
+  about 15% of casts (counts.cast vs tangles) or the failure feels unfair.
+- **Pacing (simulation, NOT evidence):** Reef unlock at 10-30 min, Dragon Bay at 45-65 min, the Abyss at
+  2.4-3.3 h, full story at 2.7-3.7 h across skills 0.4-0.8 (`npx vite-node tools/sim.ts <skill> 400`).
+- **Result:** pending real players.

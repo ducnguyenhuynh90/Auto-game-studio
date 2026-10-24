@@ -76,51 +76,71 @@ await page.evaluate(({ skill }) => {
       } else if (top.name === 'market') {
         shot('market');
         if (s.shelf.length) tap(195, 258);
-        // buy cheapest affordable upgrade, prioritising goal order
-        const order = ['jars', 'rod', 'salt', 'boat', 'stall'];
-        const ids = ['jars', 'rod', 'salt', 'boat', 'stall'];
+        const R = window.__mam.rules;
+        // buy by priority: the goal's needs first, then a sensible order
+        const order = ['jars', 'line', 'rod', 'hook', 'boat', 'bait', 'salt', 'stall'];
         let bought = false;
         for (const id of order) {
-          const i = ids.indexOf(id);
-          const lvl = s.upgrades[id];
-          const costs = { jars: [40, 140, 320], rod: [70, 260], salt: [110, 300], boat: [180], stall: [90, 280] }[id];
-          const c = costs[lvl];
-          if (c !== undefined && s.coins >= c) {
-            tap(W_ - 88, 378 + i * 84 + 38);
+          const c = R.upgradeCost(s, id);
+          if (c === null || s.coins < c) continue;
+          const def = R.UPGRADES.find((u) => u.id === id);
+          if (top.tab !== def.kind) {
+            tap(def.kind === 'gear' ? 110 : 280, 369);
+          } else {
+            const i = R.UPGRADES.filter((u) => u.kind === def.kind).findIndex((u) => u.id === id);
+            tap(W_ - 86, 396 + i * 82 + 38);
             bot.log.push({ ev: 'upgrade', id, cost: c, t: g.time, trip: s.stats.trips });
-            bought = true;
-            break;
           }
+          bought = true;
+          break;
         }
         if (!bought) tap(W_ - 44, 74);
         wait = 0.5;
-      } else if (top.name === 'dex') {
+      } else if (top.name === 'dex' || top.name === 'missions') {
         tap(W_ - 44, 74);
+      } else if (top.name === 'relic') {
+        shot('relic');
+        bot.log.push({ ev: 'relic', trip: s.stats.trips, t: g.time });
+        tap(195, 692);
+        wait = 0.6;
+      } else if (top.name === 'map') {
+        shot('map');
+        const R = window.__mam.rules;
+        const want = R.SEAS.find((x) => !R.seaComplete(s, x) && !R.seaLock(s, x)) ?? R.SEAS.find((x) => x.id === s.sea);
+        if (top.sail) {
+          // sailing animation
+        } else if (top.selected !== want.id) {
+          const p = g.world.map.islandScreen(want.id);
+          tap(p.x, p.y);
+        } else {
+          bot.log.push({ ev: 'sail', to: want.id, trip: s.stats.trips });
+          bot.trips++;
+          tap(195, 810);
+        }
+        wait = 0.6;
       } else if (top.name === 'village') {
         shot(`village_trip${s.stats.trips}`);
         if (bot.trips >= bot.maxTrips) {
           bot.done = true;
           return;
         }
+        const R = window.__mam.rules;
         const jars = s.jars;
-        const n = jars.length;
-        const spacing = n <= 2 ? 110 : 84;
-        const start = 195 - ((n - 1) * spacing) / 2;
         const now = Date.now();
         const ready = jars.findIndex((j) => j.sealed && (s.stats.fullTrips - j.sealedTrip >= 1 || now - j.sealedAt > 90000));
-        const ferm = s.bucket.filter((f) => !['crab'].includes(f.species)).length;
+        const ferm = s.bucket.filter((f) => R.canFerment(f)).length;
         const empty = jars.findIndex((j) => !j.sealed);
-        const costs = { jars: [40, 140, 320], rod: [70, 260], salt: [110, 300], boat: [180], stall: [90, 280] };
-        const canBuy = Object.entries(costs).some(([id, c]) => c[s.upgrades[id]] !== undefined && s.coins >= c[s.upgrades[id]]);
-        const jp = (i) => g.world?.village.jarScreen(i) ?? { x: start + i * spacing, y: 640 };
-        const mp = g.world?.village.marketScreen() ?? { x: 306, y: 430 };
+        const canBuy = R.UPGRADES.some((u) => (R.upgradeCost(s, u.id) ?? Infinity) <= s.coins);
+        const jp = (i) => g.world.village.jarScreen(i);
+        const mp = g.world.village.marketScreen();
+        const want = R.SEAS.find((x) => !R.seaComplete(s, x) && !R.seaLock(s, x));
         if (ready >= 0) tap(jp(ready).x, jp(ready).y - 40);
         else if (empty >= 0 && ferm >= 3) tap(jp(empty).x, jp(empty).y - 40);
         else if (s.shelf.length || canBuy) tap(mp.x, mp.y);
+        else if (want && want.id !== s.sea) tap(338, 765);
         else {
           bot.trips++;
-          const reef = s.upgrades.boat >= 1 && bot.trips % 2 === 0;
-          tap(reef ? 317 : s.upgrades.boat >= 1 ? 182 : 250, 760);
+          tap(197, 765);
         }
         wait = 0.6;
       } else if (top.name === 'fishing') {
@@ -128,16 +148,25 @@ await page.evaluate(({ skill }) => {
         if (f.phase === 'aim') {
           shot('fish_aim');
           // choose the swimming shadow closest to the centre line, aim at its depth
-          const cands = f.shadows.filter((sh) => sh.state === 'swim');
+          // use a trip gadget now and then, like a curious player would
+          const gad = ['sonar', 'pearl', 'rocket', 'octo'].find((id) => (s.gadgets[id] ?? 0) > 0 && !f.effects.has(id));
+          if (gad && Math.random() < 0.5) {
+            f.useGadget(gad);
+            bot.log.push({ ev: 'gadget', id: gad, trip: s.stats.trips });
+          }
+          const cands = f.shadows.filter((sh) => sh.state === 'swim' && !sh.locked);
           cands.sort((a, b) => Math.abs(a.x - 195) - Math.abs(b.x - 195));
           const tgt = cands[0];
-          aimTarget = tgt ? (600 - tgt.y) / 425 : 0.3;
-          aimTarget += (Math.random() - 0.5) * (1 - skill) * 0.5;
-          aimTarget = Math.max(0.02, Math.min(0.98, aimTarget));
+          // power maps to distance: distance = power / overcast * reach
+          const depth = tgt ? (600 - tgt.y) / 425 : 0.3;
+          aimTarget = (depth / f.reach) * 0.9;
+          aimTarget += (Math.random() - 0.5) * (1 - skill) * 0.3;
+          aimTarget = Math.max(0.02, Math.min(0.97, aimTarget));
           g.pointerDown(195, 500);
         } else if (f.phase === 'charging') {
           if (f.power > 0.6) shot('fish_charging');
           if (Math.abs(f.power - aimTarget) < 0.03 && f.holdTime < 1.33) g.pointerUp(195, 500);
+          if (f.power > 0.9) shot('fish_overcast');
           else if (f.holdTime > 3) g.pointerUp(195, 500);
         } else if (f.phase === 'bite') {
           shot('fish_bite');
@@ -162,6 +191,7 @@ await page.evaluate(({ skill }) => {
           if (f.card.t > 0.9 && !f.card.shotDone) {
             f.card.shotDone = true;
             shot(`card_${f.card.fish.species}`);
+            if (f.card.gadget) bot.log.push({ ev: 'crate', gadget: f.card.gadget, trip: s.stats.trips });
             wait = 0.4;
           } else if (f.card.t > 1.4) {
             g.pointerUp(195, 500);
@@ -216,7 +246,8 @@ const report = await page.evaluate(() => {
     gpu: g.world ? { geometries: g.world.renderer.info.memory.geometries, textures: g.world.renderer.info.memory.textures, calls: g.world.renderer.info.render.calls, tris: g.world.renderer.info.render.triangles } : null,
     state: { coins: g.state.coins, upgrades: g.state.upgrades, stats: g.state.stats, dex: Object.keys(g.state.dex), cellar: g.state.cellar, goalsDone: g.state.goalsDone },
     funnel: window.__mam.analytics.funnelState(),
-    counts: { cast: count('cast'), catch: count('catch'), lost: count('fish_lost'), jar_open: count('jar_open'), upgrade: count('upgrade') },
+    counts: { cast: count('cast'), catch: count('catch'), lost: count('fish_lost'), jar_open: count('jar_open'), upgrade: count('upgrade'), mission: count('mission_complete'), relic: count('relic_unlock'), level: count('level_up'), gadget: count('gadget_use') },
+    progress: { sea: g.state.sea, xp: g.state.xp, missions: g.state.missionsDone, relics: g.state.relics, gadgets: g.state.gadgets },
     lostReasons: ev.filter((x) => x.e === 'fish_lost').map((x) => x.p.reason),
     log: window.__bot.log,
   };

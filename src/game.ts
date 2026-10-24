@@ -3,7 +3,10 @@ import { analytics } from './core/analytics';
 import { checkGoals } from './core/goals';
 import { makeRng, type Rng } from './core/rng';
 import { loadState, saveState } from './core/save';
-import type { GameState } from './core/state';
+import type { SeaId } from './core/data';
+import type { RelicId } from './core/items';
+import { levelForXp } from './core/progression';
+import { checkMissions, type GameState } from './core/state';
 import { sfx, unlockAudio, vibrate } from './render/audio';
 import type { World } from './render3d/world';
 import { COLORS, H, Particles, W, clamp01, drawCoin, ease, outlinedText, rr, text, type Ctx } from './render/draw';
@@ -73,7 +76,8 @@ export class Game {
   shake = 0;
   // Scene navigation is wired in main.ts to keep this module free of scene imports.
   goVillage: () => void = () => {};
-  goFishing: (zone: 'lagoon' | 'reef') => void = () => {};
+  goFishing: (sea: SeaId) => void = () => {};
+  goMap: () => void = () => {};
 
   constructor(seed: number) {
     this.state = loadState();
@@ -109,7 +113,29 @@ export class Game {
       if (g.reward > 0) this.coinPulse = 1;
       sfx.upgrade();
     }
+    for (const m of checkMissions(this.state)) {
+      analytics.track('mission_complete', { mission: m.mission.id, sea: m.sea.id });
+      this.toast('Mission complete!', '#3a8fd9', `${m.mission.text}  +${m.mission.reward.coins}`);
+      this.coinPulse = 1;
+      sfx.upgrade();
+      if (m.levelUps > 0) this.levelUp();
+      if (m.relic) {
+        analytics.track('relic_unlock', { relic: m.relic, sea: m.sea.id });
+        this.relicQueue.push(m.relic);
+      }
+    }
     saveState(this.state);
+  }
+
+  /** Relics waiting to be presented with a full-screen moment (shown by the village). */
+  relicQueue: RelicId[] = [];
+
+  levelUp(): void {
+    const lvl = levelForXp(this.state.xp);
+    analytics.track('level_up', { level: lvl });
+    this.toast(`Captain level ${lvl}!`, '#a35bd6', 'Bonus coins for your hard work');
+    this.coinPulse = 1;
+    sfx.rare();
   }
 
   toast(msg: string, color = COLORS.accent, sub?: string): void {

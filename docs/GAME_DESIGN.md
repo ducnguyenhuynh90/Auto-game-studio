@@ -28,3 +28,18 @@
 - 3D island: house (thatch → terracotta at Lv 6), market stall, drying rack showing your fish, jar yard,
   dock with your boat, salt piles, a lantern string that grows with village level.
 - The goal banner plus a pointing hand always show the next step.
+
+## Progression layer (v2, founder direction D-007)
+- **Goal banner:** GOAL (with progress bar and reward) + "Next:" line. Tap it to open the Captain's Log
+  (tutorial chapter, a mission chapter per sea, relic shelf, gadget bag).
+- **Captain level:** XP = 5×rarity per catch (+5 if perfect), the sauce's °N per opened jar, and mission
+  XP. Each level pays 10 + 5×level coins.
+- **Casting risk:** the top 10% of the meter is red; releasing there tangles the line and the cast is lost.
+- **Gear:** see docs/ECONOMY.md. Line reach caps cast distance; shadows deeper than reach are shown
+  but can't be hooked ("Need longer line").
+- **Seas:** 5 seas; unlock = boat level + previous sea's story. 4 missions each; finishing grants a relic.
+- **Gadgets** (Mystery Crates, mission rewards): Sonar Shell (names over shadows, 1 trip), Rocket Bobber
+  (max reach, 1 trip), Octo Net (next catch ×2), Calm Pearl (+50% green zone, 1 trip), Magic Salt (+6°N
+  next jar). Trip gadgets are used from the item bar while aiming; Magic Salt is used on the jar screen.
+- **Relics:** Turtle Buddy (+1 cast), Ancient Compass (rares glow), Dragon Jar Glaze (2× aging),
+  Storm Kite (½ waits), Heart of the Sea (+3°N every batch).

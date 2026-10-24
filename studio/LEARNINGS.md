@@ -22,3 +22,11 @@ Only [PLAYER] entries count as product evidence.
 - [DESIGN] Persona pass (new gamer): inside the market nothing pointed at the goal's upgrade. That button now pulses.
 - [DESIGN] Persona pass (explorer): tapping the villager did nothing. He now hops and gives context tips.
 - [SIM] Memory: geometries stay bounded across trips once removed models are disposed.
+- [SIM] Progression sim (tools/sim.ts) caught a softlock before any player saw it: "land N PERFECT
+  catches" story missions block low-skill players forever. Story gates now use ★★ (fresh) catches;
+  perfection improves sauce instead of gating progress.
+- [SIM] With first-pass costs every piece of gear was maxed in about 40 min and coins ballooned. Top-tier
+  costs were raised about 3-5× and legendaries get only √ of the bait bonus. Late-game coin sinks are
+  still missing (coins pile up after about 3 h). Backlog.
+- [DESIGN] The real game makes legendaries easier than the sim does: players see five shadows and pick
+  the glowing one. Watch real legendary-catch timing.

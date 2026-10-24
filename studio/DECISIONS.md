@@ -37,3 +37,24 @@
   keeps the store far below its 25k-doc cap. Raw events stay in the player's localStorage.
 - **Limit:** only players at Contributor level or above (or org members) can write. Outside view-only
   players still play, but we get no data from them. Pages remains the path for broad public tests.
+
+## D-007 · 2026-10-24 · Founder direction: progression, risk, gear, sea chart, special items
+The founder asked for: visible current + next goals and more gamification; casts that can fail; upgradeable
+gear that unlocks deeper fish; a One Piece-like map of seas with missions and special items; and odd
+catches that grant special abilities. This is a direct founder request that widens scope, so it was
+built, but as ONE connected system rather than separate features:
+- **Goals:** tutorial chapter → per-sea story missions (4 each). The banner always shows GOAL + "Next:";
+  tapping it opens the Captain's Log. Captain level (XP from catches, brews, missions) pays coins on level-up.
+- **Failure:** the cast meter has a red overcast band (top 10%). Releasing there tangles the line and the
+  cast is lost. It is visible, skill-based and honest, not random.
+- **Gear:** Rod (green zone), Line (cast reach, so deep fish need it), Hook (bite window, snap time),
+  Bait (rare-fish rate, shown as an exact multiplier), Boat (seas). Deep fish beyond reach are shown
+  with "Need longer line", so players see what an upgrade buys.
+- **Sea chart:** Home Lagoon → Coral Reef → Mangrove Delta → Dragon Bay → The Abyss. Each sea is unlocked
+  by boat level AND finishing the previous sea's story. Each has its own fish, recipe, visuals and a relic.
+- **Special items:** Mystery Crates hold gadgets (Sonar Shell, Rocket Bobber, Octo Net, Calm Pearl,
+  Magic Salt). Relics are permanent abilities (+1 cast, rare-glow compass, 2× aging, ½ wait, +3°N).
+- **Honesty kept:** crate contents are rolled at catch time and shown; bait odds are shown; nothing is
+  paid. No randomized paid rewards exist (that would need founder/legal approval).
+- **Risk acknowledged:** this is far more scope than the evidence supports. Real playtests decide what
+  stays; the systems are data-driven (`seas.ts`, `items.ts`, `data.ts`) so they can be trimmed cheaply.

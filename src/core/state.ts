@@ -1,6 +1,9 @@
 // Persistent game state and all rule-level actions. No rendering here, so it is unit-testable.
-import { BALANCE, RECIPES_BY_ID, SPECIES_BY_ID, UPGRADES_BY_ID, saucePrice, tierFor, type UpgradeId, type ZoneId } from './data';
+import { BALANCE, RECIPES_BY_ID, SPECIES_BY_ID, UPGRADES_BY_ID, saucePrice, tierFor, type SeaId, type UpgradeId } from './data';
+import { GADGETS, hasRelic, type GadgetId, type RelicId } from './items';
+import { addXp } from './progression';
 import { range, type Rng } from './rng';
+import { SEAS, SEAS_BY_ID, missionDone, seaLock, type Mission, type Sea } from './seas';
 
 export interface CaughtFish {
   uid: number;
@@ -18,6 +21,8 @@ export interface Jar {
   /** fullTrips count when sealed; aging counts full trips completed since. */
   sealedTrip: number;
   sealedAt: number; // epoch ms
+  /** Extra °N locked in at sealing (Magic Salt, relics). */
+  bonus?: number;
 }
 
 export interface Product {
@@ -37,9 +42,17 @@ export interface GameState {
   upgrades: Record<UpgradeId, number>;
   dex: Record<string, { count: number; best: number }>;
   cellar: Record<string, number>; // recipe id -> best °N ever made
-  stats: { trips: number; fullTrips: number; casts: number; catches: number; perfects: number; jarsOpened: number; sold: number; earned: number };
-  zone: ZoneId;
+  stats: { trips: number; fullTrips: number; casts: number; catches: number; perfects: number; jarsOpened: number; sold: number; earned: number; tangles: number };
+  /** The sea the boat is set to sail to. */
+  sea: SeaId;
   goalsDone: string[];
+  xp: number;
+  missionsDone: string[];
+  seaStats: Partial<Record<SeaId, { catches: number; perfects: number; goods: number; crates: number }>>;
+  gadgets: Partial<Record<GadgetId, number>>;
+  relics: RelicId[];
+  /** °N waiting for the next sealed jar (Magic Salt). */
+  pendingJarBonus: number;
 }
 
 export function newState(): GameState {
@@ -50,12 +63,18 @@ export function newState(): GameState {
     bucket: [],
     jars: [emptyJar()],
     shelf: [],
-    upgrades: { jars: 0, rod: 0, salt: 0, boat: 0, stall: 0 },
+    upgrades: { rod: 0, line: 0, hook: 0, bait: 0, boat: 0, jars: 0, salt: 0, stall: 0 },
     dex: {},
     cellar: {},
-    stats: { trips: 0, fullTrips: 0, casts: 0, catches: 0, perfects: 0, jarsOpened: 0, sold: 0, earned: 0 },
-    zone: 'lagoon',
+    stats: { trips: 0, fullTrips: 0, casts: 0, catches: 0, perfects: 0, jarsOpened: 0, sold: 0, earned: 0, tangles: 0 },
+    sea: 'lagoon',
     goalsDone: [],
+    xp: 0,
+    missionsDone: [],
+    seaStats: {},
+    gadgets: {},
+    relics: [],
+    pendingJarBonus: 0,
   };
 }
 
@@ -65,30 +84,71 @@ export function emptyJar(): Jar {
 
 // ---------- Catching ----------
 
-export function addCatch(s: GameState, species: string, size: number, freshness: number): { fish: CaughtFish; isNew: boolean; isRecord: boolean } {
+export interface CatchResult {
+  fish: CaughtFish;
+  isNew: boolean;
+  isRecord: boolean;
+  /** Gadget found inside a Mystery Crate. */
+  gadget?: GadgetId;
+  xp: number;
+  levelUps: number;
+}
+
+/** XP for a catch: rarer and cleaner catches teach you more. */
+export function catchXp(species: string, perfect: boolean): number {
+  return SPECIES_BY_ID[species].rarity * 5 + (perfect ? 5 : 0);
+}
+
+export function addCatch(s: GameState, species: string, size: number, freshness: number, sea: SeaId = s.sea, rng?: Rng): CatchResult {
   const sp = SPECIES_BY_ID[species];
   const fish: CaughtFish = { uid: s.nextUid++, species, size, freshness, perfect: freshness >= 0.8 };
   s.stats.catches++;
   if (fish.perfect) s.stats.perfects++;
+  const st = (s.seaStats[sea] ??= { catches: 0, perfects: 0, goods: 0, crates: 0 });
+  st.catches++;
+  if (fish.perfect) st.perfects++;
+  // ★★ or better (matches the 2-star line on the catch card)
+  if (freshness >= 0.5) st.goods = (st.goods ?? 0) + 1;
   const entry = s.dex[species];
   const isNew = !entry;
   const isRecord = !!entry && size > entry.best;
   s.dex[species] = { count: (entry?.count ?? 0) + 1, best: Math.max(entry?.best ?? 0, size) };
-  if (sp.treasure) {
+  let gadget: GadgetId | undefined;
+  if (sp.crate) {
+    // The crate's content is rolled here, before the card shows it.
+    const pool = SEAS_BY_ID[sea].gadgets;
+    gadget = pool[Math.floor((rng ? rng() : Math.random()) * pool.length)];
+    s.gadgets[gadget] = (s.gadgets[gadget] ?? 0) + 1;
+    st.crates++;
+  } else if (sp.treasure) {
     // Treasure converts to coins on the spot; it is never a fermentation ingredient.
     s.coins += sp.raw;
     s.stats.earned += sp.raw;
   } else {
     s.bucket.push(fish);
   }
-  return { fish, isNew, isRecord };
+  const xp = catchXp(species, fish.perfect);
+  const levelUps = addXp(s, xp);
+  return { fish, isNew, isRecord, gadget, xp, levelUps };
+}
+
+/** Octo Net: a duplicate of the fish just landed goes into the bucket. */
+export function duplicateCatch(s: GameState, f: CaughtFish): CaughtFish {
+  const copy = { ...f, uid: s.nextUid++ };
+  s.bucket.push(copy);
+  s.dex[f.species].count++;
+  s.stats.catches++;
+  return copy;
 }
 
 // ---------- Crafting ----------
 
 export function recipeFor(fish: CaughtFish[]): string {
   const ids = fish.map((f) => f.species);
+  if (ids.some((id) => id === 'angler' || id === 'giantsquid' || id === 'oarfish')) return 'abyss';
+  if (ids.includes('carp')) return 'dragon';
   if (ids.includes('golden')) return 'golden';
+  if (ids.filter((id) => id === 'prawn').length >= 2) return 'shrimp';
   if (ids.some((id) => id === 'snapper' || id === 'grouper' || id === 'trevally')) return 'reef';
   if (ids.filter((id) => id === 'squid').length >= 2) return 'squid';
   if (ids.length > 0 && ids.every((id) => id === 'anchovy')) return 'classic';
@@ -120,20 +180,22 @@ export function sealJar(s: GameState, jarIndex: number, fishUids: number[], rng:
   jar.variance = range(rng, -BALANCE.variance, BALANCE.variance);
   jar.sealedTrip = s.stats.fullTrips;
   jar.sealedAt = now;
+  jar.bonus = s.pendingJarBonus + (hasRelic(s.relics, 'pearlheart') ? 3 : 0);
+  s.pendingJarBonus = 0;
   return true;
 }
 
 /** 0 = still fermenting, 1 = ready, up to maxAging = well aged. */
 export function agingLevel(s: GameState, jar: Jar, now: number): number {
   if (!jar.sealed) return 0;
-  const byTrips = s.stats.fullTrips - jar.sealedTrip;
+  const byTrips = (s.stats.fullTrips - jar.sealedTrip) * (hasRelic(s.relics, 'dragonjar') ? 2 : 1);
   const byTime = Math.floor((now - jar.sealedAt) / 1000 / BALANCE.agingSecondsPerLevel);
   return Math.min(BALANCE.maxAging, Math.max(byTrips, byTime));
 }
 
 export function jarDegrees(s: GameState, jar: Jar, now: number): number {
   const lvl = agingLevel(s, jar, now);
-  const d = baseDegrees(jar.fish, s.upgrades.salt) + BALANCE.agingBonus[lvl] + jar.variance;
+  const d = baseDegrees(jar.fish, s.upgrades.salt) + BALANCE.agingBonus[lvl] + jar.variance + (jar.bonus ?? 0);
   return Math.max(5, Math.round(d * 10) / 10);
 }
 
@@ -144,6 +206,7 @@ export function openJar(s: GameState, jarIndex: number, now: number): { product:
   if (lvl < 1) return null;
   const degrees = jarDegrees(s, jar, now);
   const product: Product = { uid: s.nextUid++, recipe: jar.recipe, degrees, agingLevel: lvl };
+  addXp(s, Math.round(degrees));
   const prevBest = s.cellar[jar.recipe];
   const newRecipe = prevBest === undefined;
   const newBest = !newRecipe && degrees > prevBest;
@@ -197,7 +260,52 @@ export function buyUpgrade(s: GameState, id: UpgradeId): boolean {
 }
 
 export function villageLevel(s: GameState): number {
-  return 1 + Object.values(s.upgrades).reduce((a, b) => a + b, 0);
+  return 1 + s.upgrades.jars + s.upgrades.salt + s.upgrades.stall + s.upgrades.boat;
+}
+
+// ---------- Gadgets ----------
+
+/** Spends one gadget. Trip/catch effects are applied by the fishing scene; jar effects live in state. */
+export function useGadget(s: GameState, id: GadgetId): boolean {
+  if (!s.gadgets[id]) return false;
+  s.gadgets[id]!--;
+  if (GADGETS[id].scope === 'jar') s.pendingJarBonus += 6;
+  return true;
+}
+
+export function castsPerTrip(s: GameState): number {
+  return BALANCE.castsPerTrip + (hasRelic(s.relics, 'turtle') ? 1 : 0);
+}
+
+// ---------- Missions ----------
+
+export interface MissionReward {
+  mission: Mission;
+  sea: Sea;
+  relic?: RelicId;
+  levelUps: number;
+}
+
+/** Completes every satisfied mission in seas the player can reach; grants rewards and relics. */
+export function checkMissions(s: GameState): MissionReward[] {
+  const out: MissionReward[] = [];
+  for (const sea of SEAS) {
+    if (seaLock(s, sea)) continue;
+    for (const m of sea.missions) {
+      if (s.missionsDone.includes(m.id) || !missionDone(s, m)) continue;
+      s.missionsDone.push(m.id);
+      s.coins += m.reward.coins;
+      if (m.reward.gadget) s.gadgets[m.reward.gadget] = (s.gadgets[m.reward.gadget] ?? 0) + 1;
+      const levelUps = addXp(s, m.reward.xp);
+      let relic: RelicId | undefined;
+      if (sea.missions.every((x) => s.missionsDone.includes(x.id)) && !s.relics.includes(sea.relic)) {
+        relic = sea.relic;
+        s.relics.push(relic);
+      }
+      out.push({ mission: m, sea, relic, levelUps });
+    }
+  }
+  return out;
 }
 
 // ---------- Trips ----------
@@ -208,20 +316,24 @@ export function finishTrip(s: GameState, full: boolean): void {
   if (full) s.stats.fullTrips++;
 }
 
-/** Pick the 3 best fermentable fish for the casual "auto fill" button. */
+/** Pick the 3 fermentable fish that make the strongest sauce (for the casual "Best 3" button). */
 export function bestJarFill(s: GameState): number[] {
-  const usable = s.bucket.filter(canFerment);
-  // Prefer a pure anchovy batch when possible (Classic), otherwise highest sauce value × freshness.
-  const anch = usable.filter((f) => f.species === 'anchovy').sort((a, b) => b.freshness - a.freshness);
   const score = (f: CaughtFish) => SPECIES_BY_ID[f.species].sauce + f.freshness * BALANCE.freshnessBonus;
-  const sorted = [...usable].sort((a, b) => score(b) - score(a));
-  const top = sorted.slice(0, BALANCE.jarSlots);
-  if (top.length < BALANCE.jarSlots) return top.map((f) => f.uid);
-  if (anch.length >= BALANCE.jarSlots) {
-    const classic = anch.slice(0, BALANCE.jarSlots);
-    if (baseDegrees(classic, s.upgrades.salt) >= baseDegrees(top, s.upgrades.salt)) return classic.map((f) => f.uid);
-  }
-  return top.map((f) => f.uid);
+  const usable = s.bucket.filter(canFerment).sort((a, b) => score(b) - score(a)).slice(0, 10);
+  if (usable.length <= BALANCE.jarSlots) return usable.map((f) => f.uid);
+  let best: CaughtFish[] = usable.slice(0, BALANCE.jarSlots);
+  let bestD = baseDegrees(best, s.upgrades.salt);
+  for (let i = 0; i < usable.length; i++)
+    for (let j = i + 1; j < usable.length; j++)
+      for (let k = j + 1; k < usable.length; k++) {
+        const combo = [usable[i], usable[j], usable[k]];
+        const d = baseDegrees(combo, s.upgrades.salt);
+        if (d > bestD) {
+          bestD = d;
+          best = combo;
+        }
+      }
+  return best.map((f) => f.uid);
 }
 
 export { tierFor };

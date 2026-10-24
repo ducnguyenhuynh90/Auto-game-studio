@@ -11,3 +11,14 @@ All numbers are in `src/core/data.ts` (`BALANCE`, `SPECIES`, `UPGRADES`).
 - **Goal rewards:** small (5-200) to keep momentum. The first upgrade is affordable right after the first sale.
 - Pacing target: first sale within about 3 minutes and first upgrade within the first session.
   The boat (Reef) arrives around session 2. Unvalidated.
+
+## v2 gear and costs (src/core/data.ts)
+| Gear | Lv1 | Lv2 | Lv3 | effect per level |
+|---|---|---|---|---|
+| Rod | 70 | 420 | 5000 | green zone 0.26/0.32/0.38/0.44 |
+| Line | 90 | 600 | 8000 | reach 0.68/0.82/0.93/1.0 (the Abyss needs 1.0) |
+| Hook | 80 | 500 | 7000 | bite window 1.1→1.6 s, snap 0.7→1.25 s |
+| Bait | 160 | 900 | 9000 | rare ×1/1.4/1.9/2.5 (legendary gets √) |
+| Boat | 220 | 1500 | 12000 | Reef / Delta+Bay / Abyss |
+Village: jars 40/140/700, salt 110/800, stall 90/900. Mission rewards 15-800 coins and 40-800 XP.
+Simulated pacing in studio/EXPERIMENTS.md (EXP-003). Known gap: no coin sink after about 3 h.

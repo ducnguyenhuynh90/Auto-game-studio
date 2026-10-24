@@ -1,7 +1,7 @@
 // Crafting (fill + seal a jar) and the signature moment: opening a jar to reveal the sauce.
 import { analytics } from '../core/analytics';
 import { BALANCE, RARITY_COLOR, RECIPES_BY_ID, SPECIES_BY_ID, TIERS, tierFor } from '../core/data';
-import { agingLevel, bestJarFill, canFerment, jarDegrees, openJar, productPrice, recipeFor, sealJar, sellProduct, type Product } from '../core/state';
+import { agingLevel, bestJarFill, useGadget, canFerment, jarDegrees, openJar, productPrice, recipeFor, sealJar, sellProduct, type Product } from '../core/state';
 import { sfx, vibrate } from '../render/audio';
 import { COLORS, H, W, clamp01, drawFish, drawJar, ease, outlinedText, panel, rr, star, text, type Ctx } from '../render/draw';
 import type { Game, Scene } from '../game';
@@ -114,10 +114,19 @@ export class JarFillOverlay implements Scene {
       if (usable) this.game.hitArea(`f${f.uid}`, cx, cy, 78, 70, () => this.toggle(f.uid));
     });
     if (pages > 1) {
-      this.game.button(ctx, 'page', W / 2 - 50, 664, 100, 30, `Page ${this.page + 1}/${pages}`, () => (this.page = (this.page + 1) % pages), { color: '#8a7a66', dark: '#5f5244', size: 13 });
+      this.game.button(ctx, 'page', 30, 666, 96, 32, `Page ${this.page + 1}/${pages}`, () => (this.page = (this.page + 1) % pages), { color: '#8a7a66', dark: '#5f5244', size: 13 });
     }
     ctx.restore();
 
+    if ((s.gadgets.salt ?? 0) > 0 || s.pendingJarBonus > 0) {
+      const on = s.pendingJarBonus > 0;
+      this.game.button(ctx, 'magicsalt', 140, 666, 220, 32, on ? 'Magic Salt added +6°N' : `Add Magic Salt (${s.gadgets.salt})`, () => {
+        if (!on && useGadget(s, 'salt')) {
+          sfx.upgrade();
+          this.game.commit();
+        }
+      }, { color: '#f2c14e', dark: '#b8860b', size: 13, disabled: on });
+    }
     this.game.button(ctx, 'auto', 30, 706, 130, 62, 'Best 3', () => {
       this.chosen = bestJarFill(s);
       sfx.plop();

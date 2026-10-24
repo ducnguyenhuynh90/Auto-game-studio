@@ -1,13 +1,17 @@
 // The village hub: your jars, the market, the dock. It visibly grows with every upgrade.
 import { BALANCE, SPECIES } from '../core/data';
-import { currentGoal } from '../core/goals';
-import { agingLevel, canFerment, upgradeCost, villageLevel, type Jar } from '../core/state';
+import { goalPair } from '../core/goals';
+import { levelForXp, levelProgress } from '../core/progression';
+import { SEAS, SEAS_BY_ID, seaComplete, seaLock } from '../core/seas';
+import { agingLevel, canFerment, upgradeCost, type Jar } from '../core/state';
+import type { UpgradeId } from '../core/data';
 import { COLORS, W, clamp01, drawCoin, ease, outlinedText, panel, rr, star, text, type Ctx } from '../render/draw';
 import { isMuted, setMuted } from '../render/audio';
 import type { Game, Scene } from '../game';
 import { JarFillOverlay, RevealOverlay } from './jar';
 import { MarketOverlay } from './market';
 import { DexOverlay } from './dex';
+import { MissionsOverlay, RelicOverlay } from './missions';
 
 const JAR_Y = 640;
 
@@ -29,8 +33,10 @@ export class VillageScene implements Scene {
 
   update(dt: number): void {
     this.t += dt;
-    const g = currentGoal(this.game.state);
+    const g = goalPair(this.game.state).current;
     const id = g?.id ?? '';
+    // Relics earned anywhere get their big moment back in the village.
+    if (this.game.relicQueue.length && this.game.overlays.length === 0) this.game.push(new RelicOverlay(this.game, this.game.relicQueue.shift()!));
     if (id !== this.lastGoal) {
       this.lastGoal = id;
       this.goalFlash = 1;
@@ -69,36 +75,37 @@ export class VillageScene implements Scene {
   /** Where the tutorial hand should point, based purely on state. */
   private pointTarget(): { x: number; y: number } | null {
     const s = this.game.state;
-    const g = currentGoal(s);
-    const fishBtn = { x: W / 2 + 60, y: 770 };
+    const g = goalPair(s).current;
+    const fishBtn = { x: 197, y: 770 };
+    const mapBtn = { x: 338, y: 770 };
     const jars = s.jars.map((_, i) => this.jarPt(i));
     const m = this.marketPt();
+    const market = { x: m.x, y: m.y - 10 };
     const readyIdx = s.jars.findIndex((j) => this.jarState(j) === 'ready');
     if (readyIdx >= 0 && (g?.id === 'open1' || g?.id === 'trip2' || s.stats.jarsOpened < 2)) return { x: jars[readyIdx].x, y: jars[readyIdx].y - 60 };
     if (!g) return null;
+    const canAfford = (ids: UpgradeId[]) => ids.some((id) => s.coins >= (upgradeCost(s, id) ?? Infinity));
     switch (g.id) {
-      case 'catch3':
-        return fishBtn;
       case 'seal1': {
         const empty = s.jars.findIndex((j) => !j.sealed);
         return this.fermentableCount() >= 3 && empty >= 0 ? { x: jars[empty].x, y: jars[empty].y - 60 } : fishBtn;
       }
-      case 'trip2':
-        return fishBtn;
-      case 'open1':
-        return fishBtn;
       case 'sell1':
-        return { x: m.x, y: m.y - 10 };
+        return market;
       case 'jar2':
-      case 'rod1':
-      case 'salt1':
-      case 'boat1': {
-        const id = ({ jar2: 'jars', rod1: 'rod', salt1: 'salt', boat1: 'boat' } as const)[g.id];
-        const cost = upgradeCost(s, id) ?? Infinity;
-        return s.coins >= cost || s.shelf.length > 0 ? { x: m.x, y: m.y - 10 } : null;
-      }
+        return canAfford(['jars']) || s.shelf.length > 0 ? market : null;
+      case 'gear1':
+        return canAfford(['rod', 'line', 'hook', 'bait']) || s.shelf.length > 0 ? market : null;
+      case 'l_mackerel':
+        return s.upgrades.line === 0 ? (canAfford(['line']) ? market : null) : fishBtn;
       default:
-        return null;
+        if (g.id.startsWith('voyage_')) return g.text.startsWith('Sail') ? mapBtn : canAfford(['boat']) ? market : null;
+        // brewing missions point at a jar when you have fish to fill one
+        if (/Brew/.test(g.text)) {
+          const empty = s.jars.findIndex((j) => !j.sealed);
+          if (empty >= 0 && this.fermentableCount() >= 3) return { x: jars[empty].x, y: jars[empty].y - 60 };
+        }
+        return s.stats.trips < 3 ? fishBtn : null;
     }
   }
 
@@ -246,72 +253,98 @@ export class VillageScene implements Scene {
   private drawTopBar(ctx: Ctx): void {
     const s = this.game.state;
     const pk = 1 + this.game.coinPulse * 0.25;
-    panel(ctx, 10, 12, 150, 44, COLORS.paper, 22);
+    panel(ctx, 10, 12, 116, 44, COLORS.paper, 22);
     ctx.save();
-    ctx.translate(36, 34);
+    ctx.translate(34, 34);
     ctx.scale(pk, pk);
-    drawCoin(ctx, 0, 0, 14);
+    drawCoin(ctx, 0, 0, 13);
     ctx.restore();
-    text(ctx, String(s.coins), 60, 35, 22, COLORS.ink, 'left', 900);
-    // village level
-    panel(ctx, 168, 12, 92, 44, COLORS.paper, 22);
-    text(ctx, 'Village', 214, 27, 11, 'rgba(43,33,24,0.6)');
-    text(ctx, `Lv ${villageLevel(s)}`, 214, 44, 17, COLORS.ink, 'center', 900);
-    // fishdex
+    text(ctx, String(s.coins), 54, 35, s.coins >= 10000 ? 16 : 20, COLORS.ink, 'left', 900);
+    // Captain level + XP bar
+    const lvl = levelForXp(s.xp);
+    panel(ctx, 132, 12, 128, 44, COLORS.paper, 22);
+    ctx.fillStyle = '#a35bd6';
+    ctx.beginPath();
+    ctx.arc(154, 34, 16, 0, Math.PI * 2);
+    ctx.fill();
+    outlinedText(ctx, String(lvl), 154, 35, 15, '#fff', COLORS.ink, 3);
+    text(ctx, 'Captain', 176, 25, 11, 'rgba(43,33,24,0.6)', 'left');
+    ctx.fillStyle = 'rgba(43,33,24,0.12)';
+    rr(ctx, 176, 36, 74, 9, 4);
+    ctx.fill();
+    ctx.fillStyle = '#a35bd6';
+    rr(ctx, 176, 36, 74 * levelProgress(s.xp), 9, 4);
+    ctx.fill();
     const found = SPECIES.filter((sp) => s.dex[sp.id]).length;
-    this.game.button(ctx, 'dex', 268, 12, 76, 44, `${found}/${SPECIES.length}`, () => this.game.push(new DexOverlay(this.game)), { color: '#3a8fd9', dark: '#22609e', size: 16, sub: 'Fishdex' });
+    this.game.button(ctx, 'dex', 266, 12, 78, 44, `${found}/${SPECIES.length}`, () => this.game.push(new DexOverlay(this.game)), { color: '#3a8fd9', dark: '#22609e', size: 16, sub: 'Fishdex' });
     this.game.button(ctx, 'mute', 350, 12, 32, 44, isMuted() ? 'x' : '♪', () => setMuted(!isMuted()), { color: '#8a7a66', dark: '#5f5244', size: 16 });
   }
 
+  /** Current goal with progress, plus the next one, so the player always knows the plan. */
   private drawGoal(ctx: Ctx): void {
     const s = this.game.state;
-    const g = currentGoal(s);
-    if (!g) return;
+    const { current, next } = goalPair(s);
+    if (!current) return;
     const k = this.goalFlash;
-    const sc = 1 + ease.outElastic(1 - k) * 0 + k * 0.06;
     ctx.save();
-    ctx.translate(W / 2, 90);
-    ctx.scale(sc, sc);
-    panel(ctx, -180, -22, 360, 46, k > 0.5 ? '#fff1b8' : COLORS.paper, 16);
-    ctx.fillStyle = COLORS.accent;
-    rr(ctx, -172, -14, 52, 30, 10);
+    ctx.translate(W / 2, 98);
+    ctx.scale(1 + k * 0.05, 1 + k * 0.05);
+    panel(ctx, -182, -32, 364, 70, k > 0.5 ? '#fff1b8' : COLORS.paper, 16);
+    ctx.fillStyle = current.chapter === 'Tutorial' ? COLORS.accent : '#3a8fd9';
+    rr(ctx, -174, -24, 54, 30, 10);
     ctx.fill();
-    text(ctx, 'GOAL', -146, 1, 13, '#fff', 'center', 900);
-    const prog = g.progress?.(s);
-    const label = prog ? `${g.text} (${prog[0]}/${prog[1]})` : g.text;
-    text(ctx, label, -110, 1, label.length > 28 ? 14 : 16, COLORS.ink, 'left');
-    if (g.reward > 0) {
-      drawCoin(ctx, 148, 1, 9);
-      text(ctx, String(g.reward), 162, 2, 13, COLORS.ink, 'left');
+    text(ctx, 'GOAL', -147, -9, 13, '#fff', 'center', 900);
+    const label = current.text;
+    text(ctx, label, -112, -14, label.length > 30 ? 13 : 15, COLORS.ink, 'left');
+    if (current.progress) {
+      const [c, t] = current.progress;
+      ctx.fillStyle = 'rgba(43,33,24,0.12)';
+      rr(ctx, -112, 0, 150, 8, 4);
+      ctx.fill();
+      ctx.fillStyle = COLORS.good;
+      rr(ctx, -112, 0, 150 * Math.min(1, c / t), 8, 4);
+      ctx.fill();
+      text(ctx, `${c}/${t}`, 46, 4, 11, COLORS.ink, 'left', 900);
+    } else text(ctx, current.chapter, -112, 4, 11, 'rgba(43,33,24,0.55)', 'left', 700);
+    if (current.reward > 0) {
+      drawCoin(ctx, 140, -10, 9);
+      text(ctx, String(current.reward), 154, -9, 13, COLORS.ink, 'left');
     }
+    ctx.strokeStyle = 'rgba(43,33,24,0.15)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(-170, 14);
+    ctx.lineTo(170, 14);
+    ctx.stroke();
+    text(ctx, next ? `Next: ${next.text}` : 'Next: you have done it all, captain!', -170, 26, 12, 'rgba(43,33,24,0.65)', 'left', 700);
+    text(ctx, 'Missions ›', 172, 26, 11, '#3a8fd9', 'right', 900);
     ctx.restore();
+    this.game.hitArea('goal', 8, 64, W - 16, 72, () => this.game.push(new MissionsOverlay(this.game)));
   }
 
   private drawBottom(ctx: Ctx): void {
     const s = this.game.state;
     // bucket
-    panel(ctx, 12, 722, 96, 92, COLORS.paper, 18);
+    panel(ctx, 12, 722, 86, 92, COLORS.paper, 18);
     ctx.fillStyle = '#8a6a4a';
     ctx.strokeStyle = COLORS.ink;
     ctx.lineWidth = 2.5;
     ctx.beginPath();
-    ctx.moveTo(34, 745);
-    ctx.lineTo(86, 745);
-    ctx.lineTo(80, 785);
-    ctx.lineTo(40, 785);
+    ctx.moveTo(31, 745);
+    ctx.lineTo(79, 745);
+    ctx.lineTo(73, 785);
+    ctx.lineTo(37, 785);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
-    outlinedText(ctx, String(s.bucket.length), 60, 765, 22, '#fff', COLORS.ink, 4);
-    text(ctx, 'fish', 60, 800, 12, COLORS.ink);
-    const reef = s.upgrades.boat >= 1;
-    if (reef) {
-      this.game.button(ctx, 'fish', 118, 722, 128, 86, 'Lagoon', () => this.game.goFishing('lagoon'), { color: '#2a9db5', dark: '#16677a', size: 22, sub: 'anchovies' });
-      this.game.button(ctx, 'reef', 254, 722, 126, 86, 'Reef', () => this.game.goFishing('reef'), { color: '#1c5f8f', dark: '#0f3a59', size: 22, sub: 'rare fish', pulse: !s.dex.snapper });
-    } else {
-      this.game.button(ctx, 'fish', 118, 722, 262, 86, 'GO FISHING', () => this.game.goFishing('lagoon'), { color: '#2a9db5', dark: '#16677a', size: 30, pulse: true });
-    }
+    outlinedText(ctx, String(s.bucket.length), 55, 765, 22, '#fff', COLORS.ink, 4);
+    text(ctx, 'fish', 55, 800, 12, COLORS.ink);
+    const sea = SEAS_BY_ID[s.sea];
+    this.game.button(ctx, 'fish', 106, 722, 182, 86, 'GO FISHING', () => this.game.goFishing(s.sea), { color: '#2a9db5', dark: '#16677a', size: 24, sub: sea.name, pulse: true });
+    const mapNew = SEAS.some((x) => x.id !== s.sea && !seaLock(s, x) && !seaComplete(s, x) && seaComplete(s, sea));
+    this.game.button(ctx, 'map', 296, 722, 84, 86, 'Map', () => this.game.goMap(), { color: '#c9a36a', dark: '#8f6f40', size: 20, sub: 'Sea Chart', pulse: mapNew });
   }
+
 
   private drawHand(ctx: Ctx, x: number, y: number): void {
     const bob = Math.sin(this.t * 5) * 8;

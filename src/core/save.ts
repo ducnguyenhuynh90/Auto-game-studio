@@ -8,8 +8,13 @@ export function loadState(): GameState {
     if (raw) {
       const s = JSON.parse(raw) as GameState;
       if (s.version === 1) {
+        // Older saves predate seas, gear, gadgets and missions: fill in every new field.
         const base = newState();
-        return { ...base, ...s, stats: { ...base.stats, ...s.stats } };
+        const legacy = s as GameState & { zone?: string };
+        const merged: GameState = { ...base, ...s, stats: { ...base.stats, ...s.stats }, upgrades: { ...base.upgrades, ...s.upgrades } };
+        if (!s.sea) merged.sea = legacy.zone === 'reef' ? 'reef' : 'lagoon';
+        delete (merged as GameState & { zone?: string }).zone;
+        return merged;
       }
     }
   } catch {

@@ -104,6 +104,52 @@ export function makeFish(speciesId: string): FishModel {
     cork.position.x = 0.43;
     const paper = add(new THREE.CylinderGeometry(0.08, 0.08, 0.3, 10), toon('#fff3d6'), g, false);
     paper.rotation.z = Math.PI / 2;
+  } else if (sp.crate) {
+    const box = add(new THREE.BoxGeometry(0.5, 0.42, 0.42), toon('#7a5aa8'));
+    box.rotation.y = 0.3;
+    for (const y of [-0.12, 0.12]) {
+      const band = add(new THREE.BoxGeometry(0.52, 0.05, 0.44), toon('#f2c650'), g, false);
+      band.position.y = y;
+      band.rotation.y = 0.3;
+    }
+    const q = add(new THREE.TorusGeometry(0.07, 0.025, 6, 12, Math.PI * 1.4), toon('#ffffff'), g, false);
+    q.position.set(0.08, 0.06, 0.24);
+    q.rotation.set(0, 0.3, -0.6);
+    const dot = add(new THREE.SphereGeometry(0.03, 6, 5), toon('#ffffff'), g, false);
+    dot.position.set(0.05, -0.1, 0.25);
+  } else if (sp.shape === 'prawn' || sp.shape === 'lobster') {
+    // curled segmented body, long feelers; lobsters get big spiny antennae
+    const segs = 6;
+    for (let i = 0; i < segs; i++) {
+      const r = 0.13 - i * 0.012;
+      const seg = add(new THREE.SphereGeometry(r, 10, 8), toon(i % 2 ? sp.color : sp.fin === '#f08a3a' ? '#7fa8d9' : sp.color));
+      const a = (i / segs) * 1.6;
+      seg.position.set(0.3 - Math.sin(a) * 0.45, -Math.cos(a) * 0.12 + 0.12 - i * 0.02, 0);
+      seg.scale.set(1.1, 0.9, 0.9);
+    }
+    const fan = add(new THREE.ConeGeometry(0.12, 0.2, 5), toon(sp.fin));
+    fan.position.set(-0.22, -0.12, 0);
+    fan.rotation.z = Math.PI / 2;
+    tail = fan;
+    for (const z of [-0.06, 0.06]) {
+      const ant = add(new THREE.CylinderGeometry(0.008, 0.012, sp.shape === 'lobster' ? 0.9 : 0.7, 4), toon(sp.fin), g, false);
+      ant.position.set(0.6, 0.2, z * 2);
+      ant.rotation.z = -1.0;
+    }
+    if (sp.shape === 'lobster') {
+      for (const z of [-0.14, 0.14]) {
+        const claw = add(new THREE.SphereGeometry(0.08, 8, 6), toon(sp.fin));
+        claw.position.set(0.48, -0.05, z);
+        claw.scale.set(1.6, 0.7, 0.8);
+      }
+    } else {
+      for (const z of [-0.1, 0.1]) {
+        const arm = add(new THREE.CylinderGeometry(0.015, 0.015, 0.5, 4), toon('#5fa0e8'), g, false);
+        arm.position.set(0.55, -0.05, z);
+        arm.rotation.z = Math.PI / 2 + 0.2;
+      }
+    }
+    addEyes(g, parts, 0.42, 0.1, 0.07, 0.04);
   } else if (sp.id === 'chest') {
     add(new THREE.BoxGeometry(0.6, 0.32, 0.42), toon('#9c6a32'));
     const lid = add(new THREE.CylinderGeometry(0.21, 0.21, 0.6, 12, 1, false, 0, Math.PI), toon('#b07a3a'));
@@ -115,9 +161,33 @@ export function makeFish(speciesId: string): FishModel {
     const lock = add(new THREE.BoxGeometry(0.06, 0.12, 0.46), toon('#f2c650'), g, false);
     lock.position.y = 0.12;
   } else {
-    const tall = sp.id === 'grouper' ? 0.5 : sp.id === 'trevally' || sp.id === 'snapper' ? 0.44 : 0.32;
+    const eel = sp.shape === 'eel';
+    const tall = eel ? 0.13 : sp.shape === 'angler' ? 0.62 : sp.id === 'grouper' ? 0.5 : sp.id === 'trevally' || sp.id === 'snapper' || sp.id === 'carp' ? 0.44 : 0.32;
     const body = add(new THREE.SphereGeometry(0.5, 20, 14), twoTone(sp.color, sp.belly));
-    body.scale.set(1, tall * 1.2, 0.42);
+    body.scale.set(1, tall * 1.2, eel ? 0.28 : 0.42);
+    if (sp.id === 'oarfish') {
+      // the long red crest of the oarfish
+      const crest = add(new THREE.BoxGeometry(0.9, 0.08, 0.02), toon(sp.fin), g, false);
+      crest.position.y = tall * 0.6;
+    }
+    if (sp.shape === 'angler') {
+      const stalk = add(new THREE.CylinderGeometry(0.012, 0.012, 0.35, 4), toon(sp.fin), g, false);
+      stalk.position.set(0.32, 0.42, 0);
+      stalk.rotation.z = -0.6;
+      const lure = mesh(new THREE.SphereGeometry(0.06, 10, 8), new THREE.MeshBasicMaterial({ color: 0xfff2a0 }), false);
+      lure.position.set(0.44, 0.55, 0);
+      g.add(lure);
+      const teeth = add(new THREE.ConeGeometry(0.02, 0.06, 3), toon('#ffffff'), g, false);
+      teeth.position.set(0.47, -0.04, 0.08);
+    }
+    if (sp.id === 'carp') {
+      // dragon carp whiskers
+      for (const z of [-0.12, 0.12]) {
+        const wh = add(new THREE.TorusGeometry(0.15, 0.012, 4, 10, Math.PI), toon('#ffd27a'), g, false);
+        wh.position.set(0.5, -0.05, z);
+        wh.rotation.set(Math.PI / 2, 0, 0.6);
+      }
+    }
     // tail fin
     const tg = new THREE.Group();
     tg.position.x = -0.45;
@@ -342,6 +412,74 @@ export function makeBasketBoat(): THREE.Group {
     rib.position.y = 0.32;
     g.add(rib);
   }
+  return g;
+}
+
+/** Boat by level: basket → wooden → junk sailboat → iron trawler. */
+export function makeBoat(level: number): THREE.Group {
+  if (level >= 3) return makeTrawler();
+  if (level === 2) return makeJunk();
+  if (level === 1) return makeWoodenBoat();
+  return makeBasketBoat();
+}
+
+/** Junk with battened red sails, the classic silhouette of the Gulf of Tonkin. */
+function makeJunk(): THREE.Group {
+  const g = makeWoodenBoat();
+  const oldSail = g.children.filter((c) => (c as THREE.Mesh).geometry?.type === 'ShapeGeometry');
+  for (const c of oldSail) g.remove(c);
+  for (const [x, h] of [
+    [-0.55, 1.4],
+    [0.35, 1.8],
+  ] as const) {
+    const mast = mesh(new THREE.CylinderGeometry(0.04, 0.04, h + 0.4), toon('#6e4423'));
+    mast.position.set(x, 0.4 + h / 2, 0);
+    g.add(mast);
+    const sail = new THREE.Group();
+    for (let i = 0; i < 4; i++) {
+      const panel = mesh(new THREE.BoxGeometry(0.75, h / 4 - 0.04, 0.02), toon(i % 2 ? '#c0392b' : '#d9573f'));
+      panel.position.set(0.32, 0.55 + (i + 0.5) * (h / 4), 0);
+      sail.add(panel);
+      const batten = mesh(new THREE.BoxGeometry(0.8, 0.03, 0.04), toon('#3a2a1a'), false);
+      batten.position.set(0.32, 0.55 + i * (h / 4), 0);
+      sail.add(batten);
+    }
+    sail.position.x = x;
+    g.add(sail);
+  }
+  return g;
+}
+
+function makeTrawler(): THREE.Group {
+  const g = new THREE.Group();
+  const s = new THREE.Shape();
+  s.moveTo(-1.4, 0.45);
+  s.lineTo(-1.3, -0.15);
+  s.quadraticCurveTo(0, -0.25, 1.3, -0.1);
+  s.lineTo(1.6, 0.55);
+  s.lineTo(-1.4, 0.45);
+  const hullGeo = new THREE.ExtrudeGeometry(s, { depth: 1, bevelEnabled: true, bevelSize: 0.05, bevelThickness: 0.05, bevelSegments: 2 });
+  hullGeo.translate(0, 0, -0.5);
+  const hull = mesh(hullGeo, toon('#2f5f8f'));
+  outline(hull, 1.03);
+  g.add(hull);
+  const stripe = mesh(new THREE.BoxGeometry(2.9, 0.1, 1.06), toon('#f5f0e6'), false);
+  stripe.position.set(0.1, 0.4, 0);
+  g.add(stripe);
+  const cabin = mesh(new THREE.BoxGeometry(0.9, 0.6, 0.8), toon('#f5f0e6'));
+  outline(cabin, 1.03);
+  cabin.position.set(-0.6, 0.8, 0);
+  g.add(cabin);
+  const roof = mesh(new THREE.BoxGeometry(1.0, 0.08, 0.9), toon('#c0392b'), false);
+  roof.position.set(-0.6, 1.14, 0);
+  g.add(roof);
+  const stack = mesh(new THREE.CylinderGeometry(0.1, 0.12, 0.5, 10), toon('#2b2118'));
+  stack.position.set(-0.9, 1.4, 0);
+  g.add(stack);
+  const crane = mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.4), toon('#f2b233'));
+  crane.position.set(0.7, 1.0, 0);
+  crane.rotation.z = -0.5;
+  g.add(crane);
   return g;
 }
 

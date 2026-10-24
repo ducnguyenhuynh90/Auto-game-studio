@@ -8,8 +8,12 @@ import { fishIcon } from './render3d/icons';
 import { setFishIconProvider } from './render/draw';
 import { FishingScene } from './scenes/fishing';
 import { VillageScene } from './scenes/village';
+import { MapScene } from './scenes/map';
 import { RevealOverlay } from './scenes/jar';
-import { addCatch, sealJar } from './core/state';
+import { addCatch, canFerment, sealJar, upgradeCost } from './core/state';
+import { UPGRADES } from './core/data';
+import { SEAS, SEAS_BY_ID, seaComplete, seaLock } from './core/seas';
+import type { SeaId } from './core/data';
 
 const params = new URLSearchParams(location.search);
 if (params.has('reset')) resetSave();
@@ -24,17 +28,22 @@ setFishIconProvider(fishIcon);
 if (params.has('speed')) game.timeScale = Number(params.get('speed'));
 
 game.goVillage = () => game.setScene(new VillageScene(game));
-game.goFishing = (zone) => {
-  game.state.zone = zone;
-  game.setScene(new FishingScene(game, zone));
+game.goMap = () => game.setScene(new MapScene(game));
+game.goFishing = (sea) => {
+  game.state.sea = sea;
+  game.setScene(new FishingScene(game, sea));
 };
+// A save from before the sea chart may point at a sea whose story is now locked.
+if (seaLock(game.state, SEAS_BY_ID[game.state.sea])) game.state.sea = 'lagoon';
 game.goVillage();
 
 // Dev-only shortcuts for visual QA: ?scene=fishing | reef | reveal
 if (import.meta.env.DEV && params.has('scene')) {
   const which = params.get('scene');
   const st = game.state;
-  if (which === 'fishing' || which === 'reef') game.goFishing(which === 'reef' ? 'reef' : 'lagoon');
+  if (which && which in SEAS_BY_ID) game.goFishing(which as SeaId);
+  if (which === 'fishing') game.goFishing('lagoon');
+  if (which === 'map') game.goMap();
   if (which === 'reveal') {
     for (let i = 0; i < 3; i++) addCatch(st, 'anchovy', 10, 0.9);
     sealJar(st, 0, st.bucket.map((f) => f.uid), game.rng, Date.now());
@@ -99,4 +108,4 @@ function frame(now: number): void {
 requestAnimationFrame(frame);
 
 // Test / QA hook (harmless in production: exposes nothing sensitive).
-(window as unknown as Record<string, unknown>).__mam = { game, analytics };
+(window as unknown as Record<string, unknown>).__mam = { game, analytics, rules: { upgradeCost, UPGRADES, SEAS, seaLock, seaComplete, canFerment } };

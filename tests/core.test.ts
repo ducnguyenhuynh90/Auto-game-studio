@@ -9,7 +9,7 @@ const rng = () => makeRng(42);
 
 describe('reel', () => {
   it('a skilled player who keeps tension in the zone lands the fish with high freshness', () => {
-    const r = new Reel({ difficulty: 0.3, rodLevel: 0 }, rng());
+    const r = new Reel({ difficulty: 0.3, rodLevel: 0, hookLevel: 0 }, rng());
     let t = 0;
     while (!r.result && t < 30) {
       r.step(1 / 60, r.tension < r.zoneCenter);
@@ -20,7 +20,7 @@ describe('reel', () => {
   });
 
   it('holding forever snaps the line', () => {
-    const r = new Reel({ difficulty: 0.3, rodLevel: 0 }, rng());
+    const r = new Reel({ difficulty: 0.3, rodLevel: 0, hookLevel: 0 }, rng());
     let t = 0;
     while (!r.result && t < 30) {
       r.step(1 / 60, true);
@@ -30,7 +30,7 @@ describe('reel', () => {
   });
 
   it('never reeling lets the fish escape', () => {
-    const r = new Reel({ difficulty: 0.3, rodLevel: 0 }, rng());
+    const r = new Reel({ difficulty: 0.3, rodLevel: 0, hookLevel: 0 }, rng());
     let t = 0;
     while (!r.result && t < 30) {
       r.step(1 / 60, false);
@@ -51,7 +51,7 @@ describe('reel', () => {
 
   it('reef shadows can be reef-only species, lagoon never', () => {
     const r = rng();
-    for (let i = 0; i < 500; i++) expect(['snapper', 'grouper', 'squid', 'chest', 'trevally']).not.toContain(rollShadow(r, 'lagoon').species);
+    for (let i = 0; i < 500; i++) expect(['snapper', 'grouper', 'squid', 'chest', 'trevally', 'oarfish', 'carp']).not.toContain(rollShadow(r, 'lagoon').species);
   });
 });
 

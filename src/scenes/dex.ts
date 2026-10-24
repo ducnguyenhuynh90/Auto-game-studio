@@ -1,4 +1,5 @@
 // Collection view: species found + best sauce per recipe.
+import { SEAS_BY_ID } from '../core/seas';
 import { RARITY_COLOR, RECIPES, SPECIES, tierFor } from '../core/data';
 import { COLORS, H, W, clamp01, drawFish, ease, outlinedText, panel, rr, text, type Ctx } from '../render/draw';
 import type { Game, Scene } from '../game';
@@ -6,6 +7,7 @@ import type { Game, Scene } from '../game';
 export class DexOverlay implements Scene {
   name = 'dex';
   t = 0;
+  page = 0;
 
   constructor(private game: Game) {}
 
@@ -26,7 +28,9 @@ export class DexOverlay implements Scene {
     const found = SPECIES.filter((sp) => s.dex[sp.id]).length;
     outlinedText(ctx, 'Fishdex', W / 2, 78, 30, '#fff', COLORS.ink, 6);
     text(ctx, `${found} of ${SPECIES.length} discovered`, W / 2, 108, 14, 'rgba(43,33,24,0.7)');
-    SPECIES.forEach((sp, i) => {
+    const perPage = 12;
+    const pages = Math.ceil(SPECIES.length / perPage);
+    SPECIES.slice(this.page * perPage, this.page * perPage + perPage).forEach((sp, i) => {
       const cx = 30 + (i % 3) * 112;
       const cy = 126 + Math.floor(i / 3) * 102;
       const e = s.dex[sp.id];
@@ -47,30 +51,37 @@ export class DexOverlay implements Scene {
         drawFish(ctx, sp.id, cx + 52, cy + 38, 70);
         ctx.restore();
         text(ctx, '???', cx + 52, cy + 72, 14, 'rgba(43,33,24,0.5)');
-        text(ctx, sp.zones.includes('lagoon') ? 'Lagoon' : 'Reef', cx + 52, cy + 86, 10, 'rgba(43,33,24,0.45)', 'center', 600);
+        text(ctx, SEAS_BY_ID[sp.seas[0]].name, cx + 52, cy + 86, 10, 'rgba(43,33,24,0.45)', 'center', 600);
       }
     });
+    if (pages > 1) {
+      text(ctx, `Page ${this.page + 1}/${pages}`, W / 2, 538, 12, 'rgba(43,33,24,0.6)', 'center', 900);
+      this.game.button(ctx, 'dexprev', 110, 524, 40, 28, '‹', () => (this.page = (this.page + pages - 1) % pages), { color: '#8a7a66', dark: '#5f5244', size: 16 });
+      this.game.button(ctx, 'dexnext', W - 150, 524, 40, 28, '›', () => (this.page = (this.page + 1) % pages), { color: '#8a7a66', dark: '#5f5244', size: 16 });
+    }
     // recipe book
-    const ry = 540;
+    const ry = 568;
     text(ctx, 'RECIPE BOOK · BEST SAUCE', 30, ry, 13, 'rgba(43,33,24,0.6)', 'left', 900);
+    const cw = (W - 58) / 2;
     RECIPES.forEach((r, i) => {
-      const y = ry + 18 + i * 44;
+      const x = 26 + (i % 2) * (cw + 6);
+      const y = ry + 14 + Math.floor(i / 2) * 42;
       const best = s.cellar[r.id];
       ctx.fillStyle = best !== undefined ? '#fff' : 'rgba(43,33,24,0.08)';
-      rr(ctx, 26, y, W - 52, 38, 10);
+      rr(ctx, x, y, cw, 36, 10);
       ctx.fill();
       ctx.fillStyle = r.color;
-      rr(ctx, 34, y + 8, 14, 22, 4);
+      rr(ctx, x + 6, y + 7, 10, 22, 4);
       ctx.fill();
-      text(ctx, best !== undefined ? r.name : '??? Undiscovered recipe', 58, y + 19, 14, COLORS.ink, 'left');
+      text(ctx, best !== undefined ? r.name : '???', x + 22, y + 11, r.name.length > 16 ? 10 : 11, COLORS.ink, 'left', 800);
       if (best !== undefined) {
         const tier = tierFor(best);
-        text(ctx, `${best.toFixed(1)}°N`, W - 120, y + 19, 14, COLORS.ink, 'right', 900);
         ctx.fillStyle = tier.color;
-        rr(ctx, W - 112, y + 8, 76, 22, 8);
+        rr(ctx, x + 22, y + 20, 64, 13, 6);
         ctx.fill();
-        text(ctx, tier.name, W - 74, y + 19, 12, '#fff', 'center', 900);
-      }
+        text(ctx, tier.name, x + 54, y + 27, 9, '#fff', 'center', 900);
+        text(ctx, `${best.toFixed(1)}°N`, x + cw - 8, y + 26, 11, COLORS.ink, 'right', 900);
+      } else text(ctx, 'Undiscovered', x + 22, y + 26, 10, 'rgba(43,33,24,0.5)', 'left', 600);
     });
     ctx.restore();
     this.game.button(ctx, 'close', W - 66, 54, 44, 40, 'x', () => this.game.pop(this), { color: '#8a7a66', dark: '#5f5244', size: 18 });

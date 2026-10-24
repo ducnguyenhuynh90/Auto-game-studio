@@ -1,9 +1,11 @@
 // Fishing trip: aim (hold to charge) → cast → approach/nibble → bite (tap) → reel (hold/release) → catch card.
 import { analytics } from '../core/analytics';
-import { BALANCE, RARITY_COLOR, RARITY_LABEL, SPECIES_BY_ID, type ZoneId } from '../core/data';
-import { Reel, castPower, rollShadow, type ShadowSpec } from '../core/fishing';
+import { BALANCE, RARITY_COLOR, RARITY_LABEL, SPECIES_BY_ID, type SeaId } from '../core/data';
+import { Reel, castDistance, castPower, rollShadow, type ShadowSpec } from '../core/fishing';
+import { GADGETS, hasRelic, type GadgetId } from '../core/items';
+import { SEAS_BY_ID } from '../core/seas';
 import { range } from '../core/rng';
-import { addCatch, agingLevel, finishTrip, type CaughtFish } from '../core/state';
+import { addCatch, agingLevel, castsPerTrip, duplicateCatch, finishTrip, useGadget, type CaughtFish } from '../core/state';
 import { sfx, vibrate } from '../render/audio';
 import { COLORS, H, W, clamp01, drawFish, ease, outlinedText, panel, rr, star, text, type Ctx } from '../render/draw';
 import type { Game, Scene } from '../game';
@@ -19,6 +21,8 @@ interface Shadow extends ShadowSpec {
   phase: number;
   state: 'swim' | 'approach' | 'hooked' | 'flee';
   alpha: number;
+  /** Deeper than the current line can reach: visible, but out of range. */
+  locked: boolean;
 }
 
 type Phase = 'aim' | 'charging' | 'flying' | 'waiting' | 'bite' | 'reel' | 'result' | 'card' | 'summary';
@@ -31,7 +35,12 @@ export class FishingScene implements Scene {
   name = 'fishing';
   phase: Phase = 'aim';
   shadows: Shadow[] = [];
-  castsLeft = BALANCE.castsPerTrip;
+  castsLeft: number;
+  readonly totalCasts: number;
+  /** Gadget effects active this trip (and the Octo Net for the next catch). */
+  effects = new Set<GadgetId>();
+  tripGadgets: GadgetId[] = [];
+  tripXp = 0;
   holdTime = 0;
   power = 0;
   bobber = { x: W / 2, y: NEAR_Y, t: 0, dip: 0 };
@@ -44,7 +53,7 @@ export class FishingScene implements Scene {
   resultText = '';
   resultColor = '#fff';
   resultT = 0;
-  card: { fish: CaughtFish; isNew: boolean; isRecord: boolean; t: number } | null = null;
+  card: { fish: CaughtFish; isNew: boolean; isRecord: boolean; t: number; gadget?: GadgetId; doubled: boolean; xp: number } | null = null;
   tripCatches: CaughtFish[] = [];
   tripTreasure = 0;
   hintT = 0;
@@ -55,14 +64,40 @@ export class FishingScene implements Scene {
 
   constructor(
     private game: Game,
-    readonly zone: ZoneId,
+    readonly sea: SeaId,
   ) {
-    for (let i = 0; i < 5; i++) this.spawnShadow(true);
     const s = game.state;
-    analytics.track('trip_start', { zone, trip: s.stats.trips + 1 });
+    this.totalCasts = castsPerTrip(s);
+    this.castsLeft = this.totalCasts;
+    for (let i = 0; i < 5; i++) this.spawnShadow(true);
+    analytics.track('trip_start', { sea, trip: s.stats.trips + 1 });
     if (s.stats.trips === 1) analytics.funnelStep('second_trip_start');
     if (s.stats.trips === 2) analytics.funnelStep('third_trip_start');
-    if (zone === 'reef') analytics.funnelStep('first_reef_trip');
+    if (sea === 'reef') analytics.funnelStep('first_reef_trip');
+  }
+
+  /** How far the line reaches right now (0..1 of the water). */
+  get reach(): number {
+    return this.effects.has('rocket') ? 1 : BALANCE.lineReach[this.game.state.upgrades.line];
+  }
+
+  /** Activate a gadget from the item bar. */
+  useGadget(id: GadgetId): void {
+    if (this.effects.has(id) || !useGadget(this.game.state, id)) return;
+    this.effects.add(id);
+    sfx.upgrade();
+    analytics.track('gadget_use', { id, sea: this.sea });
+    this.game.toast(`${GADGETS[id].name}!`, GADGETS[id].color, GADGETS[id].desc);
+    this.refreshLocks();
+    this.game.commit();
+  }
+
+  private refreshLocks(): void {
+    for (const sh of this.shadows) sh.locked = sh.depth > this.reach + 0.02;
+  }
+
+  private waitScale(): number {
+    return hasRelic(this.game.state.relics, 'kite') ? 0.5 : 1;
   }
 
   private get tutorial(): boolean {
@@ -71,7 +106,7 @@ export class FishingScene implements Scene {
 
   spawnShadow(initial = false): void {
     const g = this.game;
-    let spec = rollShadow(g.rng, this.zone);
+    let spec = rollShadow(g.rng, this.sea, g.state.upgrades.bait);
     // First-ever cast of the game: guarantee a friendly anchovy close to the boat lane.
     if (this.tutorial && this.shadows.length === 0) spec = { species: 'anchovy', size: 10, depth: 0.3 };
     const dir: 1 | -1 = g.rng() < 0.5 ? 1 : -1;
@@ -85,6 +120,7 @@ export class FishingScene implements Scene {
       phase: g.rng() * 10,
       state: 'swim',
       alpha: initial ? 1 : 0,
+      locked: spec.depth > this.reach + 0.02,
     });
   }
 
@@ -111,14 +147,22 @@ export class FishingScene implements Scene {
   // ---------- Flow ----------
   private cast(): void {
     const s = this.game.state;
-    this.phase = 'flying';
     this.castsLeft--;
     s.stats.casts++;
-    const ty = depthToY(this.power);
-    this.bobber = { x: W / 2, y: ty, t: 0, dip: 0 };
-    sfx.cast();
-    analytics.track('cast', { power: Math.round(this.power * 100) / 100, zone: this.zone });
     analytics.funnelStep('first_cast');
+    const { distance, tangled } = castDistance(this.power, this.reach);
+    analytics.track('cast', { power: Math.round(this.power * 100) / 100, sea: this.sea, tangled });
+    if (tangled) {
+      // Overcharged: the line knots up and the cast is lost. Honest, visible on the meter.
+      s.stats.tangles++;
+      this.game.shake = 0.3;
+      vibrate([20, 30, 20]);
+      this.lose('Tangled line! Release before the red', 'tangled');
+      return;
+    }
+    this.phase = 'flying';
+    this.bobber = { x: W / 2, y: depthToY(distance), t: 0, dip: 0 };
+    sfx.cast();
   }
 
   private landed(): void {
@@ -129,7 +173,7 @@ export class FishingScene implements Scene {
     let best: Shadow | null = null;
     let bestD = Infinity;
     for (const sh of this.shadows) {
-      if (sh.state !== 'swim') continue;
+      if (sh.state !== 'swim' || sh.locked) continue;
       const d = Math.hypot((sh.x - this.bobber.x) * 0.6, sh.y - this.bobber.y);
       if (d < bestD) {
         bestD = d;
@@ -140,19 +184,18 @@ export class FishingScene implements Scene {
     this.nibbles = 0;
     if (best && bestD < R) {
       this.target = best;
-      this.waitTimer = range(this.game.rng, 0.6, 1.2);
+      this.waitTimer = range(this.game.rng, 0.6, 1.2) * this.waitScale();
     } else {
       // Missed every shadow: the nearest fish still notices, but it takes longer (no dead ends).
       this.target = best;
-      this.waitTimer = range(this.game.rng, 1.6, 2.4);
+      this.waitTimer = range(this.game.rng, 1.6, 2.4) * this.waitScale();
     }
     if (this.target) this.target.state = 'approach';
   }
 
   private startBite(): void {
     this.phase = 'bite';
-    const rod = this.game.state.upgrades.rod;
-    this.biteTimer = BALANCE.rodBite[rod] + (this.tutorial ? 0.8 : 0);
+    this.biteTimer = BALANCE.hookBite[this.game.state.upgrades.hook] + (this.tutorial ? 0.8 : 0);
     sfx.bite();
     vibrate([30, 30, 60]);
     this.game.particles.burst(this.bobber.x, this.bobber.y, 18, ['#ffffff', '#bfe9f2'], { speed: 180, size: 4, up: true, g: 500, life: 0.7 });
@@ -164,12 +207,13 @@ export class FishingScene implements Scene {
     const sp = SPECIES_BY_ID[this.target.species];
     this.phase = 'reel';
     this.target.state = 'hooked';
-    this.reel = new Reel({ difficulty: sp.difficulty, rodLevel: this.game.state.upgrades.rod, assist: this.tutorial }, this.game.rng);
+    const up = this.game.state.upgrades;
+    this.reel = new Reel({ difficulty: sp.difficulty, rodLevel: up.rod, hookLevel: up.hook, assist: this.tutorial, zoneMult: this.effects.has('pearl') ? 1.5 : 1 }, this.game.rng);
     this.hintT = 0;
     sfx.splash();
     vibrate(40);
     this.game.shake = 0.4;
-    analytics.track('hook', { species: sp.id, reaction: Math.round((BALANCE.rodBite[this.game.state.upgrades.rod] - this.biteTimer) * 1000) });
+    analytics.track('hook', { species: sp.id, reaction: Math.round((BALANCE.hookBite[up.hook] - this.biteTimer) * 1000) });
   }
 
   private lose(text: string, reason: string): void {
@@ -179,7 +223,7 @@ export class FishingScene implements Scene {
     this.resultText = text;
     this.resultColor = '#ffd9cc';
     this.resultT = 0;
-    if (this.target) {
+    if (this.target && this.target.state !== 'swim') {
       this.target.state = 'flee';
       this.target.dir = this.target.x < W / 2 ? -1 : 1;
     }
@@ -193,12 +237,22 @@ export class FishingScene implements Scene {
     const r = this.reel!;
     const s = this.game.state;
     const fresh = r.freshness;
-    const res = addCatch(s, sh.species, sh.size, fresh);
+    const res = addCatch(s, sh.species, sh.size, fresh, this.sea, this.game.rng);
     const sp = SPECIES_BY_ID[sh.species];
     this.tripCatches.push(res.fish);
     if (sp.treasure) this.tripTreasure += sp.raw;
+    if (res.gadget) this.tripGadgets.push(res.gadget);
+    // Octo Net doubles the next real fish (not crates or treasure).
+    let doubled = false;
+    if (this.effects.has('octo') && !sp.treasure && !sp.crate) {
+      this.tripCatches.push(duplicateCatch(s, res.fish));
+      this.effects.delete('octo');
+      doubled = true;
+    }
+    this.tripXp += res.xp;
+    if (res.levelUps > 0) this.game.levelUp();
     this.shadows = this.shadows.filter((x) => x !== sh);
-    this.card = { ...res, t: 0 };
+    this.card = { ...res, t: 0, doubled };
     this.phase = 'card';
     this.target = null;
     this.reel = null;
@@ -207,7 +261,7 @@ export class FishingScene implements Scene {
     vibrate(sp.rarity >= 3 ? [40, 40, 40, 40, 120] : 60);
     const colors = sp.rarity >= 3 ? [RARITY_COLOR[sp.rarity], COLORS.gold, '#fff'] : ['#ffffff', '#bfe9f2', COLORS.gold];
     this.game.particles.burst(W / 2, 260, sp.rarity >= 3 ? 60 : 26, colors, { speed: 320, kind: sp.rarity >= 3 ? 'star' : 'confetti', size: 7, g: 300, life: 1.3 });
-    analytics.track('catch', { species: sp.id, rarity: sp.rarity, size: sh.size, fresh: Math.round(fresh * 100) / 100, perfect: res.fish.perfect, isNew: res.isNew, zone: this.zone });
+    analytics.track('catch', { species: sp.id, rarity: sp.rarity, size: sh.size, fresh: Math.round(fresh * 100) / 100, perfect: res.fish.perfect, isNew: res.isNew, sea: this.sea, gadget: res.gadget ?? '' });
     analytics.funnelStep('first_catch', { species: sp.id });
     if (res.isNew) analytics.track('dex_new', { species: sp.id, total: Object.keys(s.dex).length });
     this.game.commit();
@@ -228,7 +282,7 @@ export class FishingScene implements Scene {
     const s = this.game.state;
     this.fullTrip = this.castsLeft <= 0;
     finishTrip(s, this.fullTrip);
-    analytics.track('trip_end', { zone: this.zone, catches: this.tripCatches.length, casts: BALANCE.castsPerTrip - this.castsLeft, trip: s.stats.trips });
+    analytics.track('trip_end', { sea: this.sea, catches: this.tripCatches.length, casts: this.totalCasts - this.castsLeft, trip: s.stats.trips });
     this.game.commit();
     this.phase = 'summary';
     this.t = 0;
@@ -240,6 +294,7 @@ export class FishingScene implements Scene {
     this.hintT += dt;
     this.earlyTapT = Math.max(0, this.earlyTapT - dt);
     for (const sh of this.shadows) this.updateShadow(sh, dt);
+    if (this.phase === 'aim' || this.phase === 'charging') this.refreshLocks();
     this.shadows = this.shadows.filter((sh) => !(sh.state === 'flee' && (sh.x < -100 || sh.x > W + 100)));
     while (this.shadows.filter((s) => s.state === 'swim' || s.state === 'approach').length < 5) this.spawnShadow();
     if (this.card) this.card.t += dt;
@@ -344,7 +399,13 @@ export class FishingScene implements Scene {
   // ---------- Draw ----------
   /** Screen y where the cast would land right now (the 3D reticle follows this). */
   aimScreenY(): number {
-    return depthToY(this.phase === 'charging' ? this.power : 0.35 + Math.sin(this.t * 1.5) * 0.05);
+    if (this.phase !== 'charging') return depthToY(0.35 + Math.sin(this.t * 1.5) * 0.05);
+    return depthToY(castDistance(Math.min(this.power, BALANCE.overcast), this.reach).distance);
+  }
+
+  /** True while the meter sits in the red overcast band (the 3D reticle turns red). */
+  get overcharged(): boolean {
+    return this.phase === 'charging' && this.power > BALANCE.overcast;
   }
 
   draw(ctx: Ctx): void {
@@ -367,13 +428,20 @@ export class FishingScene implements Scene {
     const top = 470;
     const h = 220;
     panel(ctx, x - 12, top - 12, 24, h + 24, 'rgba(255,248,236,0.9)', 12);
+    // red overcast band at the top: release there and the line tangles
+    const red = h * (1 - BALANCE.overcast);
+    ctx.fillStyle = 'rgba(216,71,59,0.35)';
+    rr(ctx, x - 7, top, 14, red, 6);
+    ctx.fill();
     const g = ctx.createLinearGradient(0, top + h, 0, top);
     g.addColorStop(0, '#7fd18b');
     g.addColorStop(1, '#2d7fd8');
-    ctx.fillStyle = g;
+    ctx.fillStyle = this.overcharged ? COLORS.bad : g;
     rr(ctx, x - 7, top + h * (1 - this.power), 14, h * this.power, 6);
     ctx.fill();
-    text(ctx, 'far', x, top - 22, 11, '#fff');
+    ctx.fillStyle = COLORS.bad;
+    ctx.fillRect(x - 12, top + red - 1, 24, 3);
+    text(ctx, 'TANGLE', x + 4, top - 22, 10, COLORS.bad, 'left');
     text(ctx, 'near', x, top + h + 22, 11, '#fff');
   }
 
@@ -381,11 +449,11 @@ export class FishingScene implements Scene {
     // bait remaining
     panel(ctx, 10, 12, 176, 44, 'rgba(255,248,236,0.95)', 14);
     text(ctx, 'Casts', 22, 34, 14, COLORS.ink, 'left');
-    for (let i = 0; i < BALANCE.castsPerTrip; i++) {
+    for (let i = 0; i < this.totalCasts; i++) {
       const filled = i < this.castsLeft;
       ctx.fillStyle = filled ? '#e74c3c' : 'rgba(43,33,24,0.15)';
       ctx.beginPath();
-      ctx.arc(82 + i * 21, 34, 8, 0, Math.PI * 2);
+      ctx.arc(76 + i * (this.totalCasts > 5 ? 17 : 21), 34, 7, 0, Math.PI * 2);
       ctx.fill();
       if (filled) {
         ctx.strokeStyle = COLORS.ink;
@@ -395,9 +463,65 @@ export class FishingScene implements Scene {
     }
     panel(ctx, W - 130, 12, 120, 44, 'rgba(255,248,236,0.95)', 14);
     text(ctx, `Caught ${this.tripCatches.length}`, W - 70, 34, 16, COLORS.ink);
-    text(ctx, this.zone === 'reef' ? 'THE REEF' : 'THE LAGOON', W / 2, 74, 13, 'rgba(255,255,255,0.75)');
+    text(ctx, SEAS_BY_ID[this.sea].name.toUpperCase(), W / 2, 74, 13, 'rgba(255,255,255,0.85)');
+    // active effects
+    [...this.effects].forEach((id, i) => {
+      const gd = GADGETS[id];
+      ctx.fillStyle = gd.color;
+      rr(ctx, W - 130, 64 + i * 26, 120, 22, 11);
+      ctx.fill();
+      text(ctx, gd.name, W - 70, 75 + i * 26, 12, '#fff');
+    });
     if (this.phase === 'aim') {
       this.game.button(ctx, 'leave', 10, 66, 92, 34, 'Dock', () => this.endTrip(), { color: '#8a7a66', dark: '#5f5244', size: 15 });
+      this.drawItemBar(ctx);
+    }
+    this.drawShadowLabels(ctx);
+  }
+
+  /** Gadgets usable on a trip, as buttons along the bottom-left. */
+  private drawItemBar(ctx: Ctx): void {
+    const s = this.game.state;
+    const usable = (Object.keys(GADGETS) as GadgetId[]).filter((id) => GADGETS[id].scope !== 'jar' && (s.gadgets[id] ?? 0) > 0 && !this.effects.has(id));
+    usable.forEach((id, i) => {
+      const gd = GADGETS[id];
+      const x = 12 + i * 62;
+      const y = 776;
+      this.game.button(ctx, `gadget_${id}`, x, y, 56, 52, gd.icon, () => this.useGadget(id), { color: gd.color, dark: '#3a2a4a', size: 22 });
+      ctx.fillStyle = COLORS.paper;
+      ctx.beginPath();
+      ctx.arc(x + 50, y + 4, 10, 0, Math.PI * 2);
+      ctx.fill();
+      text(ctx, String(s.gadgets[id]), x + 50, y + 5, 12, COLORS.ink);
+    });
+    if (usable.length) text(ctx, 'Gadgets: tap to use', 12, 764, 11, '#fff', 'left');
+  }
+
+  /** Locked deep fish say why; the Sonar Shell names every shadow. */
+  private drawShadowLabels(ctx: Ctx): void {
+    if (this.phase === 'card' || this.phase === 'summary') return;
+    const sonar = this.effects.has('sonar');
+    let lockedShown = 0;
+    for (const sh of this.shadows) {
+      if (sh.state === 'flee' || sh.alpha < 0.5) continue;
+      if (sonar) {
+        const sp = SPECIES_BY_ID[sh.species];
+        ctx.font = '700 11px sans-serif';
+        const w = ctx.measureText(sp.name).width + 12;
+        const sx = Math.max(w / 2 + 4, Math.min(W - w / 2 - 4, sh.x));
+        ctx.fillStyle = RARITY_COLOR[sp.rarity];
+        rr(ctx, sx - w / 2, sh.y - 34, w, 18, 9);
+        ctx.fill();
+        text(ctx, sp.name, sx, sh.y - 25, 11, '#fff');
+      }
+      if (sh.locked && (this.phase === 'aim' || this.phase === 'charging') && lockedShown < 2) {
+        lockedShown++;
+        const lx = Math.max(60, Math.min(W - 60, sh.x));
+        ctx.fillStyle = 'rgba(43,33,24,0.75)';
+        rr(ctx, lx - 52, sh.y + (sonar ? -56 : -30), 104, 18, 9);
+        ctx.fill();
+        text(ctx, 'Need longer line', lx, sh.y + (sonar ? -47 : -21), 11, '#fff');
+      }
     }
   }
 
@@ -508,8 +632,18 @@ export class FishingScene implements Scene {
     outlinedText(ctx, RARITY_LABEL[sp.rarity].toUpperCase(), 0, -81, 17, '#fff', COLORS.ink, 4);
     outlinedText(ctx, sp.name, 0, -38, 30, '#fff', COLORS.ink, 6);
     text(ctx, sp.local, 0, -10, 15, 'rgba(43,33,24,0.6)', 'center', 600);
-    text(ctx, sp.treasure ? `+${sp.raw} coins!` : `${c.fish.size} cm`, 0, 20, 22, COLORS.ink);
-    if (!sp.treasure) {
+    if (c.gadget) {
+      // Mystery Crate: show what was inside and what it does
+      const gd = GADGETS[c.gadget];
+      ctx.fillStyle = gd.color;
+      rr(ctx, -120, 6, 240, 30, 12);
+      ctx.fill();
+      outlinedText(ctx, `Found: ${gd.name}!`, 0, 21, 17, '#fff', COLORS.ink, 4);
+      ctx.font = '600 12px sans-serif';
+      wrapText(ctx, gd.desc, 280).forEach((l, i) => text(ctx, l, 0, 52 + i * 15, 12, COLORS.ink, 'center', 600));
+    } else text(ctx, sp.treasure ? `+${sp.raw} coins!` : `${c.fish.size} cm`, 0, 20, 22, COLORS.ink);
+    text(ctx, `+${c.xp} XP`, 130, 104, 12, '#a35bd6', 'right', 900);
+    if (!sp.treasure && !sp.crate) {
       const fresh = c.fish.freshness;
       const stars = fresh >= 0.8 ? 3 : fresh >= 0.5 ? 2 : 1;
       for (let i = 0; i < 3; i++) {
@@ -524,6 +658,7 @@ export class FishingScene implements Scene {
       text(ctx, c.fish.perfect ? 'PERFECT CATCH — extra fresh!' : stars === 2 ? 'Good catch' : 'Bruised — less fresh', 0, 88, 14, c.fish.perfect ? COLORS.good : COLORS.ink);
     }
     ctx.restore();
+    if (c.doubled && c.t > 0.4) outlinedText(ctx, 'x2  OCTO NET!', W / 2, 395, 22, '#d9a8ff', COLORS.ink, 5);
     if (c.isNew && c.t > 0.5) {
       ctx.save();
       ctx.translate(W / 2 + 140, 440);
@@ -553,7 +688,7 @@ export class FishingScene implements Scene {
     ctx.scale(k, k);
     panel(ctx, -170, -250, 340, 460, COLORS.paper, 24);
     outlinedText(ctx, 'Trip complete!', 0, -212, 30, '#fff', COLORS.ink, 6);
-    const fish = this.tripCatches.filter((f) => !SPECIES_BY_ID[f.species].treasure);
+    const fish = this.tripCatches.filter((f) => !SPECIES_BY_ID[f.species].treasure && !SPECIES_BY_ID[f.species].crate);
     if (this.tripCatches.length === 0) {
       text(ctx, 'The sea was quiet today.', 0, -120, 18);
       text(ctx, 'Aim the circle at a shadow!', 0, -90, 15, 'rgba(43,33,24,0.7)');
@@ -568,6 +703,8 @@ export class FishingScene implements Scene {
       text(ctx, `${f.size}cm${f.perfect ? ' ★' : ''}`, cx, cy + 22, 12, COLORS.ink);
     });
     if (this.tripTreasure > 0) text(ctx, `Treasure: +${this.tripTreasure} coins`, 0, 95, 18, '#b8860b');
+    text(ctx, `+${this.tripXp} XP`, 0, 72, 15, '#a35bd6', 'center', 900);
+    if (this.tripGadgets.length) text(ctx, `Found: ${this.tripGadgets.map((g) => GADGETS[g].name).join(', ')}`, 0, 165, 13, '#7a5aa8', 'center', 900);
     const ready = s.jars.filter((j) => j.sealed && agingLevel(s, j, Date.now()) >= 1).length;
     if (ready > 0) {
       const p = 1 + Math.sin(this.t * 5) * 0.05;
@@ -582,4 +719,18 @@ export class FishingScene implements Scene {
       this.game.button(ctx, 'home', W / 2 - 120, 540, 240, 64, 'Back to village', () => this.game.goVillage(), { pulse: true, color: COLORS.good, dark: '#2f7a3b' });
     }
   }
+}
+
+function wrapText(ctx: Ctx, s: string, maxW: number): string[] {
+  const lines: string[] = [];
+  let cur = '';
+  for (const w of s.split(' ')) {
+    const next = cur ? `${cur} ${w}` : w;
+    if (ctx.measureText(next).width > maxW && cur) {
+      lines.push(cur);
+      cur = w;
+    } else cur = next;
+  }
+  if (cur) lines.push(cur);
+  return lines;
 }

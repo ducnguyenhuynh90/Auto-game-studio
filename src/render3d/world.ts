@@ -1,14 +1,16 @@
 // three.js world layer. Gameplay logic still lives in screen space (390x844 logical);
 // the world maps those positions onto 3D water/ground so logic, hit-testing and visuals agree.
 import * as THREE from 'three';
-import { RARITY_COLOR, RECIPES_BY_ID, SPECIES_BY_ID, TIERS, tierFor } from '../core/data';
+import { RARITY_COLOR, RECIPES_BY_ID, SPECIES_BY_ID, TIERS, tierFor, type SeaId } from '../core/data';
+import { hasRelic } from '../core/items';
+import { SEAS_BY_ID, seaLock } from '../core/seas';
 import { agingLevel, villageLevel, type GameState } from '../core/state';
 import { H, W } from '../render/draw';
 import type { Game } from '../game';
 import type { FishingScene } from '../scenes/fishing';
 import type { RevealOverlay } from '../scenes/jar';
 import {
-  makeBasketBoat,
+  makeBoat,
   makeBottle,
   makeFish,
   makeFisherman,
@@ -19,7 +21,6 @@ import {
   makePalm,
   makeSaltPile,
   makeSunburst,
-  makeWoodenBoat,
   mesh,
   outline,
   toon,
@@ -41,12 +42,22 @@ function discard(obj: THREE.Object3D | null | undefined): void {
 
 const BUBBLE_GEO = new THREE.SphereGeometry(0.05, 8, 6);
 
+/** What the map scene exposes to the world layer. */
+export interface MapView {
+  selected: SeaId | null;
+  sail: { from: SeaId; to: SeaId; k: number } | null;
+}
+
 export interface ScreenPt {
   x: number;
   y: number;
 }
 
+const skyCache = new Map<string, THREE.CanvasTexture>();
 function skyTexture(top: string, bottom: string): THREE.CanvasTexture {
+  const key = top + bottom;
+  const hit = skyCache.get(key);
+  if (hit) return hit;
   const c = document.createElement('canvas');
   c.width = 2;
   c.height = 256;
@@ -58,6 +69,7 @@ function skyTexture(top: string, bottom: string): THREE.CanvasTexture {
   g.fillRect(0, 0, 2, 256);
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
+  skyCache.set(key, t);
   return t;
 }
 
@@ -132,7 +144,6 @@ class FishingRig {
   private trophyT = 0;
   private trophyFrom = new THREE.Vector3();
   private burst = makeSunburst();
-  private sky: { lagoon: THREE.Texture; reef: THREE.Texture };
   private prevPhase = '';
   private prevNibbles = 0;
   private raycaster = new THREE.Raycaster();
@@ -144,7 +155,6 @@ class FishingRig {
     this.camera.position.set(0, 5.6, 9.6);
     this.camera.lookAt(0, -0.2, -2.6);
     this.root.add(this.camera);
-    this.sky = { lagoon: skyTexture('#ffc98f', '#ffeccc'), reef: skyTexture('#f7a77a', '#ffd7a8') };
     this.root.add(this.water.mesh);
     this.ripples = new Ripples(this.root);
     // distant islands
@@ -202,15 +212,22 @@ class FishingRig {
     this.camera.add(this.burst);
   }
 
-  private lagoonProps = new THREE.Group();
-  private reefProps = new THREE.Group();
+  private props = new Map<SeaId, THREE.Group>();
 
-  /** Edge scenery that tells the two fishing spots apart at a glance, kept out of the casting lane. */
+  /** Edge scenery that tells each sea apart at a glance, kept out of the casting lane. */
   private buildZoneProps(): void {
     // x at ~90% of the visible half-width for that depth (portrait camera sees a narrow strip)
     const edge = (side: number, z: number): [number, number] => [side * 0.9 * 0.178 * (9.6 - z), z];
     const sides: [number, number][] = [edge(-1, 1.2), edge(1, -0.5), edge(-1, -5), edge(1, -7.5), edge(-1, -12), edge(1, -15)];
+    const group = (id: SeaId) => {
+      const g = new THREE.Group();
+      g.visible = false;
+      this.props.set(id, g);
+      this.root.add(g);
+      return g;
+    };
     // Lagoon: reeds and floating leaves
+    const lagoon = group('lagoon');
     sides.forEach(([x, z], i) => {
       const clump = new THREE.Group();
       for (let k = 0; k < 5; k++) {
@@ -220,13 +237,14 @@ class FishingRig {
         clump.add(reed);
       }
       clump.position.set(x, 0, z);
-      this.lagoonProps.add(clump);
+      lagoon.add(clump);
       const pad = mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.03, 12, 1, false, 0.4, Math.PI * 1.8), toon('#5fae52'), false);
       pad.position.set(x * 0.85, 0.05, z - 1.4);
       pad.rotation.y = i;
-      this.lagoonProps.add(pad);
+      lagoon.add(pad);
     });
     // Reef: coral heads breaking the surface, plus rocks
+    const reef = group('reef');
     const coral = ['#ff7a8a', '#ffb347', '#c77dff', '#ff6f61'];
     sides.forEach(([x, z], i) => {
       const g = new THREE.Group();
@@ -240,13 +258,68 @@ class FishingRig {
       ball.position.set(0.3, 0.05, -0.2);
       g.add(ball);
       g.position.set(x, 0, z);
-      this.reefProps.add(g);
+      reef.add(g);
       const rock = mesh(new THREE.DodecahedronGeometry(0.5, 0), toon('#7d8b8f'), false);
       rock.position.set(Math.sign(x) * 0.95 * 0.178 * (9.6 - (z - 2.2)), 0, z - 2.2);
       rock.scale.set(0.9, 0.5, 0.8);
-      this.reefProps.add(rock);
+      reef.add(rock);
     });
-    this.root.add(this.lagoonProps, this.reefProps);
+    // Delta: mangrove trees on arched roots
+    const delta = group('delta');
+    sides.forEach(([x, z], i) => {
+      const tree = new THREE.Group();
+      for (let k = 0; k < 4; k++) {
+        const root = mesh(new THREE.TorusGeometry(0.35, 0.04, 5, 10, Math.PI), toon('#6b4a2a'), false);
+        root.rotation.y = (k / 4) * Math.PI;
+        root.position.y = 0;
+        tree.add(root);
+      }
+      const trunk = mesh(new THREE.CylinderGeometry(0.07, 0.1, 0.9, 6), toon('#6b4a2a'), false);
+      trunk.position.y = 0.6;
+      tree.add(trunk);
+      for (let k = 0; k < 3; k++) {
+        const leaf = mesh(new THREE.SphereGeometry(0.45 - k * 0.08, 8, 6), toon(k % 2 ? '#3f7f3a' : '#4f9a48'), false);
+        leaf.position.set((k - 1) * 0.3, 1.15 + (k % 2) * 0.2, 0);
+        tree.add(leaf);
+      }
+      tree.position.set(x, 0, z);
+      tree.scale.setScalar(0.65 + (i % 3) * 0.12);
+      tree.position.x = x * 1.08;
+      delta.add(tree);
+    });
+    // Dragon Bay: limestone karst towers (inspired by Hạ Long Bay)
+    const bay = group('bay');
+    const karst = (x: number, z: number, h: number) => {
+      const g = new THREE.Group();
+      const rock = mesh(new THREE.CylinderGeometry(0.5 * h * 0.35, 0.75 * h * 0.35, h, 7), toon('#9aa59a'), false);
+      rock.position.y = h / 2 - 0.2;
+      g.add(rock);
+      const cap = mesh(new THREE.SphereGeometry(0.55 * h * 0.35, 8, 6), toon('#5f9a52'), false);
+      cap.position.y = h - 0.2;
+      cap.scale.y = 0.6;
+      g.add(cap);
+      g.position.set(x, 0, z);
+      return g;
+    };
+    sides.forEach(([x, z], i) => bay.add(karst(x * 1.15, z, 1.1 + (i % 3) * 0.6)));
+    for (const [x, z, h] of [
+      [-9, -30, 9],
+      [-3, -36, 6],
+      [6, -33, 11],
+      [13, -28, 7],
+    ] as const)
+      bay.add(karst(x, z, h));
+    // The Abyss: dark spires and glowing jellyfish
+    const trench = group('trench');
+    sides.forEach(([x, z], i) => {
+      const spire = mesh(new THREE.ConeGeometry(0.35, 1.6 + (i % 2) * 0.8, 5), toon('#2a2a3a'), false);
+      spire.position.set(x, 0.5, z);
+      trench.add(spire);
+      const jelly = mesh(new THREE.SphereGeometry(0.18, 10, 8, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshBasicMaterial({ color: i % 2 ? '#7af0ff' : '#ff8af0', transparent: true, opacity: 0.85 }), false);
+      jelly.position.set(x * 0.6, -0.1, z - 1);
+      jelly.name = 'jelly';
+      trench.add(jelly);
+    });
   }
 
   screenToWater(x: number, y: number, out = new THREE.Vector3()): THREE.Vector3 {
@@ -260,7 +333,7 @@ class FishingRig {
     if (kind === this.boatKind) return;
     this.boatKind = kind;
     for (const c of [...this.boat.children]) if (c !== this.fisher && c !== this.rod) this.boat.remove(c);
-    const b = kind >= 1 ? makeWoodenBoat() : makeBasketBoat();
+    const b = makeBoat(kind);
     if (kind >= 1) {
       b.rotation.y = Math.PI / 2;
       b.position.y = -0.1;
@@ -272,14 +345,17 @@ class FishingRig {
 
   sync(f: FishingScene, game: Game, dt: number): void {
     const t = game.time;
-    if (f.zone !== this.zone) {
-      this.zone = f.zone;
-      this.world.scene.background = f.zone === 'reef' ? this.sky.reef : this.sky.lagoon;
-      (this.water.mesh.material as THREE.MeshPhongMaterial).color.set(f.zone === 'reef' ? '#167f9e' : '#2aa3b9');
-      this.world.scene.fog = new THREE.Fog(f.zone === 'reef' ? '#ffcf9e' : '#ffe3bb', 22, 55);
-      this.reefProps.visible = f.zone === 'reef';
-      this.lagoonProps.visible = f.zone !== 'reef';
+    if (f.sea !== this.zone) {
+      this.zone = f.sea;
+      const look = SEAS_BY_ID[f.sea].look;
+      this.world.scene.background = skyTexture(look.skyTop, look.skyBottom);
+      (this.water.mesh.material as THREE.MeshPhongMaterial).color.set(look.water);
+      this.world.scene.fog = new THREE.Fog(look.fog, 22, 55);
+      for (const [id, g] of this.props) g.visible = id === f.sea;
+      this.islands.visible = f.sea !== 'trench';
     }
+    const jellies = this.props.get('trench');
+    if (jellies?.visible) for (const j of jellies.children) if (j.name === 'jelly') j.position.y = -0.05 + Math.sin(t * 1.5 + j.position.x) * 0.12;
     this.setBoat(game.state.upgrades.boat);
     this.water.update(t);
     this.ripples.update(dt);
@@ -295,15 +371,19 @@ class FishingRig {
       const sp = SPECIES_BY_ID[sh.species];
       if (!m) {
         m = makeFish(sh.species);
-        const len = 0.3 + Math.sqrt(sh.size) * 0.1;
+        const len = Math.min(2.4, 0.3 + Math.sqrt(sh.size) * 0.1);
         m.group.scale.setScalar(len);
-        m.setSilhouette(true, sp.rarity >= 4 ? (sp.id === 'golden' ? '#ffd35a' : '#c99bff') : sp.treasure ? '#fff2b0' : null);
+        // Glows are honest signals: legendary/epic always glow; the Ancient Compass reveals rares too.
+        const compass = hasRelic(game.state.relics, 'compass') && sp.rarity === 3;
+        const glow = sp.rarity >= 4 ? (sp.rarity === 5 ? '#ffd35a' : '#c99bff') : sp.crate ? '#d9a8ff' : sp.treasure ? '#fff2b0' : compass ? '#7fd3ff' : null;
+        m.setSilhouette(true, glow);
         this.root.add(m.group);
         this.fish.set(sh, m);
       }
       this.screenToWater(sh.x, sh.y, tmp);
       const hooked = sh.state === 'hooked';
-      m.group.position.set(tmp.x, hooked ? -0.12 : -0.32, tmp.z);
+      // out-of-reach fish swim deeper, so they read fainter through the water
+      m.group.position.set(tmp.x, hooked ? -0.12 : sh.locked ? -0.7 : -0.32, tmp.z);
       const heading = sh.state === 'approach' ? Math.atan2(-(f.bobber.y - sh.y), f.bobber.x - sh.x) : sh.dir > 0 ? 0 : Math.PI;
       m.group.rotation.y = heading + Math.sin(sh.phase * 0.5) * 0.15;
       if (hooked && f.reel) m.group.rotation.z = Math.sin(t * 30) * f.reel.thrash * 2;
@@ -391,6 +471,7 @@ class FishingRig {
       const s = f.phase === 'charging' ? 1 : 0.8 + Math.sin(t * 4) * 0.08;
       this.reticle.scale.setScalar(s);
       (this.reticle.material as THREE.MeshBasicMaterial).opacity = f.phase === 'charging' ? 0.95 : 0.5;
+      (this.reticle.material as THREE.MeshBasicMaterial).color.set(f.overcharged ? '#ff4a3a' : '#ffffff');
     }
 
     this.updateTrophy(f, dt, t);
@@ -541,7 +622,7 @@ class VillageRig {
     rack.name = 'rack';
     this.dyn.add(rack);
     // boat at dock
-    this.boat = s.upgrades.boat >= 1 ? makeWoodenBoat() : makeBasketBoat();
+    this.boat = makeBoat(s.upgrades.boat);
     this.boat.position.set(0.6, -0.2, -7.6);
     this.boat.scale.setScalar(s.upgrades.boat >= 1 ? 0.8 : 0.75);
     this.boat.rotation.y = s.upgrades.boat >= 1 ? Math.PI / 2 : 0;
@@ -695,6 +776,168 @@ class VillageRig {
   }
 }
 
+// =============== Sea chart ===============
+/** Island positions on the chart (x, z), bottom (home) to top (the Abyss). */
+const CHART: Record<SeaId, [number, number]> = { lagoon: [0, 4.4], reef: [2.1, 1.9], delta: [-2.1, -0.6], bay: [1.9, -3.1], trench: [-1.2, -5.6] };
+
+class MapRig {
+  root = new THREE.Group();
+  camera = new THREE.PerspectiveCamera(40, W / H, 0.1, 200);
+  private water = new Water(70, 40, '#2a8fb0', 1);
+  private fogs = new Map<SeaId, THREE.Group>();
+  private boat: THREE.Group | null = null;
+  private boatKind = -1;
+  private routeDots: THREE.Mesh[] = [];
+  private markers = new Map<SeaId, THREE.Mesh>();
+
+  constructor(private world: World) {
+    this.camera.position.set(0, 27, 10);
+    this.camera.lookAt(0, 0, 3.4);
+    this.root.add(this.water.mesh);
+    const ids = Object.keys(CHART) as SeaId[];
+    // dotted route
+    for (let i = 0; i < ids.length - 1; i++) {
+      const [ax, az] = CHART[ids[i]];
+      const [bx, bz] = CHART[ids[i + 1]];
+      for (let k = 1; k < 8; k++) {
+        const u = k / 8;
+        const dot = mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.04, 8), toon('#fff4e0'), false);
+        dot.position.set(ax + (bx - ax) * u + Math.sin(u * Math.PI) * 0.8, 0.12, az + (bz - az) * u);
+        this.routeDots.push(dot);
+        this.root.add(dot);
+      }
+    }
+    for (const id of ids) {
+      const [x, z] = CHART[id];
+      const isl = this.island(id);
+      isl.position.set(x, 0, z);
+      isl.scale.setScalar(0.75);
+      this.root.add(isl);
+      // fog bank over locked seas
+      const fog = new THREE.Group();
+      for (let k = 0; k < 7; k++) {
+        const puff = mesh(new THREE.SphereGeometry(0.7 + (k % 3) * 0.2, 10, 8), new THREE.MeshToonMaterial({ color: '#ffffff', emissive: '#6a6a6a', transparent: true, opacity: 0.88 }), false);
+        puff.position.set(Math.cos(k * 0.9) * 0.8, 0.5 + (k % 2) * 0.3, Math.sin(k * 0.9) * 0.6);
+        puff.scale.setScalar(0.75);
+        fog.add(puff);
+      }
+      fog.position.set(x, 0, z);
+      this.fogs.set(id, fog);
+      this.root.add(fog);
+      const marker = mesh(new THREE.ConeGeometry(0.22, 0.5, 4), toon('#e74c3c', { emissive: '#5a1010' }), false);
+      marker.rotation.x = Math.PI;
+      marker.position.set(x, 2.6, z);
+      marker.visible = false;
+      this.markers.set(id, marker);
+      this.root.add(marker);
+    }
+  }
+
+  private island(id: SeaId): THREE.Group {
+    const g = new THREE.Group();
+    const sand = mesh(new THREE.CylinderGeometry(1.4, 1.6, 0.35, 16), toon('#f0d9a6'), false);
+    g.add(sand);
+    const top = mesh(new THREE.CylinderGeometry(1.1, 1.3, 0.2, 16), toon(id === 'trench' ? '#4a4a5a' : '#8cc265'), false);
+    top.position.y = 0.2;
+    g.add(top);
+    if (id === 'lagoon') {
+      const h = makeHouse(1);
+      h.scale.setScalar(0.5);
+      h.position.set(-0.3, 0.3, 0);
+      g.add(h);
+      const p = makePalm(1.4);
+      p.position.set(0.7, 0.3, 0.2);
+      g.add(p);
+    } else if (id === 'reef') {
+      const coral = ['#ff7a8a', '#ffb347', '#c77dff'];
+      for (let k = 0; k < 6; k++) {
+        const c = mesh(new THREE.ConeGeometry(0.12, 0.6 + (k % 3) * 0.2, 6), toon(coral[k % 3]), false);
+        c.position.set(Math.cos(k) * 0.7, 0.5, Math.sin(k) * 0.6);
+        g.add(c);
+      }
+    } else if (id === 'delta') {
+      for (let k = 0; k < 3; k++) {
+        const tree = mesh(new THREE.SphereGeometry(0.45, 8, 6), toon('#3f7f3a'), false);
+        tree.position.set((k - 1) * 0.6, 0.8, (k % 2) * 0.3);
+        g.add(tree);
+        const trunk = mesh(new THREE.CylinderGeometry(0.06, 0.09, 0.6, 6), toon('#6b4a2a'), false);
+        trunk.position.set((k - 1) * 0.6, 0.45, (k % 2) * 0.3);
+        g.add(trunk);
+      }
+    } else if (id === 'bay') {
+      for (const [x, z, h] of [
+        [-0.5, 0, 1.6],
+        [0.4, 0.3, 2.2],
+        [0.6, -0.5, 1.3],
+      ] as const) {
+        const rock = mesh(new THREE.CylinderGeometry(0.25, 0.38, h, 7), toon('#9aa59a'), false);
+        rock.position.set(x, 0.3 + h / 2, z);
+        g.add(rock);
+        const cap = mesh(new THREE.SphereGeometry(0.3, 8, 6), toon('#5f9a52'), false);
+        cap.position.set(x, 0.3 + h, z);
+        cap.scale.y = 0.6;
+        g.add(cap);
+      }
+    } else {
+      const whirl = mesh(new THREE.TorusGeometry(0.8, 0.12, 6, 20), toon('#1d3a5a'), false);
+      whirl.rotation.x = Math.PI / 2;
+      whirl.position.y = 0.32;
+      whirl.name = 'whirl';
+      g.add(whirl);
+      const spire = mesh(new THREE.ConeGeometry(0.3, 1.6, 5), toon('#2a2a3a'), false);
+      spire.position.y = 1;
+      g.add(spire);
+    }
+    return g;
+  }
+
+  /** Screen position of an island's label anchor. */
+  islandScreen(id: SeaId): ScreenPt {
+    const [x, z] = CHART[id];
+    return this.world.project(new THREE.Vector3(x, 0, z), this.camera);
+  }
+
+  sync(game: Game, view: { selected: SeaId | null; sail: { from: SeaId; to: SeaId; k: number } | null }, dt: number): void {
+    const s = game.state;
+    const t = game.time;
+    this.world.scene.background = skyTexture('#9fd3e0', '#e8f4f0');
+    this.world.scene.fog = new THREE.Fog('#e8f4f0', 30, 70);
+    this.water.update(t);
+    void dt;
+    for (const [id, fog] of this.fogs) {
+      fog.visible = !!seaLock(s, SEAS_BY_ID[id]);
+      fog.rotation.y = t * 0.05;
+    }
+    for (const [id, m] of this.markers) {
+      m.visible = id === view.selected;
+      m.position.y = 2.6 + Math.sin(t * 4) * 0.15;
+      m.rotation.y = t * 2;
+    }
+    const whirl = this.root.getObjectByName('whirl');
+    if (whirl) whirl.rotation.z = t;
+    if (this.boatKind !== s.upgrades.boat) {
+      discard(this.boat);
+      this.boatKind = s.upgrades.boat;
+      this.boat = makeBoat(s.upgrades.boat);
+      this.boat.scale.setScalar(0.45);
+      this.root.add(this.boat);
+    }
+    // the boat sits at the current sea, or sails along the route
+    const at = (id: SeaId) => new THREE.Vector3(CHART[id][0] + 1.5, 0.05, CHART[id][1] + 0.6);
+    let pos = at(s.sea);
+    if (view.sail) {
+      const a = at(view.sail.from);
+      const b = at(view.sail.to);
+      const k = view.sail.k < 0.5 ? 2 * view.sail.k * view.sail.k : 1 - Math.pow(-2 * view.sail.k + 2, 2) / 2;
+      pos = a.clone().lerp(b, k);
+      pos.x += Math.sin(k * Math.PI) * 1.2;
+      this.boat!.rotation.y = Math.atan2(-(b.z - a.z), b.x - a.x);
+    }
+    this.boat!.position.copy(pos);
+    this.boat!.position.y = Math.sin(t * 2) * 0.05;
+  }
+}
+
 // =============== Reveal showcase ===============
 class Showcase {
   scene = new THREE.Scene();
@@ -774,8 +1017,9 @@ export class World {
   scene = new THREE.Scene();
   fishing: FishingRig;
   village: VillageRig;
+  map: MapRig;
   showcase = new Showcase();
-  private mode: 'village' | 'fishing' = 'village';
+  private mode: 'village' | 'fishing' | 'map' = 'village';
   private sun: THREE.DirectionalLight;
 
   constructor(canvas: HTMLCanvasElement) {
@@ -795,7 +1039,8 @@ export class World {
     this.scene.add(this.sun);
     this.fishing = new FishingRig(this);
     this.village = new VillageRig(this);
-    this.scene.add(this.village.root, this.fishing.root);
+    this.map = new MapRig(this);
+    this.scene.add(this.village.root, this.fishing.root, this.map.root);
   }
 
   resize(cssW: number, cssH: number, dpr: number): void {
@@ -815,11 +1060,15 @@ export class World {
       this.renderer.render(this.showcase.scene, this.showcase.camera);
       return;
     }
-    this.mode = game.scene.name === 'fishing' ? 'fishing' : 'village';
+    this.mode = game.scene.name === 'fishing' ? 'fishing' : game.scene.name === 'map' ? 'map' : 'village';
     this.village.root.visible = this.mode === 'village';
     this.fishing.root.visible = this.mode === 'fishing';
+    this.map.root.visible = this.mode === 'map';
     let cam: THREE.PerspectiveCamera;
-    if (this.mode === 'fishing') {
+    if (this.mode === 'map') {
+      this.map.sync(game, game.scene as unknown as MapView, dt);
+      cam = this.map.camera;
+    } else if (this.mode === 'fishing') {
       this.fishing.sync(game.scene as FishingScene, game, dt);
       cam = this.fishing.camera;
     } else {

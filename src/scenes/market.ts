@@ -1,7 +1,7 @@
 // Market: turn products into coins, and coins into visible village upgrades.
 import { analytics } from '../core/analytics';
-import { SPECIES_BY_ID, UPGRADES, tierFor } from '../core/data';
-import { currentGoal } from '../core/goals';
+import { SPECIES_BY_ID, UPGRADES, UPGRADES_BY_ID, tierFor, type UpgradeId } from '../core/data';
+import { goalPair } from '../core/goals';
 import { buyUpgrade, productPrice, sellFish, sellProduct, upgradeCost } from '../core/state';
 import { sfx } from '../render/audio';
 import { COLORS, H, W, clamp01, drawBottle, drawCoin, ease, outlinedText, panel, rr, text, type Ctx } from '../render/draw';
@@ -11,7 +11,16 @@ export class MarketOverlay implements Scene {
   name = 'market';
   t = 0;
 
-  constructor(private game: Game) {}
+  tab: 'gear' | 'village';
+
+  constructor(
+    private game: Game,
+    tab?: 'gear' | 'village',
+  ) {
+    this.tab = tab ?? 'gear';
+    const g = this.goalUpgrade();
+    if (!tab && g) this.tab = UPGRADES_BY_ID[g].kind;
+  }
 
   update(dt: number): void {
     this.t += dt;
@@ -87,43 +96,95 @@ export class MarketOverlay implements Scene {
       text(ctx, 'Fish are worth more as sauce!', 30, 336, 11, 'rgba(43,33,24,0.5)', 'left');
     }
 
-    // --- Upgrades ---
-    text(ctx, 'UPGRADE YOUR VILLAGE', 30, 364, 13, 'rgba(43,33,24,0.6)', 'left', 900);
-    // the upgrade the current goal asks for pulses, so new players know where to tap
-    const goalUpgrade = ({ jar2: 'jars', rod1: 'rod', salt1: 'salt', boat1: 'boat' } as Record<string, string>)[currentGoal(s)?.id ?? ''];
-    UPGRADES.forEach((u, i) => {
-      const y = 378 + i * 84;
+    // --- Upgrades, in two tabs ---
+    const tabs: ['gear' | 'village', string][] = [
+      ['gear', 'Fishing Gear'],
+      ['village', 'Village'],
+    ];
+    tabs.forEach(([id, label], i) => {
+      const x = 26 + i * ((W - 52) / 2);
+      const active = this.tab === id;
+      ctx.fillStyle = active ? COLORS.accent : 'rgba(43,33,24,0.08)';
+      rr(ctx, x + 2, 352, (W - 52) / 2 - 4, 34, 12);
+      ctx.fill();
+      text(ctx, label, x + (W - 52) / 4, 369, 15, active ? '#fff' : COLORS.ink, 'center', 900);
+      if (this.goalUpgrade() && UPGRADES_BY_ID[this.goalUpgrade()!].kind === id && !active) {
+        ctx.fillStyle = COLORS.bad;
+        ctx.beginPath();
+        ctx.arc(x + (W - 52) / 2 - 12, 356, 6, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      this.game.hitArea(`tab_${id}`, x, 350, (W - 52) / 2, 38, () => (this.tab = id));
+    });
+    const goalUp = this.goalUpgrade();
+    UPGRADES.filter((u) => u.kind === this.tab).forEach((u, i) => {
+      const y = 396 + i * 82;
       const lvl = s.upgrades[u.id];
       const next = u.levels[lvl + 1];
       const cost = upgradeCost(s, u.id);
       ctx.fillStyle = '#fff';
       rr(ctx, 26, y, W - 52, 76, 14);
       ctx.fill();
-      ctx.strokeStyle = 'rgba(43,33,24,0.25)';
-      ctx.lineWidth = 2;
+      ctx.strokeStyle = u.id === goalUp ? COLORS.accent : 'rgba(43,33,24,0.25)';
+      ctx.lineWidth = u.id === goalUp ? 3 : 2;
       ctx.stroke();
-      text(ctx, next ? next.name : u.levels[lvl].name, 40, y + 20, 17, COLORS.ink, 'left', 900);
-      text(ctx, next ? next.desc : 'Maxed out!', 40, y + 44, 12, 'rgba(43,33,24,0.7)', 'left', 600);
-      // level pips
+      text(ctx, `${u.name}: ${u.levels[lvl].name}`, 40, y + 16, 11, 'rgba(43,33,24,0.55)', 'left', 800);
+      text(ctx, next ? `→ ${next.name}` : 'Maxed out!', 40, y + 34, 16, COLORS.ink, 'left', 900);
+      text(ctx, fit(ctx, next ? next.desc : u.levels[lvl].desc, W - 52 - 150, '600 11px sans-serif'), 40, y + 54, 11, 'rgba(43,33,24,0.7)', 'left', 600);
       for (let p = 0; p < u.levels.length - 1; p++) {
         ctx.fillStyle = p < lvl ? COLORS.accent : 'rgba(43,33,24,0.15)';
-        rr(ctx, 40 + p * 22, y + 58, 18, 7, 3);
+        rr(ctx, 40 + p * 22, y + 64, 18, 6, 3);
         ctx.fill();
       }
       if (cost !== null) {
         const afford = s.coins >= cost;
-        this.game.button(ctx, `up_${u.id}`, W - 140, y + 14, 104, 48, String(cost), () => {
-          if (buyUpgrade(s, u.id)) {
-            sfx.upgrade();
-            this.game.shake = 0.25;
-            this.game.particles.burst(W - 88, y + 38, 30, [COLORS.gold, COLORS.accent, '#fff'], { speed: 260, kind: 'confetti', size: 7, g: 400 });
-            analytics.track('upgrade', { id: u.id, level: s.upgrades[u.id], cost });
-            analytics.funnelStep('first_upgrade', { id: u.id });
-            this.game.toast(`${u.levels[s.upgrades[u.id]].name}!`, COLORS.good, u.id === 'boat' ? 'The Reef is now open' : u.id === 'jars' ? 'A new jar is in your yard' : undefined);
-            this.game.commit();
-          }
-        }, { coin: true, disabled: !afford, color: COLORS.accent, size: 20, pulse: u.id === goalUpgrade });
+        this.game.button(ctx, `up_${u.id}`, W - 136, y + 14, 100, 48, String(cost), () => this.buy(u.id, cost, y), { coin: true, disabled: !afford, color: COLORS.accent, size: 19, pulse: u.id === goalUp && afford });
       }
     });
   }
+
+  private buy(id: UpgradeId, cost: number, y: number): void {
+    const s = this.game.state;
+    if (!buyUpgrade(s, id)) return;
+    const u = UPGRADES_BY_ID[id];
+    sfx.upgrade();
+    this.game.shake = 0.25;
+    this.game.particles.burst(W - 88, y + 38, 30, [COLORS.gold, COLORS.accent, '#fff'], { speed: 260, kind: 'confetti', size: 7, g: 400 });
+    analytics.track('upgrade', { id, level: s.upgrades[id], cost });
+    analytics.funnelStep('first_upgrade', { id });
+    const sub: Partial<Record<UpgradeId, string>> = {
+      boat: 'New seas on the Sea Chart',
+      jars: 'A new jar is in your yard',
+      line: 'You can cast into deeper water',
+      bait: 'Rare fish bite more often',
+      hook: 'Longer bite window, tougher line',
+      rod: 'Wider green zone when reeling',
+    };
+    this.game.toast(`${u.levels[s.upgrades[id]].name}!`, COLORS.good, sub[id]);
+    this.game.commit();
+  }
+
+  /** The upgrade the current goal asks for, so it can be highlighted. */
+  private goalUpgrade(): UpgradeId | null {
+    const s = this.game.state;
+    const g = goalPair(s).current;
+    if (!g) return null;
+    if (g.id === 'jar2') return 'jars';
+    if (g.id === 'l_mackerel' && s.upgrades.line === 0) return 'line';
+    if (g.id.startsWith('voyage_') && /boat/i.test(g.text)) return 'boat';
+    if (g.id === 'gear1') {
+      const gear: UpgradeId[] = ['line', 'rod', 'hook', 'bait'];
+      return gear.sort((a, b) => (upgradeCost(s, a) ?? 1e9) - (upgradeCost(s, b) ?? 1e9))[0];
+    }
+    return null;
+  }
+}
+
+/** Shortens text with an ellipsis so it never runs under the buy button. */
+function fit(ctx: Ctx, s: string, maxW: number, font: string): string {
+  ctx.font = font;
+  if (ctx.measureText(s).width <= maxW) return s;
+  let t = s;
+  while (t.length > 3 && ctx.measureText(t + '…').width > maxW) t = t.slice(0, -1);
+  return t.trimEnd() + '…';
 }
