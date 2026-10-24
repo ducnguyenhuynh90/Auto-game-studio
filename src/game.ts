@@ -7,6 +7,7 @@ import type { SeaId } from './core/data';
 import type { RelicId } from './core/items';
 import { levelForXp } from './core/progression';
 import { checkMissions, type GameState } from './core/state';
+import { tickIsland, type TickReport } from './core/island';
 import { CAST, MISSION_STORY } from './core/story';
 import { sfx, unlockAudio, vibrate } from './render/audio';
 import type { World } from './render3d/world';
@@ -84,6 +85,15 @@ export class Game {
   goVillage: () => void = () => {};
   goFishing: (sea: SeaId) => void = () => {};
   goMap: () => void = () => {};
+  goIsland: () => void = () => {};
+  /** Starts fishing puzzle `index` (a fixed school of fish, see core/puzzles.ts). */
+  goFishingPuzzle: (index: number) => void = () => {};
+  /** The island map with the puzzle hub open. */
+  goPuzzles: () => void = () => {};
+  /** Island staff output since the last call (the island scene shows it as floating text). */
+  islandOut: TickReport = { fish: 0, salt: 0, jars: 0, bottles: 0, coins: 0 };
+  private islandAcc = 0;
+  private islandSaveT = 0;
   setQuality: (q: 'auto' | 'low' | 'medium' | 'high') => void = () => {};
 
   constructor(seed: number) {
@@ -241,6 +251,28 @@ export class Game {
     if (!o.disabled) this.hits.push({ id, x, y, w, h, fn });
   }
 
+  /** Island staff keep working in every scene; their output is saved every few seconds. */
+  private tickIsland(dt: number): void {
+    this.islandAcc += dt;
+    if (this.islandAcc < 1) return;
+    const r = tickIsland(this.state, this.islandAcc, this.rng, Date.now());
+    this.state.island.lastTick = Date.now();
+    this.islandAcc = 0;
+    let any = false;
+    for (const k of Object.keys(r) as (keyof TickReport)[]) {
+      this.islandOut[k] += r[k];
+      if (r[k]) any = true;
+    }
+    if (any) {
+      if (r.coins) this.coinPulse = 1;
+      this.islandSaveT += 1;
+    }
+    if (this.islandSaveT > 0 && (this.islandSaveT += 1) > 8) {
+      this.islandSaveT = 0;
+      this.commit();
+    }
+  }
+
   // ---------- Frame ----------
   update(rawDt: number): void {
     const dt = Math.min(0.05, rawDt) * this.timeScale;
@@ -255,6 +287,7 @@ export class Game {
     for (const f of this.floats) f.t += dt;
     this.floats = this.floats.filter((f) => f.t < 1.3);
     this.coinPulse = Math.max(0, this.coinPulse - dt * 2);
+    this.tickIsland(dt);
     this.shake = Math.max(0, this.shake - dt * 3);
   }
 

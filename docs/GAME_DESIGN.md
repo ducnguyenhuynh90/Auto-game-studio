@@ -92,3 +92,39 @@ casting lane, and bites almost at once (difficulty ×0.75). Catch it next and th
   panel (bottom right) shows the sea's chain with the current chain lit.
 - Code: `src/core/chain.ts` (pure, tested), `src/scenes/fishing.ts` (hungry behaviour and UI). Measured by
   EXP-005.
+
+## Island business + puzzle sections (build 3.0, founder direction D-012)
+**Founder ask:** hire workers who automate fishing and fish-sauce making (salt + fish in), upgrade staff to
+catch better fish and make better sauce, so the player only solves puzzles in different sections
+(fishing, salt, shop) on a 100-level track (first 5 levels now), plus an island map to manage and expand
+like Zoo Tycoon, to grow the fish-sauce business and trading.
+
+**The loop now has two layers:**
+1. **Routine → staff.** Staff work in every scene and while the game is closed (capped at 4 h, and by
+   storage). Fishers net fish into the bucket (no legendaries, treasure or crates: those stay the player's
+   adventure). Salt Makers dry salt. Brewers seal the best 3 fish + 1 salt into a free jar and open their
+   own jars when aged. Shopkeepers sell staff-made bottles. **Player jars and bottles the player kept
+   are never touched by staff.**
+2. **Thinking → the player.** Three puzzle sections, 5 hand-made levels each, on a 100-level track:
+   - **Fishing:** the food chain with a fixed school of fish and few casts (e.g. reach the deep Mackerel
+     on a Hemp line, 3 links in 3 casts).
+   - **Salt field (ruộng muối):** turn channel tiles so sea water reaches every salt pan; ★★★ = par taps.
+   - **Shop:** give every customer a bottle that fits their wish (min/max °N, recipe, no shrimp…);
+     greedy choices fail; ★★★ = the best total.
+   Clearing level N in a section lets that section's staff train to level N+1 (fishing → Fishers;
+   salt → Salt Makers and Brewers; shop → Shopkeepers). Rewards are paid on the first clear.
+
+**Island map (7×9 plots of Phú Quốc).** Start with the 3×3 around the village; buy touching plots
+(price grows 30% per plot). The map is fixed, so what a plot hides is decided up front and hinted
+("locals say…"): a Fishing Cove (+25% dock speed), a Salt Flat (+50% salt), the Old Pier (Trading Post),
+Grandpa's Chest (+150 coins), Cousin Út (a free hire). Buildings: Fishing Dock, Salt Field (shore),
+Brew House, Sauce Shop, Warehouse (storage), Trading Post (buys overflow fish, +20% bottle price),
+Lantern Row and Banyan Shrine (charm → shop prices). Building level = staff slots. Island level rises
+with plots and buildings and unlocks bigger buildings.
+
+**Staff:** hire cost grows with each hire of a role; training costs 80/220/500/1100 to Lv 2-5;
+Fisher speed +25%/level and better odds of rare fish (same weights as bait); Salt Maker +25%/level;
+Brewer +1°N per level and waits for ★★ aging from Lv 3; Shopkeeper +25% speed and +5% price per level.
+
+Code: `src/core/island.ts`, `src/core/puzzles.ts` (pure, tested), `src/scenes/island.ts`,
+`src/scenes/puzzles.ts`, fishing puzzle mode in `src/scenes/fishing.ts`. QA: `tools/island-qa.mjs`.

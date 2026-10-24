@@ -53,3 +53,7 @@ Only [PLAYER] entries count as product evidence.
 - [SIM] Food chain: when planners chase hungry fish, the deep Mackerel mission no longer needs the line
   upgrade, so the Phú Quốc story finishes in 4-7 simulated trips (was 8-22). End-game pacing is unchanged
   (2.6-4 h); bottlenecks are still the boat and the Dragon Bay legend.
+- [FOUNDER] 2026-10-24: wants the routine automated by staff and the player's time spent on puzzles, on a
+  long level track, with a tycoon island map for growth and trading (D-012, EXP-006).
+- [SIM] Island automation roughly doubles income and shortens the story ~15%; the boat and legends stay
+  the gates. Staff output is capped by jar count and aging time more than by fishers.

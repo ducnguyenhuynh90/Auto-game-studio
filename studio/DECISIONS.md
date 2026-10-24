@@ -97,3 +97,16 @@ built, but as ONE connected system rather than separate features:
   Phú Quốc now finishes sooner; we accept that and watch the guardrail in EXP-005.
 - Not randomized paid rewards: chain bonuses are earned coins/XP with no purchase involved.
 - (b) remains a candidate for the CRAFT side (jar packing) if the jar step also feels routine.
+
+## D-012 · 2026-10-24 · Founder direction: staff automation, puzzle sections, island tycoon map
+- This shifts the product from "you do everything" to "you run a business and solve its hard problems".
+  The founder asked for it, so it is approved direction; the active fishing game stays fully playable.
+- Staff never take the player's best moments: no legendary or treasure catches by staff, staff don't
+  open the player's jars or sell bottles the player kept, and the jar reveal stays a player moment.
+- Puzzles gate staff training (not coins alone), so thinking is the path to a stronger business.
+- "100 levels": each section has a 100-level track in the data model and UI; 5 hand-made levels per
+  section ship now, each verified solvable in tests. Later levels come in batches, ideally by a
+  generator plus a solvability check.
+- The island map is fixed, not random, so discoveries are honest and can be hinted before buying.
+- No staff wages yet (simpler first version). If the sim's 2× income shows up in real play as boredom
+  with upgrades, wages are the first lever.

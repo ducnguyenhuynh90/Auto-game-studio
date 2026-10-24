@@ -49,6 +49,7 @@ const docs = [...players.values()].map((devs) => {
     devices: devs.length,
     story: Object.assign({}, ...devs.map((d) => d.story ?? {})),
     bestChain: Math.max(0, ...devs.map((d) => d.bestChain ?? 0)),
+    puzzles: Object.assign({}, ...devs.map((d) => d.puzzles ?? {})),
   };
 });
 const n = docs.length;
@@ -88,6 +89,8 @@ for (const d of docs) for (const x of d.seas ?? []) seaReach[x] = (seaReach[x] ?
 const hungry = sum((d) => d.counts?.hungry);
 const chainLinks = sum((d) => d.counts?.chain_link);
 console.log(`  food chain (EXP-005): hungry fish ${hungry} · chain links ${chainLinks} (${hungry ? Math.round((100 * chainLinks) / hungry) : 0}% taken) · best chain/player ${JSON.stringify(docs.map((d) => d.bestChain ?? 0))}`);
+console.log(`  island (EXP-006): opened by ${docs.filter((d) => d.counts?.island_open).length}/${n} · buildings ${sum((d) => d.counts?.building_build)} · hires ${sum((d) => d.counts?.staff_hire)} · trains ${sum((d) => d.counts?.staff_train)} · puzzles started ${sum((d) => d.counts?.puzzle_start)} / ended ${sum((d) => d.counts?.puzzle_end)}`);
+console.log(`  puzzle stars per player: ${JSON.stringify(docs.map((d) => d.puzzles))}`);
 console.log(`  seas fished: ${JSON.stringify(seaReach)} · missions/player: ${(sum((d) => d.counts?.mission_complete) / Math.max(1, n)).toFixed(1)} · tangles: ${sum((d) => d.lost?.tangled)} of ${sum((d) => d.counts?.cast)} casts`);
 const views = docs.flatMap((d) => Object.entries(d.story ?? {}));
 const skipped = views.filter(([, v]) => v.startsWith('skipped')).length;

@@ -14,6 +14,7 @@ import { MissionsOverlay, RelicOverlay } from './missions';
 import { SettingsOverlay } from './settings';
 import { StoryOverlay } from './story';
 import { pendingScene } from '../core/story';
+import { islandUnlocked } from '../core/island';
 
 const JAR_Y = 640;
 
@@ -360,7 +361,13 @@ export class VillageScene implements Scene {
     const sea = SEAS_BY_ID[s.sea];
     this.game.button(ctx, 'fish', 106, 722, 182, 86, 'GO FISHING', () => this.game.goFishing(s.sea), { color: '#2a9db5', dark: '#16677a', size: 24, sub: sea.name, pulse: true });
     const mapNew = SEAS.some((x) => x.id !== s.sea && !seaLock(s, x) && !seaComplete(s, x) && seaComplete(s, sea));
-    this.game.button(ctx, 'map', 296, 722, 84, 86, 'Map', () => this.game.goMap(), { color: '#c9a36a', dark: '#8f6f40', size: 20, sub: 'Sea Chart', pulse: mapNew });
+    if (islandUnlocked(s)) {
+      // the island business sits above the sea chart once the first bottle is sold
+      const fresh = s.island.buildings.length === 0;
+      this.game.button(ctx, 'island', 296, 722, 84, 42, 'Island', () => this.game.goIsland(), { color: '#5cb85c', dark: '#2f7a3b', size: 16, pulse: fresh });
+      this.game.button(ctx, 'map', 296, 768, 84, 40, 'Sea Chart', () => this.game.goMap(), { color: '#c9a36a', dark: '#8f6f40', size: 13, pulse: mapNew });
+      if (fresh) outlinedText(ctx, 'NEW', 368, 722, 12, COLORS.gold, COLORS.ink, 3);
+    } else this.game.button(ctx, 'map', 296, 722, 84, 86, 'Map', () => this.game.goMap(), { color: '#c9a36a', dark: '#8f6f40', size: 20, sub: 'Sea Chart', pulse: mapNew });
   }
 
 

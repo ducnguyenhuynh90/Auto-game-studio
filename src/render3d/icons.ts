@@ -1,7 +1,7 @@
 // Renders each species' 3D model once into a 2D image so UI cards match the 3D world.
 import * as THREE from 'three';
 import type { Track } from '../core/evolution';
-import { makeBaitModel, makeBoat, makeCharacter, makeFish, makeHookModel, makeJar, makeMarket, makeRod, makeSaltPile, makeSpool, makeVillageDiorama } from './models';
+import { makeBaitModel, makeBoat, makeBuilding, makeCharacter, makeFish, makeHookModel, makeJar, makeMarket, makeRod, makeSaltPile, makeSpool, makeVillageDiorama, makeWorker } from './models';
 
 const SIZE = 160;
 const cache = new Map<string, HTMLCanvasElement>();
@@ -95,8 +95,15 @@ let sRenderer: THREE.WebGLRenderer | null = null;
 let sScene: THREE.Scene | null = null;
 let sCamera: THREE.PerspectiveCamera | null = null;
 
-function buildStage(track: Track, level: number): THREE.Object3D {
+function buildStage(track: Track | 'building' | 'worker', level: number, id = ''): THREE.Object3D {
   switch (track) {
+    case 'building':
+      return makeBuilding(id, level);
+    case 'worker': {
+      const w = makeWorker(id);
+      w.rotation.y = -0.4;
+      return w;
+    }
     case 'rod': {
       const r = makeRod(level);
       r.rotation.z = -0.75;
@@ -139,8 +146,8 @@ function buildStage(track: Track, level: number): THREE.Object3D {
 }
 
 /** A 3D preview of one evolution stage, auto-framed to fit, rendered once and cached. */
-export function stagePreview(track: Track, level: number): HTMLCanvasElement | null {
-  const key = `${track}:${level}`;
+export function stagePreview(track: Track | 'building' | 'worker', level: number, id = ''): HTMLCanvasElement | null {
+  const key = `${track}:${level}:${id}`;
   const hit = stageCache.get(key);
   if (hit) return hit;
   try {
@@ -156,7 +163,7 @@ export function stagePreview(track: Track, level: number): HTMLCanvasElement | n
       sScene.add(key2);
       sCamera = new THREE.PerspectiveCamera(32, 1, 0.1, 100);
     }
-    const obj = buildStage(track, level);
+    const obj = buildStage(track, level, id);
     sScene!.add(obj);
     // frame the bounding sphere from a 3/4 view
     const sphere = new THREE.Box3().setFromObject(obj).getBoundingSphere(new THREE.Sphere());

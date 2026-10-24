@@ -143,7 +143,7 @@ await page.evaluate(({ skill }) => {
         if (ready >= 0) tap(jp(ready).x, jp(ready).y - 40);
         else if (empty >= 0 && ferm >= 3) tap(jp(empty).x, jp(empty).y - 40);
         else if (s.shelf.length || canBuy) tap(mp.x, mp.y);
-        else if (want && want.id !== s.sea) tap(338, 765);
+        else if (want && want.id !== s.sea) tap(338, s.stats.sold >= 1 ? 788 : 765);
         else {
           bot.trips++;
           tap(197, 765);

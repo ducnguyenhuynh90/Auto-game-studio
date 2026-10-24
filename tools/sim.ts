@@ -4,6 +4,8 @@
 declare const process: { argv: string[] };
 import { BALANCE, SPECIES_BY_ID, UPGRADES, type UpgradeId } from '../src/core/data';
 import { castDistance, rollShadow } from '../src/core/fishing';
+import { BUILDINGS_BY_ID, build, buyPlot, canExpand, hire, hireCost, placeProblem, staffAt, terrain, tickIsland, trainStaff, COLS, ROWS, type BuildingId } from '../src/core/island';
+import { completeLevel } from '../src/core/puzzles';
 import { HUNGRY_DIFFICULTY, addChainLink, foodLevel, rollHungry } from '../src/core/chain';
 import { checkGoals } from '../src/core/goals';
 import { levelForXp } from '../src/core/progression';
@@ -20,6 +22,41 @@ const milestones: Record<string, number> = {};
 const mark = (k: string, trip: number) => {
   if (milestones[k] === undefined) milestones[k] = trip;
 };
+
+// island automation (build 3.0): pass --island to let the simulated player run the business
+const useIsland = process.argv.includes('--island');
+const SECONDS_PER_TRIP_REAL = 90; // a trip plus village time; staff work during it
+let clock = 1_000_000;
+const islandPlan: BuildingId[] = ['dock', 'saltfield', 'brewhouse', 'shop', 'dock', 'warehouse', 'brewhouse'];
+function runIsland(trip: number): void {
+  if (!useIsland || s.stats.sold < 1) return;
+  // staff work while the player fishes
+  for (let k = 0; k < SECONDS_PER_TRIP_REAL / 10; k++) {
+    clock += 10_000;
+    tickIsland(s, 10, rng, clock);
+  }
+  // the player solves about one puzzle per section every 4 trips (5 built per section)
+  if (trip % 4 === 0) for (const sec of ['fishing', 'salt', 'shop'] as const) {
+    const i = s.puzzles[sec].filter((x) => x > 0).length;
+    if (i < 5) completeLevel(s, sec, i, 2);
+  }
+  // build the next thing on the plan, buying land when needed; hire into empty slots; train
+  const want = islandPlan.find((id, i) => s.island.buildings.filter((b) => b.id === id).length < islandPlan.slice(0, i + 1).filter((x) => x === id).length);
+  if (want && s.coins >= BUILDINGS_BY_ID[want].cost) {
+    const spot = s.island.owned.find((t) => !placeProblem(s, t, want));
+    if (spot !== undefined) {
+      build(s, spot, want);
+      mark(`island: build ${want}`, trip);
+    } else {
+      for (let t = 0; t < COLS * ROWS; t++) if (canExpand(s, t) && 'bcsp'.includes(terrain(t)) === (BUILDINGS_BY_ID[want].needs !== 'land') && buyPlot(s, t).ok) break;
+    }
+  }
+  for (const b of s.island.buildings) {
+    const role = BUILDINGS_BY_ID[b.id].role;
+    if (role && staffAt(s, b.tile).length < b.level && s.coins >= hireCost(s, role) + 50) hire(s, b.tile);
+  }
+  for (const st of s.island.staff) trainStaff(s, st.uid);
+}
 
 const priority: UpgradeId[] = ['jars', 'line', 'rod', 'hook', 'boat', 'bait', 'jars', 'salt', 'stall', 'line', 'boat', 'hook', 'rod', 'bait', 'jars', 'salt', 'stall', 'line', 'boat', 'hook', 'rod', 'bait'];
 
@@ -93,6 +130,7 @@ for (let trip = 1; trip <= trips; trip++) {
       break;
     }
   }
+  runIsland(trip);
   checkGoals(s);
   for (const m of checkMissions(s)) {
     mark(`mission ${m.mission.id}`, trip);
@@ -110,4 +148,4 @@ for (const [k, t] of Object.entries(milestones).sort((a, b) => a[1] - b[1])) {
   if (k.startsWith('level') && Number(k.split(' ')[1]) % 5 !== 0) continue;
   console.log(`trip ${String(t).padStart(3)} (~${min(t).padStart(7)})  ${k}`);
 }
-console.log(`\nfinal: coins ${s.coins}, level ${levelForXp(s.xp)}, relics ${s.relics.join(',')}, upgrades ${JSON.stringify(s.upgrades)}, tangles ${s.stats.tangles}, chain links ${s.stats.chains}, best chain ${s.stats.bestChain}`);
+console.log(`\nfinal: coins ${s.coins}, level ${levelForXp(s.xp)}, relics ${s.relics.join(',')}, upgrades ${JSON.stringify(s.upgrades)}, tangles ${s.stats.tangles}, island ${JSON.stringify(s.island.made)}, chain links ${s.stats.chains}, best chain ${s.stats.bestChain}`);

@@ -75,6 +75,18 @@ export const SCENES: StoryScene[] = [
     ],
   },
   {
+    // Played the first time the island map opens (never picked by pendingScene).
+    id: 'island_intro',
+    where: 'village',
+    when: () => false,
+    lines: [
+      { who: 'nam', text: 'Lan, one pair of hands can\'t save a whole village. Hire help!' },
+      { who: 'lan', text: 'Staff can fish, rake salt, brew and sell… then what do I do?' },
+      { who: 'nam', text: 'You solve the hard problems, and teach your staff what you learn.' },
+      { who: 'toc', text: 'Staff? Cute. I have machines. Let\'s see whose island grows faster.' },
+    ],
+  },
+  {
     id: 'tutorial_done',
     where: 'village',
     when: (s) => s.goalsDone.includes('gear1'),

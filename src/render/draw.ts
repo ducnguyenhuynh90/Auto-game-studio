@@ -113,6 +113,15 @@ export function stageImage(track: string, level: number): CanvasImageSource | nu
   return stageProvider?.(track, level) ?? null;
 }
 
+/** Optional provider of 3D island art: building (id, level) and staff (role) icons. */
+let islandArt: ((kind: 'building' | 'worker', id: string, level: number) => CanvasImageSource | null) | null = null;
+export function setIslandArtProvider(fn: (kind: 'building' | 'worker', id: string, level: number) => CanvasImageSource | null): void {
+  islandArt = fn;
+}
+export function islandImage(kind: 'building' | 'worker', id: string, level = 1): CanvasImageSource | null {
+  return islandArt?.(kind, id, level) ?? null;
+}
+
 export function drawFish(ctx: Ctx, speciesId: string, x: number, y: number, len: number, opts: { flip?: boolean; wiggle?: number; angle?: number; alpha?: number } = {}): void {
   const sp = SPECIES_BY_ID[speciesId];
   ctx.save();

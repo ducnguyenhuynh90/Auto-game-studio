@@ -1036,3 +1036,145 @@ export function makeVillageDiorama(stage: number): THREE.Group {
   }
   return g;
 }
+
+// ---------- Island business: buildings and staff ----------
+
+/** One model per island building (rendered as map icons). `level` adds a little detail. */
+export function makeBuilding(id: string, level = 1): THREE.Group {
+  const g = new THREE.Group();
+  const ground = mesh(new THREE.CylinderGeometry(1.25, 1.3, 0.12, 6), toon(id === 'dock' || id === 'tradepost' ? '#3fb0c9' : '#9fcf6a'), false);
+  ground.position.y = -0.06;
+  g.add(ground);
+  const add = (o: THREE.Object3D, x: number, y: number, z: number, sc = 1) => {
+    o.position.set(x, y, z);
+    o.scale.multiplyScalar(sc);
+    g.add(o);
+    return o;
+  };
+  switch (id) {
+    case 'dock': {
+      for (let i = 0; i < 4; i++) {
+        const plank = mesh(new THREE.BoxGeometry(0.4, 0.06, 1.6), toon(i % 2 ? '#a57a48' : '#8f6638'));
+        add(plank, -0.6 + i * 0.4, 0.3, 0);
+      }
+      for (const x of [-0.75, 0.75]) for (const z of [-0.7, 0.7]) add(mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.5), toon('#6e4423')), x, 0.1, z);
+      add(makeBasketBoat(), 0.2, 0.1, 0.95, 0.45);
+      if (level >= 2) add(makeBarrel(), -0.5, 0.33, -0.4, 0.5);
+      break;
+    }
+    case 'saltfield': {
+      for (let i = 0; i < 4; i++) {
+        const pan = mesh(new THREE.BoxGeometry(0.85, 0.05, 0.85), toon(i % 3 === 0 ? '#e8f4f8' : '#bfe4ee'), false);
+        add(pan, (i % 2) * 1 - 0.5, 0.03, Math.floor(i / 2) * 1 - 0.5);
+      }
+      for (let i = 0; i < 1 + level; i++) add(makeSaltPile(), -0.5 + i * 0.45, 0.04, 0.55, 0.9);
+      break;
+    }
+    case 'brewhouse': {
+      add(makeHouse(level >= 3 ? 6 : 1), 0, 0, -0.35, 0.55);
+      for (let i = 0; i < 2 + level; i++) add(makeBarrel(), -0.8 + i * 0.4, 0, 0.7, 0.45);
+      break;
+    }
+    case 'shop':
+      add(makeMarket(level), 0, 0, 0, 0.75);
+      break;
+    case 'warehouse': {
+      const box = mesh(new THREE.BoxGeometry(1.5, 0.9, 1.1), toon('#b98a52'));
+      outline(box, 1.02);
+      add(box, 0, 0.45, -0.1);
+      const roof = mesh(new THREE.CylinderGeometry(0.62, 0.62, 1.6, 12, 1, false, 0, Math.PI), toon('#7a5a3a'));
+      roof.rotation.z = Math.PI / 2;
+      add(roof, 0, 0.9, -0.1);
+      for (let i = 0; i < level; i++) add(makeBarrel(), -0.6 + i * 0.5, 0, 0.75, 0.4);
+      break;
+    }
+    case 'tradepost': {
+      add(makeBoat(2), 0, 0, 0.1, 0.42).rotation.y = 0.6;
+      break;
+    }
+    case 'lantern': {
+      for (const x of [-0.6, 0, 0.6]) {
+        add(mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.1), toon('#6e4423')), x, 0.55, 0);
+        add(makeLantern(x === 0 ? '#f2c14e' : '#e8443a'), x, 1.05, 0.08, 1.4);
+      }
+      break;
+    }
+    case 'shrine': {
+      const trunk = mesh(new THREE.CylinderGeometry(0.18, 0.28, 1.1, 8), toon('#7a5a3a'));
+      add(trunk, -0.5, 0.55, -0.3);
+      add(mesh(new THREE.SphereGeometry(0.75, 10, 8), toon('#4f9a48')), -0.5, 1.35, -0.3);
+      const s = makeShrine();
+      s.remove(s.children[0]); // no sea rock on land
+      add(s, 0.45, -0.6, 0.3, 0.6);
+      break;
+    }
+  }
+  return g;
+}
+
+/** Island staff as chunky toy figures: one prop per role so jobs read at a glance. */
+export function makeWorker(role: string): THREE.Group {
+  const shirt = { fisher: '#2f8fbf', salter: '#f2f2ea', brewer: '#8a4a3a', seller: '#e67e22' }[role] ?? '#888888';
+  const g = new THREE.Group();
+  const body = mesh(new THREE.CapsuleGeometry(0.22, 0.32, 6, 14), toon(shirt));
+  outline(body, 1.06);
+  body.position.y = 0.42;
+  g.add(body);
+  const head = mesh(new THREE.SphereGeometry(0.24, 18, 14), toon('#e9b98e'));
+  outline(head, 1.05);
+  head.position.y = 0.93;
+  g.add(head);
+  for (const sd of [-1, 1]) {
+    const eye = mesh(new THREE.SphereGeometry(0.035, 8, 6), new THREE.MeshBasicMaterial({ color: 0x1d1410 }), false);
+    eye.position.set(sd * 0.08, 0.95, 0.21);
+    g.add(eye);
+    const blush = mesh(new THREE.CircleGeometry(0.04, 10), new THREE.MeshBasicMaterial({ color: 0xff9a8a, transparent: true, opacity: 0.7 }), false);
+    blush.position.set(sd * 0.14, 0.88, 0.225);
+    g.add(blush);
+  }
+  const smile = mesh(new THREE.TorusGeometry(0.045, 0.01, 4, 10, Math.PI), new THREE.MeshBasicMaterial({ color: 0x5a2a1a }), false);
+  smile.position.set(0, 0.87, 0.225);
+  smile.rotation.z = Math.PI;
+  g.add(smile);
+  const hatColor = role === 'salter' ? '#f2d98a' : role === 'seller' ? '#c0392b' : '#e8cf86';
+  if (role === 'brewer') {
+    const cap = mesh(new THREE.CylinderGeometry(0.2, 0.24, 0.16, 14), toon('#fffaf0'));
+    cap.position.y = 1.18;
+    g.add(cap);
+  } else if (role === 'seller') {
+    const band = mesh(new THREE.TorusGeometry(0.22, 0.04, 6, 16), toon(hatColor), false);
+    band.rotation.x = Math.PI / 2;
+    band.position.y = 1.08;
+    g.add(band);
+  } else {
+    const hat = mesh(new THREE.ConeGeometry(0.46, 0.3, 24), toon(hatColor));
+    outline(hat, 1.04);
+    hat.position.y = 1.2;
+    g.add(hat);
+  }
+  // role prop
+  if (role === 'fisher') {
+    const rod = mesh(new THREE.CylinderGeometry(0.015, 0.025, 1.3, 6), toon('#c9a66b'), false);
+    rod.position.set(0.3, 0.8, 0.1);
+    rod.rotation.z = -0.5;
+    g.add(rod);
+  } else if (role === 'salter') {
+    const rake = mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.1, 6), toon('#a57a48'), false);
+    rake.position.set(0.3, 0.55, 0.12);
+    rake.rotation.z = 0.25;
+    g.add(rake);
+    const head2 = mesh(new THREE.BoxGeometry(0.36, 0.05, 0.05), toon('#a57a48'), false);
+    head2.position.set(0.43, 0.02, 0.12);
+    g.add(head2);
+  } else if (role === 'brewer') {
+    const jar = makeBarrel();
+    jar.scale.setScalar(0.3);
+    jar.position.set(0.32, 0.2, 0.18);
+    g.add(jar);
+  } else if (role === 'seller') {
+    const bottle = mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.24, 10), toon('#b5651d'), false);
+    bottle.position.set(0.3, 0.5, 0.2);
+    g.add(bottle);
+  }
+  return g;
+}

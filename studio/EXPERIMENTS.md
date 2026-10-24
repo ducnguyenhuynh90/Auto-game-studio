@@ -67,3 +67,21 @@
   trip 400 rose about 10-20%. Browser bot (skill 0.75, 6 trips): 16 hungry fish, 11 links, best ×3,
   no errors.
 - **Result:** pending real players. The founder's own feel ("is it less boring?") is the first signal.
+
+## EXP-006 · Staff automation + puzzle sections + island map (build 3.0)
+- **Founder direction (D-012):** automate the routine with hired staff; the player solves puzzles in
+  fishing / salt / shop sections (100-level track, 5 built); a tycoon-style island map to expand.
+- **Hypothesis:** players who open the island return more (staff work while away = a reason to come back)
+  and play longer per session (puzzles give a goal beyond the routine), versus build 2.6.
+- **Primary metric:** D1 and D7 return for players who hired ≥ 1 staff vs those who didn't; sessions per day.
+- **Secondary:** island opened %, buildings and hires per player, puzzle starts → clears per section,
+  stars, `island_offline` events (did they come back to collect?).
+- **Guardrails:** fishing trips per session must not collapse (automation shouldn't replace the core
+  fun); tutorial completion unchanged (the island only opens after the first sale).
+- **Simulation (NOT evidence):** a sim player who builds and staffs the island earns ~2.25× coins over
+  300 trips (378k vs 168k) and finishes the story ~15% sooner (2.4 h vs 2.7 h at skill 0.6). The boat
+  and the legendary fish still gate the story. Risk: mid-game upgrades may feel too cheap; levers are
+  staff wages, the 4 h offline cap and jar count.
+- **QA:** `node tools/island-qa.mjs` builds, hires, solves Salt 1 and Shop 1 through the real UI (3★),
+  trains a Salt Maker and checks staff output. The browser bot (8 trips) still runs clean.
+- **Result:** pending real players.

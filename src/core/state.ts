@@ -4,6 +4,8 @@ import { GADGETS, hasRelic, type GadgetId, type RelicId } from './items';
 import { addXp } from './progression';
 import { range, type Rng } from './rng';
 import { SEAS, SEAS_BY_ID, missionDone, seaLock, type Mission, type Sea } from './seas';
+import { newIsland, type IslandState } from './island';
+import { newPuzzles, type PuzzleProgress } from './puzzles';
 
 export interface CaughtFish {
   uid: number;
@@ -23,6 +25,8 @@ export interface Jar {
   sealedAt: number; // epoch ms
   /** Extra °N locked in at sealing (Magic Salt, relics). */
   bonus?: number;
+  /** Sealed by a brewer on the island: the brewer opens it too; the player's own jars are left alone. */
+  auto?: boolean;
 }
 
 export interface Product {
@@ -30,6 +34,8 @@ export interface Product {
   recipe: string;
   degrees: number;
   agingLevel: number;
+  /** Made by island staff: the shop staff may sell it (player-kept bottles are never auto-sold). */
+  auto?: boolean;
 }
 
 export interface GameState {
@@ -59,6 +65,10 @@ export interface GameState {
   storySeen: string[];
   rev?: number;
   savedAt?: number;
+  /** The island business: plots, buildings, staff (src/core/island.ts). */
+  island: IslandState;
+  /** Puzzle stars per section (src/core/puzzles.ts). */
+  puzzles: PuzzleProgress;
 }
 
 export function newState(): GameState {
@@ -82,6 +92,8 @@ export function newState(): GameState {
     relics: [],
     pendingJarBonus: 0,
     storySeen: [],
+    island: newIsland(),
+    puzzles: newPuzzles(),
   };
 }
 
@@ -175,7 +187,7 @@ export function baseDegrees(fish: CaughtFish[], saltLevel: number): number {
   return avgBase * recipe.mult + avgFresh * BALANCE.freshnessBonus + BALANCE.saltBonus[saltLevel];
 }
 
-export function sealJar(s: GameState, jarIndex: number, fishUids: number[], rng: Rng, now: number): boolean {
+export function sealJar(s: GameState, jarIndex: number, fishUids: number[], rng: Rng, now: number, opts: { auto?: boolean; bonus?: number } = {}): boolean {
   const jar = s.jars[jarIndex];
   if (!jar || jar.sealed || fishUids.length !== BALANCE.jarSlots) return false;
   const fish = fishUids.map((uid) => s.bucket.find((f) => f.uid === uid));
@@ -187,8 +199,15 @@ export function sealJar(s: GameState, jarIndex: number, fishUids: number[], rng:
   jar.variance = range(rng, -BALANCE.variance, BALANCE.variance);
   jar.sealedTrip = s.stats.fullTrips;
   jar.sealedAt = now;
-  jar.bonus = s.pendingJarBonus + (hasRelic(s.relics, 'pearlheart') ? 3 : 0);
-  s.pendingJarBonus = 0;
+  const relicBonus = hasRelic(s.relics, 'pearlheart') ? 3 : 0;
+  if (opts.auto) {
+    // staff jars don't spend the player's Magic Salt
+    jar.bonus = (opts.bonus ?? 0) + relicBonus;
+    jar.auto = true;
+  } else {
+    jar.bonus = s.pendingJarBonus + relicBonus;
+    s.pendingJarBonus = 0;
+  }
   return true;
 }
 
@@ -212,7 +231,7 @@ export function openJar(s: GameState, jarIndex: number, now: number): { product:
   const lvl = agingLevel(s, jar, now);
   if (lvl < 1) return null;
   const degrees = jarDegrees(s, jar, now);
-  const product: Product = { uid: s.nextUid++, recipe: jar.recipe, degrees, agingLevel: lvl };
+  const product: Product = { uid: s.nextUid++, recipe: jar.recipe, degrees, agingLevel: lvl, ...(jar.auto ? { auto: true } : {}) };
   addXp(s, Math.round(degrees));
   const prevBest = s.cellar[jar.recipe];
   const newRecipe = prevBest === undefined;

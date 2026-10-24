@@ -7,6 +7,7 @@ import { GADGETS, hasRelic, type GadgetId } from '../core/items';
 import { SEAS_BY_ID } from '../core/seas';
 import { goalPair, progressLabel } from '../core/goals';
 import { SCENES, pendingScene } from '../core/story';
+import { FISHING_LEVELS, completeLevel, fishingGoalMet, fishingGoalText, fishingStars, levelOpen, type FishingLevel } from '../core/puzzles';
 import { StoryOverlay } from './story';
 import { range } from '../core/rng';
 import { addCatch, agingLevel, castsPerTrip, duplicateCatch, finishTrip, useGadget, type CaughtFish } from '../core/state';
@@ -79,13 +80,33 @@ export class FishingScene implements Scene {
   t = 0;
   reelTick = 0;
 
+  /** Fishing puzzle mode: a fixed school of fish, a fixed number of casts and a goal. */
+  readonly puzzle: FishingLevel | null;
+  tripLinks = 0;
+  puzzleResult: { met: boolean; stars: number; coins: number } | null = null;
+
   constructor(
     private game: Game,
     readonly sea: SeaId,
+    readonly puzzleIndex: number | null = null,
   ) {
     const s = game.state;
-    this.totalCasts = castsPerTrip(s);
+    this.puzzle = puzzleIndex === null ? null : FISHING_LEVELS[puzzleIndex];
+    this.totalCasts = this.puzzle ? this.puzzle.casts : castsPerTrip(s);
     this.castsLeft = this.totalCasts;
+    if (this.puzzle) {
+      this.storyChecked = true;
+      for (const f of this.puzzle.fish) {
+        const sh = this.spawnShadow(true, f.species);
+        sh.x = f.x;
+        sh.depth = f.depth;
+        sh.y = depthToY(f.depth);
+        sh.dir = f.dir;
+        sh.locked = f.depth > this.reach + 0.02;
+      }
+      analytics.track('puzzle_trip_start', { level: puzzleIndex! + 1 });
+      return;
+    }
     for (let i = 0; i < 5; i++) this.spawnShadow(true);
     analytics.track('trip_start', { sea, trip: s.stats.trips + 1 });
     if (s.stats.trips === 1) analytics.funnelStep('second_trip_start');
@@ -95,6 +116,7 @@ export class FishingScene implements Scene {
 
   /** How far the line reaches right now (0..1 of the water). */
   get reach(): number {
+    if (this.puzzle) return BALANCE.lineReach[this.puzzle.line];
     return this.effects.has('rocket') ? 1 : BALANCE.lineReach[this.game.state.upgrades.line];
   }
 
@@ -149,7 +171,7 @@ export class FishingScene implements Scene {
 
   /** The food chain starts on the second trip, once the basic cast-and-reel loop is learned. */
   get chainEnabled(): boolean {
-    return this.game.state.stats.trips >= 1;
+    return this.game.state.stats.trips >= 1 || !!this.puzzle;
   }
 
   get hungryFish(): Shadow | null {
@@ -345,6 +367,7 @@ export class FishingScene implements Scene {
       levelUps += b.levelUps;
       this.tripXp += b.xp;
       this.tripChainCoins += b.coins;
+      this.tripLinks++;
       link = { links: this.chain, coins: b.coins, top: lvl >= topLevel(this.sea) };
       analytics.track('chain_link', { links: this.chain, species: sh.species, sea: this.sea, coins: b.coins });
     }
@@ -363,7 +386,7 @@ export class FishingScene implements Scene {
     analytics.funnelStep('first_catch', { species: sp.id });
     if (res.isNew) analytics.track('dex_new', { species: sp.id, total: Object.keys(s.dex).length });
     this.game.commit();
-    this.spawnShadow();
+    if (!this.puzzle) this.spawnShadow();
     if (lvl) this.wakeHungry(lvl);
   }
 
@@ -379,6 +402,19 @@ export class FishingScene implements Scene {
 
   endTrip(): void {
     const s = this.game.state;
+    if (this.puzzle) {
+      // puzzle trips don't count as fishing trips (no jar aging, no trip stats)
+      const fish = this.tripCatches.filter((f) => !SPECIES_BY_ID[f.species].treasure && !SPECIES_BY_ID[f.species].crate);
+      const met = fishingGoalMet(this.puzzle, { bestChain: this.bestTripChain, links: this.tripLinks, caught: this.tripCatches.map((f) => f.species) });
+      const st = fishingStars(met, fish.map((f) => f.freshness));
+      const r = completeLevel(s, 'fishing', this.puzzleIndex!, st);
+      this.puzzleResult = { met, stars: st, coins: r.coins };
+      analytics.track('puzzle_end', { section: 'fishing', level: this.puzzleIndex! + 1, stars: st, links: this.tripLinks, bestChain: this.bestTripChain });
+      this.game.commit();
+      this.phase = 'summary';
+      this.t = 0;
+      return;
+    }
     this.fullTrip = this.castsLeft <= 0;
     finishTrip(s, this.fullTrip);
     analytics.track('trip_end', { sea: this.sea, catches: this.tripCatches.length, casts: this.totalCasts - this.castsLeft, trip: s.stats.trips, bestChain: this.bestTripChain });
@@ -395,7 +431,7 @@ export class FishingScene implements Scene {
     for (const sh of this.shadows) this.updateShadow(sh, dt);
     if (this.phase === 'aim' || this.phase === 'charging') this.refreshLocks();
     this.shadows = this.shadows.filter((sh) => !(sh.state === 'flee' && (sh.x < -100 || sh.x > W + 100)));
-    while (this.shadows.filter((s) => s.state === 'swim' || s.state === 'approach').length < 5) this.spawnShadow();
+    if (!this.puzzle) while (this.shadows.filter((s) => s.state === 'swim' || s.state === 'approach').length < 5) this.spawnShadow();
     if (this.card) this.card.t += dt;
     // arriving in a new sea starts its chapter
     if (!this.storyChecked && this.phase === 'aim' && this.t > 0.5) {
@@ -599,8 +635,8 @@ export class FishingScene implements Scene {
     });
     this.drawGoalPill(ctx);
     if (this.phase === 'aim') {
-      this.game.button(ctx, 'leave', 10, 66, 92, 34, 'Dock', () => this.endTrip(), { color: '#8a7a66', dark: '#5f5244', size: 15 });
-      this.drawItemBar(ctx);
+      this.game.button(ctx, 'leave', 10, 66, 92, 34, this.puzzle ? 'Give up' : 'Dock', () => this.endTrip(), { color: '#8a7a66', dark: '#5f5244', size: 15 });
+      if (!this.puzzle) this.drawItemBar(ctx);
     }
     this.drawShadowLabels(ctx);
     this.drawChainLadder(ctx);
@@ -645,6 +681,14 @@ export class FishingScene implements Scene {
   /** The current goal with a live counter ("Caught 2/3"), so progress is visible while fishing. */
   private drawGoalPill(ctx: Ctx): void {
     if (this.phase === 'reel' || this.phase === 'card' || this.phase === 'summary') return;
+    if (this.puzzle) {
+      const p = this.puzzle;
+      const prog = p.goal.kind === 'chain' ? `Chain ×${this.chain} (best ×${this.bestTripChain}) / ×${p.goal.n}` : p.goal.kind === 'links' ? `Links ${this.tripLinks}/${p.goal.n}` : this.tripCatches.some((f) => f.species === (p.goal as { species: string }).species) ? 'Caught!' : 'Not yet';
+      panel(ctx, 110, 86, W - 122, 46, 'rgba(255,248,236,0.95)', 14);
+      text(ctx, `Puzzle ${this.puzzleIndex! + 1}: ${fishingGoalText(p)}`, 110 + (W - 122) / 2, 97, 11, 'rgba(43,33,24,0.75)', 'center', 900);
+      text(ctx, prog, 110 + (W - 122) / 2, 116, 14, COLORS.ink, 'center', 900);
+      return;
+    }
     const g = goalPair(this.game.state).current;
     if (!g || !g.progress) return;
     const [c, t] = g.progress;
@@ -906,7 +950,42 @@ export class FishingScene implements Scene {
     if (c.t > 0.6) outlinedText(ctx, 'tap to continue', W / 2, 680, 16, '#fff', COLORS.ink, 4);
   }
 
+  private drawPuzzleSummary(ctx: Ctx): void {
+    const r = this.puzzleResult!;
+    const p = this.puzzle!;
+    ctx.fillStyle = 'rgba(10,30,40,0.6)';
+    ctx.fillRect(0, 0, W, H);
+    const k = ease.outBack(clamp01(this.t / 0.4));
+    ctx.save();
+    ctx.translate(W / 2, 360);
+    ctx.scale(k, k);
+    panel(ctx, -165, -170, 330, 320, COLORS.paper, 24);
+    outlinedText(ctx, r.met ? 'Puzzle solved!' : 'Not solved yet', 0, -132, 28, r.met ? '#fff' : '#ffd9cc', COLORS.ink, 6);
+    for (let i = 0; i < 3; i++) {
+      ctx.fillStyle = i < r.stars ? COLORS.gold : 'rgba(43,33,24,0.15)';
+      star(ctx, -50 + i * 50, -80, 20);
+      if (i < r.stars) {
+        ctx.strokeStyle = COLORS.ink;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+    }
+    text(ctx, fishingGoalText(p), 0, -36, 15, COLORS.ink, 'center', 900);
+    text(ctx, r.met ? 'Fresh catches (★★) and perfect ones earn more stars.' : p.hint, 0, -12, 11.5, 'rgba(43,33,24,0.75)', 'center', 700);
+    if (r.coins) text(ctx, `+${r.coins} coins`, 0, 20, 18, '#b8860b', 'center', 900);
+    if (r.met) text(ctx, 'Fishers can train one level higher!', 0, 48, 12, '#7a5aa8', 'center', 900);
+    ctx.restore();
+    if (this.t > 0.4) {
+      const idx = this.puzzleIndex!;
+      const hasNext = r.met && levelOpen(this.game.state, 'fishing', idx + 1);
+      this.game.button(ctx, 'pz_retry', W / 2 - 150, 480, hasNext ? 140 : 300, 54, 'Retry', () => this.game.goFishingPuzzle(idx), { color: '#8a7a66', dark: '#5f5244', size: 18 });
+      if (hasNext) this.game.button(ctx, 'pz_next', W / 2 + 10, 480, 140, 54, `Level ${idx + 2} ›`, () => this.game.goFishingPuzzle(idx + 1), { color: COLORS.good, dark: '#2f7a3b', size: 18, pulse: true });
+      this.game.button(ctx, 'pz_back', W / 2 - 150, 544, 300, 46, 'Back to puzzles', () => this.game.goPuzzles(), { color: '#a35bd6', dark: '#6f3a96', size: 16 });
+    }
+  }
+
   private drawSummary(ctx: Ctx): void {
+    if (this.puzzle) return this.drawPuzzleSummary(ctx);
     const s = this.game.state;
     ctx.fillStyle = 'rgba(10,30,40,0.6)';
     ctx.fillRect(0, 0, W, H);

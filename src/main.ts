@@ -9,10 +9,14 @@ import { FpsGovernor, detectQuality, loadAutoQuality, loadQualitySetting, saveAu
 import { characterPortrait, fishIcon, stagePreview } from './render3d/icons';
 import type { Track } from './core/evolution';
 import type { CharacterId } from './core/story';
-import { setFishIconProvider, setPortraitProvider, setStageProvider } from './render/draw';
+import { setFishIconProvider, setIslandArtProvider, setPortraitProvider, setStageProvider } from './render/draw';
 import { FishingScene } from './scenes/fishing';
 import { VillageScene } from './scenes/village';
 import { MapScene } from './scenes/map';
+import { IslandScene } from './scenes/island';
+import { PuzzleHubOverlay, SaltPuzzleOverlay, ShopPuzzleOverlay } from './scenes/puzzles';
+import { FISHING_LEVELS } from './core/puzzles';
+import { catchUp } from './core/island';
 import { RevealOverlay } from './scenes/jar';
 import { addCatch, canFerment, sealJar, upgradeCost } from './core/state';
 import { UPGRADES } from './core/data';
@@ -55,10 +59,26 @@ const governor = new FpsGovernor(() => {
 setFishIconProvider(fishIcon);
 setPortraitProvider((id) => characterPortrait(id as CharacterId));
 setStageProvider((track, level) => stagePreview(track as Track, level));
+setIslandArtProvider((kind, id, level) => stagePreview(kind, kind === 'worker' ? 0 : level, id));
 if (params.has('speed')) game.timeScale = Number(params.get('speed'));
 
 game.goVillage = () => game.setScene(new VillageScene(game));
 game.goMap = () => game.setScene(new MapScene(game));
+game.goIsland = () => game.setScene(new IslandScene(game));
+game.goPuzzles = () => {
+  game.goIsland();
+  game.push(new PuzzleHubOverlay(game));
+};
+game.goFishingPuzzle = (i) => game.setScene(new FishingScene(game, FISHING_LEVELS[i].sea, i));
+// Island staff caught up for the time the game was closed (capped, see core/island.ts).
+{
+  const away = catchUp(game.state, game.rng, Date.now());
+  if (away.fish + away.salt + away.jars + away.bottles > 0) {
+    game.toast('While you were away…', '#3a8fd9', `Staff: +${away.fish} fish, +${away.salt} salt, ${away.jars} jars, +${away.coins} coins`);
+    analytics.track('island_offline', { ...away });
+    saveState(game.state);
+  }
+}
 game.goFishing = (sea) => {
   game.state.sea = sea;
   game.setScene(new FishingScene(game, sea));
@@ -88,6 +108,16 @@ if (import.meta.env.DEV && params.has('scene')) {
   if (which && which in SEAS_BY_ID) game.goFishing(which as SeaId);
   if (which === 'fishing') game.goFishing('lagoon');
   if (which === 'map') game.goMap();
+  if (which === 'fpuzzle') game.goFishingPuzzle(Number(params.get('level') ?? 1) - 1);
+  if (which === 'island' || which === 'puzzles' || which === 'salt' || which === 'shop') {
+    // a small running business for visual QA
+    st.stats.sold = Math.max(1, st.stats.sold);
+    st.coins = Math.max(st.coins, 2000);
+    game.goIsland();
+    if (which === 'puzzles') game.push(new PuzzleHubOverlay(game));
+    if (which === 'salt') game.push(new SaltPuzzleOverlay(game, Number(params.get('level') ?? 1) - 1));
+    if (which === 'shop') game.push(new ShopPuzzleOverlay(game, Number(params.get('level') ?? 1) - 1));
+  }
   if (which === 'chain') {
     // food chain: an anchovy was just landed on a later trip, so a scad is hungry
     st.stats.trips = Math.max(2, st.stats.trips);

@@ -18,7 +18,14 @@ export function loadFromBlob(s: GameState): GameState {
   // Older saves predate seas, gear, gadgets and missions: fill in every new field.
   const base = newState();
   const legacy = s as GameState & { zone?: string };
-  const merged: GameState = { ...base, ...s, stats: { ...base.stats, ...s.stats }, upgrades: { ...base.upgrades, ...s.upgrades } };
+  const merged: GameState = {
+    ...base,
+    ...s,
+    stats: { ...base.stats, ...s.stats },
+    upgrades: { ...base.upgrades, ...s.upgrades },
+    island: { ...base.island, ...s.island, made: { ...base.island.made, ...s.island?.made } },
+    puzzles: { ...base.puzzles, ...s.puzzles },
+  };
   if (!s.sea) merged.sea = legacy.zone === 'reef' ? 'reef' : 'lagoon';
   delete (merged as GameState & { zone?: string }).zone;
   return merged;

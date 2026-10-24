@@ -207,6 +207,8 @@ export class RevealOverlay implements Scene {
     const s = this.game.state;
     const res = openJar(s, this.jarIndex, Date.now());
     if (!res) return;
+    // the player opened it, so it is theirs: staff never auto-sell a bottle the player chose to keep
+    delete res.product.auto;
     this.product = res.product;
     this.newRecipe = res.newRecipe;
     this.newBest = res.newBest;
