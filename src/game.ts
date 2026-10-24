@@ -7,6 +7,7 @@ import type { SeaId } from './core/data';
 import type { RelicId } from './core/items';
 import { levelForXp } from './core/progression';
 import { checkMissions, type GameState } from './core/state';
+import { CAST, MISSION_STORY } from './core/story';
 import { sfx, unlockAudio, vibrate } from './render/audio';
 import type { World } from './render3d/world';
 import type { AccountManager } from './auth/account';
@@ -121,7 +122,8 @@ export class Game {
     }
     for (const m of checkMissions(this.state)) {
       analytics.track('mission_complete', { mission: m.mission.id, sea: m.sea.id });
-      this.toast('Mission complete!', '#3a8fd9', `${m.mission.text}  +${m.mission.reward.coins}`);
+      const st = MISSION_STORY[m.mission.id];
+      this.toast('Mission complete!  +' + m.mission.reward.coins, '#3a8fd9', st ? `${CAST[st.giver].name}: “${st.done}”` : m.mission.text);
       this.coinPulse = 1;
       sfx.upgrade();
       if (m.levelUps > 0) this.levelUp();

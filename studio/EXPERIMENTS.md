@@ -35,3 +35,16 @@
 - **Pacing (simulation, NOT evidence):** Reef unlock at 10-30 min, Dragon Bay at 45-65 min, the Abyss at
   2.4-3.3 h, full story at 2.7-3.7 h across skills 0.4-0.8 (`npx vite-node tools/sim.ts <skill> 400`).
 - **Result:** pending real players.
+
+## EXP-004 · A Pixar-structured story increases attachment without hurting the first minute
+- **Problem:** missions explained *what* to do but not *why*. The founder asked for a main character and a
+  story built the way Pixar builds them.
+- **Change:** docs/STORY.md. Hero Lan (want: save the village fast; need: patience; flaw: impatience,
+  mirrored by the tangle mechanic), mentor Bà Năm (fading memory → each relic restores a piece of the
+  recipe), sidekick Rùa (Turtle Buddy relic, rides the boat), rival Mr. Tốc (the hero's flaw grown up).
+  12 short skippable scenes on the Story Spine across the 5 seas, plus a giver and reason for every mission.
+- **Primary metric:** story skip rate per scene (`story_view` skipped vs read), especially the intro.
+- **Secondary:** D1 return and seas reached vs build 2.3; mission-log opens.
+- **Guardrails:** first_cast time must not rise meaningfully (intro is 6 short lines); tutorial completion
+  must not drop. If the intro skip rate is > 60%, cut it to 3 lines and move the rest into ambient lines.
+- **Result:** pending real players.

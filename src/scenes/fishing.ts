@@ -5,6 +5,8 @@ import { Reel, castDistance, castPower, rollShadow, type ShadowSpec } from '../c
 import { GADGETS, hasRelic, type GadgetId } from '../core/items';
 import { SEAS_BY_ID } from '../core/seas';
 import { goalPair, progressLabel } from '../core/goals';
+import { pendingScene } from '../core/story';
+import { StoryOverlay } from './story';
 import { range } from '../core/rng';
 import { addCatch, agingLevel, castsPerTrip, duplicateCatch, finishTrip, useGadget, type CaughtFish } from '../core/state';
 import { sfx, vibrate } from '../render/audio';
@@ -43,6 +45,7 @@ export class FishingScene implements Scene {
   tripGadgets: GadgetId[] = [];
   tripXp = 0;
   private lastGoalLabel = '';
+  private storyChecked = false;
   private goalPop = 0;
   holdTime = 0;
   power = 0;
@@ -301,6 +304,12 @@ export class FishingScene implements Scene {
     this.shadows = this.shadows.filter((sh) => !(sh.state === 'flee' && (sh.x < -100 || sh.x > W + 100)));
     while (this.shadows.filter((s) => s.state === 'swim' || s.state === 'approach').length < 5) this.spawnShadow();
     if (this.card) this.card.t += dt;
+    // arriving in a new sea starts its chapter
+    if (!this.storyChecked && this.phase === 'aim' && this.t > 0.5) {
+      this.storyChecked = true;
+      const scene = pendingScene(this.game.state, 'fishing');
+      if (scene) this.game.push(new StoryOverlay(this.game, [scene]));
+    }
     const g = goalPair(this.game.state).current;
     const label = g ? progressLabel(g) : '';
     if (label !== this.lastGoalLabel) {

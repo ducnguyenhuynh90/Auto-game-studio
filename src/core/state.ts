@@ -55,6 +55,8 @@ export interface GameState {
   pendingJarBonus: number;
   /** Identifies one journey across devices; rev increases on every save (cloud merge). */
   saveId?: string;
+  /** Story scenes already shown (src/core/story.ts). */
+  storySeen: string[];
   rev?: number;
   savedAt?: number;
 }
@@ -79,6 +81,7 @@ export function newState(): GameState {
     gadgets: {},
     relics: [],
     pendingJarBonus: 0,
+    storySeen: [],
   };
 }
 

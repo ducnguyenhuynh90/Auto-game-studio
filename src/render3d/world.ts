@@ -16,6 +16,8 @@ import {
   makeBottle,
   makeFish,
   makeFisherman,
+  makeCharacter,
+  makeTurtle,
   makeHouse,
   makeJar,
   makeLantern,
@@ -147,6 +149,7 @@ class FishingRig {
   private fish = new Map<object, FishModel>();
   private boat = new THREE.Group();
   private boatKind = -1;
+  private turtle: THREE.Group | null = null;
   private fisher = makeFisherman();
   private rod = new THREE.Group();
   private rodTip = new THREE.Object3D();
@@ -346,7 +349,7 @@ class FishingRig {
   private setBoat(kind: number): void {
     if (kind === this.boatKind) return;
     this.boatKind = kind;
-    for (const c of [...this.boat.children]) if (c !== this.fisher && c !== this.rod) this.boat.remove(c);
+    for (const c of [...this.boat.children]) if (c !== this.fisher && c !== this.rod && c !== this.turtle) this.boat.remove(c);
     const b = makeBoat(kind);
     if (kind >= 1) {
       b.rotation.y = Math.PI / 2;
@@ -371,6 +374,18 @@ class FishingRig {
     const jellies = this.props.get('trench');
     if (jellies?.visible) for (const j of jellies.children) if (j.name === 'jelly') j.position.y = -0.05 + Math.sin(t * 1.5 + j.position.x) * 0.12;
     this.setBoat(game.state.upgrades.boat);
+    // Rùa rides along once the Lagoon story is done
+    if (hasRelic(game.state.relics, 'turtle') && !this.turtle) {
+      this.turtle = makeTurtle();
+      this.turtle.scale.setScalar(0.5);
+      this.turtle.position.set(-0.5, 0.18, 0.15);
+      this.turtle.rotation.y = Math.PI - 0.4;
+      this.boat.add(this.turtle);
+    }
+    if (this.turtle) {
+      const head = this.turtle.getObjectByName('head');
+      if (head) head.position.y = 0.42 + Math.sin(t * 1.3) * 0.03;
+    }
     this.water.update(t);
     this.ripples.update(dt);
     this.boat.position.y = Math.sin(t * 1.6) * 0.05;
@@ -542,7 +557,7 @@ class VillageRig {
   private jarPos: THREE.Vector3[] = [];
   private key = '';
   private boat: THREE.Group | null = null;
-  private fisher = makeFisherman('#d9573f');
+  private fisher = makeCharacter('nam'); // Bà Năm tends the village
   private palms: THREE.Group[] = [];
   private market: THREE.Group | null = null;
   private lanterns: THREE.Mesh[] = [];

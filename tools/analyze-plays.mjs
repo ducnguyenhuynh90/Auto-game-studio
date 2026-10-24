@@ -47,6 +47,7 @@ const docs = [...players.values()].map((devs) => {
     lastScreen: last.lastScreen,
     lastError: devs.map((d) => d.lastError).find(Boolean),
     devices: devs.length,
+    story: Object.assign({}, ...devs.map((d) => d.story ?? {})),
   };
 });
 const n = docs.length;
@@ -84,4 +85,7 @@ console.log(`  players with JS errors: ${pct(docs.filter((d) => (d.counts?.js_er
 const seaReach = {};
 for (const d of docs) for (const x of d.seas ?? []) seaReach[x] = (seaReach[x] ?? 0) + 1;
 console.log(`  seas fished: ${JSON.stringify(seaReach)} · missions/player: ${(sum((d) => d.counts?.mission_complete) / Math.max(1, n)).toFixed(1)} · tangles: ${sum((d) => d.lost?.tangled)} of ${sum((d) => d.counts?.cast)} casts`);
+const views = docs.flatMap((d) => Object.entries(d.story ?? {}));
+const skipped = views.filter(([, v]) => v.startsWith('skipped')).length;
+console.log(`  story scenes seen: ${views.length}, skipped: ${skipped} (${views.length ? Math.round((skipped / views.length) * 100) : 0}%)  intro: ${JSON.stringify(docs.map((d) => d.story?.intro ?? '-'))}`);
 console.log(`  stored instead of selling the first bottle: ${pct(docs.filter((d) => (d.counts?.keep_product ?? 0) > 0 && d.funnel?.first_sale === undefined).length)}`);

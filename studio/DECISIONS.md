@@ -67,3 +67,12 @@ built, but as ONE connected system rather than separate features:
 - **Weak devices:** tiers + an FPS governor rather than one compromise setting, so good phones keep the
   cute look and weak phones stay playable. A service worker and a split vendor chunk handle repeat
   loads and offline play.
+
+## D-009 · 2026-10-24 · Founder request: Pixar-style hero and story
+- The story is built from the existing mechanics (theme "chậm mà chắc", slow but sure), so it explains
+  the game instead of interrupting it: aging jars = patience rewarded; overcast tangle = the hero's flaw.
+- The rival (Mr. Tốc) is a mirror of the hero rather than a villain (Pixar's antagonist-as-mirror).
+- Scenes are short, skippable and replayable (Captain's Log ▶). Skip rate is measured, and the story
+  shrinks if players skip it (EXP-004).
+- Cultural care: real proverb, the carp/Dragon Gate legend and mắm tôm are used respectfully. A native
+  Vietnamese speaker should review the lines before public launch (backlog).

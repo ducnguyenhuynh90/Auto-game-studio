@@ -1,10 +1,12 @@
 // Captain's Log (all missions, relics and gadgets at a glance) and the relic-unlock celebration.
 import { GOALS, progressLabel } from '../core/goals';
+import { CAST, MISSION_STORY, SCENES } from '../core/story';
+import { StoryOverlay } from './story';
 import { GADGETS, RELICS, type GadgetId, type RelicId } from '../core/items';
 import { levelForXp, levelProgress, xpForLevel } from '../core/progression';
 import { SEAS, SEAS_BY_ID, seaLock } from '../core/seas';
 import { sfx } from '../render/audio';
-import { COLORS, H, W, clamp01, drawCoin, ease, outlinedText, panel, rr, star, text, type Ctx } from '../render/draw';
+import { COLORS, H, W, clamp01, drawCoin, ease, font, outlinedText, panel, rr, star, text, type Ctx } from '../render/draw';
 import type { Game, Scene } from '../game';
 
 function check(ctx: Ctx, x: number, y: number, done: boolean): void {
@@ -69,6 +71,8 @@ export class MissionsOverlay implements Scene {
     ctx.translate(-W / 2, -H / 2);
     panel(ctx, 12, 40, W - 24, 780, COLORS.paper, 24);
     outlinedText(ctx, "Captain's Log", W / 2, 78, 28, '#fff', COLORS.ink, 6);
+    const seen = SCENES.filter((sc) => s.storySeen.includes(sc.id));
+    if (seen.length) this.game.button(ctx, 'replay_story', 24, 58, 46, 38, '▶', () => this.game.push(new StoryOverlay(this.game, seen, true)), { color: '#7a4a9a', dark: '#4f2f66', size: 14 });
     // level
     const lvl = levelForXp(s.xp);
     text(ctx, `Captain level ${lvl}`, 30, 112, 15, COLORS.ink, 'left', 900);
@@ -119,6 +123,16 @@ export class MissionsOverlay implements Scene {
         ctx.fill();
         text(ctx, progressLabel({ text: m.text, progress: [c, t] }), 186, y + 13, 11, COLORS.ink, 'left', 800);
       }
+      // who asked, and why
+      const st = MISSION_STORY[m.id];
+      if (st) {
+        const line = `${CAST[st.giver].name}: “${done ? st.done : st.why}”`;
+        ctx.font = font(10, 600);
+        let l = line;
+        while (l.length > 8 && ctx.measureText(l).width > W - 110) l = l.slice(0, -2);
+        if (l !== line) l = l.trimEnd() + '…”';
+        text(ctx, l, 60, y + 27, 10, CAST[st.giver].color, 'left', 700);
+      }
       drawCoin(ctx, W - 92, y + 4, 8);
       text(ctx, String(m.reward.coins), W - 80, y + 5, 12, COLORS.ink, 'left');
       if (m.reward.gadget) {
@@ -127,7 +141,7 @@ export class MissionsOverlay implements Scene {
         ctx.fill();
         text(ctx, GADGETS[m.reward.gadget].icon, W - 42, y + 5, 11, '#fff');
       }
-      y += 38;
+      y += 48;
     }
     const relic = RELICS[sea.relic];
     const owned = s.relics.includes(sea.relic);

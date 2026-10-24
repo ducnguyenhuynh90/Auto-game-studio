@@ -97,7 +97,7 @@ export const SEAS: Sea[] = [
     look: { water: '#2f9a8a', skyTop: '#c9d8e0', skyBottom: '#f2efe0', fog: '#dfe8e0' },
     missions: [
       { id: 'b_cuttle', text: 'Catch 8 Cuttlefish', progress: (s) => cap(caught(s, 'cuttlefish'), 8), reward: { coins: 150, xp: 180 } },
-      { id: 'b_good', text: 'Land 10 fresh catches (★★+) in the Bay', progress: (s) => cap(seaStat(s, 'bay', 'goods'), 10), reward: { coins: 150, xp: 180, gadget: 'rocket' } },
+      { id: 'b_good', text: 'Land 10 ★★ catches in the Bay', progress: (s) => cap(seaStat(s, 'bay', 'goods'), 10), reward: { coins: 150, xp: 180, gadget: 'rocket' } },
       { id: 'b_lobster', text: 'Catch a Spiny Lobster', progress: (s) => cap(caught(s, 'lobster'), 1), reward: { coins: 200, xp: 220 } },
       { id: 'b_carp', text: 'Catch the Dragon Carp', progress: (s) => cap(caught(s, 'carp'), 1), reward: { coins: 400, xp: 400 } },
     ],

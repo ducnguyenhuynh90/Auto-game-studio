@@ -12,6 +12,8 @@ import { MarketOverlay } from './market';
 import { DexOverlay } from './dex';
 import { MissionsOverlay, RelicOverlay } from './missions';
 import { SettingsOverlay } from './settings';
+import { StoryOverlay } from './story';
+import { pendingScene } from '../core/story';
 
 const JAR_Y = 640;
 
@@ -37,6 +39,11 @@ export class VillageScene implements Scene {
     const id = g?.id ?? '';
     // Relics earned anywhere get their big moment back in the village.
     if (this.game.relicQueue.length && this.game.overlays.length === 0) this.game.push(new RelicOverlay(this.game, this.game.relicQueue.shift()!));
+    // story beats play in the village once their moment has come (after any relic celebration)
+    if (this.game.overlays.length === 0 && this.t > 0.6) {
+      const scene = pendingScene(this.game.state, 'village');
+      if (scene) this.game.push(new StoryOverlay(this.game, [scene]));
+    }
     if (id !== this.lastGoal) {
       this.lastGoal = id;
       this.goalFlash = 1;

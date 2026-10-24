@@ -98,6 +98,12 @@ await page.evaluate(({ skill }) => {
         wait = 0.5;
       } else if (top.name === 'dex' || top.name === 'missions') {
         tap(W_ - 44, 74);
+      } else if (top.name === 'story') {
+        shot(`story_${top.scene?.id ?? 'scene'}`);
+        // read like a player: tap through each line
+        g.pointerDown(195, 300);
+        g.pointerUp(195, 300);
+        wait = 0.25;
       } else if (top.name === 'relic') {
         shot('relic');
         bot.log.push({ ev: 'relic', trip: s.stats.trips, t: g.time });
@@ -247,7 +253,7 @@ const report = await page.evaluate(() => {
     state: { coins: g.state.coins, upgrades: g.state.upgrades, stats: g.state.stats, dex: Object.keys(g.state.dex), cellar: g.state.cellar, goalsDone: g.state.goalsDone },
     funnel: window.__mam.analytics.funnelState(),
     counts: { cast: count('cast'), catch: count('catch'), lost: count('fish_lost'), jar_open: count('jar_open'), upgrade: count('upgrade'), mission: count('mission_complete'), relic: count('relic_unlock'), level: count('level_up'), gadget: count('gadget_use') },
-    progress: { sea: g.state.sea, xp: g.state.xp, missions: g.state.missionsDone, relics: g.state.relics, gadgets: g.state.gadgets },
+    progress: { storySeen: g.state.storySeen, sea: g.state.sea, xp: g.state.xp, missions: g.state.missionsDone, relics: g.state.relics, gadgets: g.state.gadgets },
     lostReasons: ev.filter((x) => x.e === 'fish_lost').map((x) => x.p.reason),
     log: window.__bot.log,
   };

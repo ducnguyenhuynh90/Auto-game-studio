@@ -24,6 +24,8 @@ export interface PlaySummary {
   lastScreen: string;
   activeSec: number;
   lastError?: string;
+  /** Story scene → 'read' or 'skipped@<line>' (EXP-004). */
+  story?: Record<string, string>;
   /** Furthest sea sailed to. */
   seas?: string[];
 }
@@ -66,6 +68,10 @@ export function applyEvent(s: PlaySummary, ev: AnalyticsEvent): PlaySummary {
     case 'screen':
       s.screens ??= {};
       s.screens[String(p.name)] = (s.screens[String(p.name)] ?? 0) + 1;
+      break;
+    case 'story_view':
+      s.story ??= {};
+      s.story[String(p.id)] = p.skipped ? `skipped@${p.read}/${p.total}` : 'read';
       break;
     case 'js_error':
       s.lastError = String(p.msg ?? '');

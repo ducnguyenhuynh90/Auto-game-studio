@@ -389,33 +389,131 @@ export function makeBottle(sauceColor: string, tierColor: string): THREE.Group {
 }
 
 // ---------- People & boats ----------
-export function makeFisherman(shirt = '#3d6f8f'): THREE.Group {
+/** The player's boat character: Lan (kept for existing callers). */
+export function makeFisherman(): THREE.Group {
+  return makeCharacter('lan');
+}
+
+/** Story cast as chunky toy figures. Each has one signature silhouette detail (Pixar: specificity). */
+export function makeCharacter(id: 'lan' | 'nam' | 'rua' | 'toc' | 'tu' | 'hanh'): THREE.Group {
+  if (id === 'rua') return makeTurtle();
+  const look = {
+    lan: { shirt: '#3d6f8f', skin: '#f0c49a', hair: '#1d1410' },
+    nam: { shirt: '#7a4a9a', skin: '#e2b48a', hair: '#c9c4bc' },
+    toc: { shirt: '#5a6470', skin: '#efc6a0', hair: '#141414' },
+    tu: { shirt: '#8a6238', skin: '#c99068', hair: '#2a1d14' },
+    hanh: { shirt: '#c0603e', skin: '#ecc09a', hair: '#1d1410' },
+  }[id];
   const g = new THREE.Group();
-  const body = mesh(new THREE.CapsuleGeometry(0.22, 0.32, 6, 14), toon(shirt));
+  const body = mesh(new THREE.CapsuleGeometry(0.22, 0.32, 6, 14), toon(look.shirt));
   outline(body, 1.06);
   body.position.y = 0.42;
   g.add(body);
-  const head = mesh(new THREE.SphereGeometry(0.24, 18, 14), toon('#f0c49a'));
+  const head = mesh(new THREE.SphereGeometry(0.24, 18, 14), toon(look.skin));
   outline(head, 1.05);
   head.position.y = 0.93;
   g.add(head);
-  for (const s of [-1, 1]) {
+  // hair cap
+  const hair = mesh(new THREE.SphereGeometry(0.25, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2.1), toon(look.hair), false);
+  hair.position.y = 0.95;
+  hair.rotation.x = -0.25;
+  g.add(hair);
+  for (const sd of [-1, 1]) {
     const eye = mesh(new THREE.SphereGeometry(0.035, 8, 6), new THREE.MeshBasicMaterial({ color: 0x1d1410 }), false);
-    eye.position.set(s * 0.08, 0.95, 0.21);
+    eye.position.set(sd * 0.08, 0.95, 0.21);
     g.add(eye);
+    const shine = mesh(new THREE.SphereGeometry(0.011, 6, 4), new THREE.MeshBasicMaterial({ color: 0xffffff }), false);
+    shine.position.set(sd * 0.08 + 0.012, 0.962, 0.24);
+    g.add(shine);
     const blush = mesh(new THREE.CircleGeometry(0.04, 10), new THREE.MeshBasicMaterial({ color: 0xff9a8a, transparent: true, opacity: 0.7 }), false);
-    blush.position.set(s * 0.14, 0.88, 0.225);
+    blush.position.set(sd * 0.14, 0.88, 0.225);
     g.add(blush);
   }
-  // nón lá: conical palm-leaf hat
-  const hat = mesh(new THREE.ConeGeometry(0.46, 0.3, 28), toon('#f2d98a'));
-  outline(hat, 1.04);
-  hat.position.y = 1.2;
-  g.add(hat);
-  const brimRing = mesh(new THREE.TorusGeometry(0.44, 0.015, 4, 28), toon('#c9a95a'), false);
-  brimRing.rotation.x = Math.PI / 2;
-  brimRing.position.y = 1.06;
-  g.add(brimRing);
+  const smile = mesh(new THREE.TorusGeometry(0.045, 0.01, 4, 10, Math.PI), new THREE.MeshBasicMaterial({ color: 0x5a2a1a }), false);
+  smile.position.set(0, 0.87, 0.225);
+  smile.rotation.z = Math.PI;
+  g.add(smile);
+  const add = (m: THREE.Mesh, x: number, y: number, z: number) => {
+    m.position.set(x, y, z);
+    g.add(m);
+    return m;
+  };
+  if (id === 'lan') {
+    // grandmother's nón lá, two sizes too big
+    const hat = add(mesh(new THREE.ConeGeometry(0.56, 0.34, 28), toon('#f2d98a')), 0, 1.21, 0);
+    outline(hat, 1.04);
+    const brim = add(mesh(new THREE.TorusGeometry(0.54, 0.015, 4, 28), toon('#c9a95a'), false), 0, 1.05, 0);
+    brim.rotation.x = Math.PI / 2;
+  } else if (id === 'nam') {
+    // grey bun, round glasses, bamboo ladle
+    add(mesh(new THREE.SphereGeometry(0.11, 12, 10), toon(look.hair)), 0, 1.12, -0.12);
+    for (const sd of [-1, 1]) {
+      const lens = add(mesh(new THREE.TorusGeometry(0.05, 0.008, 4, 14), new THREE.MeshBasicMaterial({ color: 0x3a2a1a }), false), sd * 0.08, 0.95, 0.225);
+      lens.rotation.y = 0;
+    }
+    const ladle = add(mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.6, 6), toon('#c9a26a'), false), 0.3, 0.55, 0.1);
+    ladle.rotation.z = 0.3;
+    add(mesh(new THREE.SphereGeometry(0.06, 8, 6, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), toon('#c9a26a'), false), 0.39, 0.27, 0.1);
+  } else if (id === 'toc') {
+    // sunglasses, red tie, gold stopwatch
+    add(mesh(new THREE.BoxGeometry(0.3, 0.06, 0.03), new THREE.MeshBasicMaterial({ color: 0x111111 }), false), 0, 0.96, 0.225);
+    add(mesh(new THREE.BoxGeometry(0.06, 0.26, 0.03), toon('#c0392b'), false), 0, 0.52, 0.215);
+    add(mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.02, 12), toon('#f2c14e', { emissive: '#5a4000' }), false), 0.22, 0.5, 0.12).rotation.x = Math.PI / 2;
+    add(mesh(new THREE.BoxGeometry(0.14, 0.025, 0.02), toon('#141414'), false), 0, 0.905, 0.235);
+  } else if (id === 'tu') {
+    // flat straw hat and a big mustache
+    add(mesh(new THREE.CylinderGeometry(0.4, 0.42, 0.05, 20), toon('#d9b35b')), 0, 1.13, 0);
+    add(mesh(new THREE.CylinderGeometry(0.2, 0.22, 0.14, 16), toon('#d9b35b')), 0, 1.2, 0);
+    add(mesh(new THREE.BoxGeometry(0.16, 0.035, 0.03), toon('#2a1d14'), false), 0, 0.9, 0.235);
+  } else if (id === 'hanh') {
+    // long ponytail and a glowing lantern
+    add(mesh(new THREE.CapsuleGeometry(0.06, 0.3, 4, 8), toon(look.hair), false), 0, 0.75, -0.2);
+    add(mesh(new THREE.SphereGeometry(0.09, 10, 8), toon('#ffd27a', { emissive: '#c08000' }), false), 0.3, 0.42, 0.12);
+    add(mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.2, 4), toon('#3a2a1a'), false), 0.3, 0.58, 0.12);
+  }
+  return g;
+}
+
+/** Rùa: an ancient sea turtle with a barnacle crown. */
+export function makeTurtle(): THREE.Group {
+  const g = new THREE.Group();
+  const shell = mesh(new THREE.SphereGeometry(0.42, 18, 12), toon('#4f8a48'));
+  outline(shell, 1.05);
+  shell.scale.set(1, 0.55, 1.15);
+  shell.position.y = 0.32;
+  g.add(shell);
+  for (let i = 0; i < 6; i++) {
+    const plate = mesh(new THREE.CircleGeometry(0.1, 6), toon('#6aa84f'), false);
+    const a = (i / 6) * Math.PI * 2;
+    plate.position.set(Math.cos(a) * 0.2, 0.5, Math.sin(a) * 0.24);
+    plate.rotation.x = -Math.PI / 2 + Math.sin(a) * 0.4;
+    g.add(plate);
+  }
+  const head = mesh(new THREE.SphereGeometry(0.16, 14, 10), toon('#9cc27a'));
+  outline(head, 1.06);
+  head.position.set(0, 0.42, 0.5);
+  head.name = 'head';
+  g.add(head);
+  for (const sd of [-1, 1]) {
+    const eye = mesh(new THREE.SphereGeometry(0.03, 8, 6), new THREE.MeshBasicMaterial({ color: 0x1d1410 }), false);
+    eye.position.set(sd * 0.07, 0.47, 0.63);
+    g.add(eye);
+    const lid = mesh(new THREE.SphereGeometry(0.034, 8, 6, 0, Math.PI * 2, 0, Math.PI / 2), toon('#9cc27a'), false);
+    lid.position.set(sd * 0.07, 0.475, 0.63);
+    g.add(lid); // half-closed lids: the famous slow blink
+    for (const z of [-1, 1]) {
+      const flip = mesh(new THREE.SphereGeometry(0.12, 10, 6), toon('#9cc27a'), false);
+      flip.scale.set(1.6, 0.3, 0.7);
+      flip.position.set(sd * 0.42, 0.2, z * 0.28);
+      g.add(flip);
+    }
+  }
+  // barnacle crown
+  for (let i = 0; i < 4; i++) {
+    const b = mesh(new THREE.ConeGeometry(0.035, 0.07, 6), toon('#e8e2cf'), false);
+    b.position.set(-0.06 + i * 0.04, 0.6, 0.48);
+    g.add(b);
+  }
   return g;
 }
 

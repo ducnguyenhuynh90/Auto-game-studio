@@ -95,6 +95,15 @@ export function setFishIconProvider(fn: (species: string) => CanvasImageSource |
   iconProvider = fn;
 }
 
+/** Optional provider of 3D character portraits (set by main.ts when WebGL is available). */
+let portraitProvider: ((id: string) => CanvasImageSource | null) | null = null;
+export function setPortraitProvider(fn: (id: string) => CanvasImageSource | null): void {
+  portraitProvider = fn;
+}
+export function portrait(id: string): CanvasImageSource | null {
+  return portraitProvider?.(id) ?? null;
+}
+
 export function drawFish(ctx: Ctx, speciesId: string, x: number, y: number, len: number, opts: { flip?: boolean; wiggle?: number; angle?: number; alpha?: number } = {}): void {
   const sp = SPECIES_BY_ID[speciesId];
   ctx.save();
