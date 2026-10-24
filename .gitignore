@@ -3,3 +3,5 @@ dist
 playtest-output
 *.log
 dist-artifact
+.env
+.env.local

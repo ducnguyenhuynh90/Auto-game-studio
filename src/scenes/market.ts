@@ -9,6 +9,7 @@ import type { Game, Scene } from '../game';
 
 export class MarketOverlay implements Scene {
   name = 'market';
+  covers3d = true;
   t = 0;
 
   tab: 'gear' | 'village';

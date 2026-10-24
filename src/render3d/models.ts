@@ -28,6 +28,11 @@ export function toon(color: string | number, opts: { emissive?: string; transpar
 
 const OUTLINE = new THREE.MeshBasicMaterial({ color: 0x2b2118, side: THREE.BackSide });
 
+/** Ink outlines double the draw calls; the low quality tier turns them off. */
+export function setOutlinesEnabled(on: boolean): void {
+  OUTLINE.visible = on;
+}
+
 /** Inverted-hull outline: gives the hand-inked cartoon edge cheaply. */
 export function outline(mesh: THREE.Mesh, thickness = 1.06): THREE.Mesh {
   const o = new THREE.Mesh(mesh.geometry, OUTLINE);
@@ -53,8 +58,55 @@ export interface FishModel {
 
 const SILHOUETTE = new THREE.MeshBasicMaterial({ color: 0x0b3a4c, transparent: true, opacity: 0.55, depthWrite: false });
 
-/** Fish ~1 unit long, facing +x. */
+const fishTemplates = new Map<string, THREE.Group>();
+
+/**
+ * Fish ~1 unit long, facing +x. Each species is built once; later calls clone the template, sharing
+ * geometry and materials (much cheaper on weak devices than rebuilding every spawned shadow).
+ */
 export function makeFish(speciesId: string): FishModel {
+  let tpl = fishTemplates.get(speciesId);
+  if (!tpl) {
+    const built = buildFish(speciesId);
+    if (built.tail) built.tail.name = 'tail';
+    built.group.traverse((o) => (o.userData.sharedGeo = true));
+    tpl = built.group;
+    fishTemplates.set(speciesId, tpl);
+  }
+  const g = tpl.clone(true);
+  const parts: { m: THREE.Mesh; mat: THREE.Material }[] = [];
+  let tail: THREE.Object3D | null = null;
+  g.traverse((o) => {
+    if (o.name === 'tail') tail = o;
+    const m = o as THREE.Mesh;
+    if (m.isMesh && !m.userData.outline) parts.push({ m, mat: m.material as THREE.Material });
+  });
+  return { group: g, tail, setSilhouette: silhouetteFn(g, parts) };
+}
+
+function silhouetteFn(g: THREE.Group, parts: { m: THREE.Mesh; mat: THREE.Material }[]): FishModel['setSilhouette'] {
+  return (on, glow) => {
+    for (const p of parts) {
+      if (p.m.userData.isEye) p.m.visible = !on;
+      else p.m.material = on ? SILHOUETTE : p.mat;
+      for (const c of p.m.children) if (c.userData.outline) c.visible = !on;
+    }
+    const old = g.getObjectByName('glow');
+    if (old) g.remove(old);
+    if (on && glow) {
+      const halo = new THREE.Mesh(HALO_GEO, new THREE.MeshBasicMaterial({ color: glow, transparent: true, opacity: 0.35, depthWrite: false, blending: THREE.AdditiveBlending }));
+      halo.rotation.x = -Math.PI / 2;
+      halo.name = 'glow';
+      halo.userData.disposeMat = true;
+      halo.userData.sharedGeo = true;
+      g.add(halo);
+    }
+  };
+}
+
+const HALO_GEO = new THREE.CircleGeometry(0.9, 24);
+
+function buildFish(speciesId: string): FishModel {
   const sp = SPECIES_BY_ID[speciesId];
   const g = new THREE.Group();
   const parts: { m: THREE.Mesh; mat: THREE.Material }[] = [];
@@ -222,26 +274,7 @@ export function makeFish(speciesId: string): FishModel {
     }
   }
 
-  return {
-    group: g,
-    tail,
-    setSilhouette(on: boolean, glow?: string | null) {
-      for (const p of parts) {
-        if (p.m.userData.isEye) p.m.visible = !on;
-        else p.m.material = on ? SILHOUETTE : p.mat;
-        for (const c of p.m.children) if (c.userData.outline) c.visible = !on;
-      }
-      const old = g.getObjectByName('glow');
-      if (old) g.remove(old);
-      if (on && glow) {
-        const halo = new THREE.Mesh(new THREE.CircleGeometry(0.9, 24), new THREE.MeshBasicMaterial({ color: glow, transparent: true, opacity: 0.35, depthWrite: false, blending: THREE.AdditiveBlending }));
-        halo.rotation.x = -Math.PI / 2;
-        halo.name = 'glow';
-        halo.userData.disposeMat = true;
-        g.add(halo);
-      }
-    },
-  };
+  return { group: g, tail, setSilhouette: silhouetteFn(g, parts) };
 }
 
 function addEyes(g: THREE.Group, parts: { m: THREE.Mesh; mat: THREE.Material }[], x: number, y: number, z: number, r: number): void {

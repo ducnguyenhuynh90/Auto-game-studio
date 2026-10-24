@@ -1,5 +1,6 @@
-// Optional remote analytics sink for the claude.ai Artifact build: keeps one summary document per
-// player at plays/<viewer id> in the artifact's own store (readable only by the owner).
+// Optional remote analytics sink for the claude.ai Artifact build: one summary document per player
+// AND device at plays/<viewer id>/devices/<install id>, plus an index doc plays/<viewer id> listing the
+// devices (readable only by the owner). Per-device docs mean a second phone never overwrites the first.
 // Outside an artifact viewer (local dev, other hosts) everything here is a silent no-op.
 import { analytics } from './core/analytics';
 import { applyEvent, emptySummary, type PlaySummary } from './core/playsummary';
@@ -9,6 +10,8 @@ const FLUSH_NOW = new Set(['funnel', 'trip_end', 'app_hidden', 'jar_open', 'upgr
 
 interface DocRef {
   set(data: Record<string, unknown>): Promise<void>;
+  update(data: Record<string, unknown>): Promise<void>;
+  get(): Promise<{ exists: boolean }>;
 }
 interface ClaudeHost {
   use(name: string): Promise<unknown>;
@@ -71,7 +74,12 @@ async function connect(): Promise<void> {
     ];
     const id = await user?.id();
     if (!db || !id) return;
-    ref = db.doc(`plays/${id}`);
+    ref = db.doc(`plays/${id}/devices/${analytics.iid}`);
+    // index of this player's devices (merge-update so other devices' entries survive)
+    const index = db.doc(`plays/${id}`);
+    const entry = { devices: { [analytics.iid]: Date.now() } };
+    const snap = await index.get();
+    await (snap.exists ? index.update(entry) : index.set(entry)).catch(() => undefined);
     void flush();
   } catch {
     /* no store in this view: local summary only */

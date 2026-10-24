@@ -13,11 +13,18 @@ the biggest problem and the next action. Then read PRODUCT.md and SUCCESS.yaml.
 - `node tools/flow.mjs "<query>" <prefix> "wait:800;tap:x,y;down:x,y;up:x,y;shot:name"`: scripted screenshots.
 - Playwright is preinstalled globally; tools load it through `createRequire`. Do not `npm i playwright`.
 
+- `npx vite-node tools/sim.ts <skill> <trips>`: fast progression/economy simulation (pacing, not fun).
+- `node tools/bench.mjs <cpuSlowdown> [low|medium|high]`: fps benchmark on a simulated weak phone.
+- `node tools/build-artifact.mjs`: single-file build for the claude.ai playtest artifact (then publish it).
+- Player data: see docs/ANALYTICS.md ("Pull & analyse").
+
 ## Architecture
 - `src/core/`: pure rules, no DOM rendering: data/balance, fishing reel, state actions, goals, analytics, save.
 - `src/scenes/`: 2D canvas **UI layer** and game flow (village hub, fishing trip, jar fill/reveal, market, Fishdex).
 - `src/render3d/`: three.js **world layer** (procedural toon models, rigs per scene, reveal showcase).
   Gameplay positions are 390×844 screen space; the world raycasts them onto the water and ground.
+- `src/auth/`: accounts + cloud save (claude.ai identity; Firebase social login when configured).
+- `src/render3d/quality.ts`: quality tiers + FPS governor. `src/sw/`: service worker template.
 - `src/game.ts`: scene stack, immediate-mode buttons and hit areas, toasts. `src/main.ts`: bootstrap.
 
 ## Rules of the studio

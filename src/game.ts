@@ -9,12 +9,15 @@ import { levelForXp } from './core/progression';
 import { checkMissions, type GameState } from './core/state';
 import { sfx, unlockAudio, vibrate } from './render/audio';
 import type { World } from './render3d/world';
+import type { AccountManager } from './auth/account';
 import { COLORS, H, Particles, W, clamp01, drawCoin, ease, outlinedText, rr, text, type Ctx } from './render/draw';
 
 export interface Scene {
   name: string;
   /** Opaque overlays hide every layer below them (e.g. the 3D reveal showcase). */
   opaque?: boolean;
+  /** Full-screen menus that hide the 3D world (its rendering pauses underneath). */
+  covers3d?: boolean;
   update(dt: number): void;
   draw(ctx: Ctx): void;
   down?(x: number, y: number): void;
@@ -70,6 +73,8 @@ export class Game {
   private pressedId: string | null = null;
   private toasts: Toast[] = [];
   private floats: FloatText[] = [];
+  /** Accounts and cloud save (null until boot wires it). */
+  account: AccountManager | null = null;
   /** 3D world layer; null in headless tests. */
   world: World | null = null;
   coinPulse = 0;
@@ -78,6 +83,7 @@ export class Game {
   goVillage: () => void = () => {};
   goFishing: (sea: SeaId) => void = () => {};
   goMap: () => void = () => {};
+  setQuality: (q: 'auto' | 'low' | 'medium' | 'high') => void = () => {};
 
   constructor(seed: number) {
     this.state = loadState();
@@ -222,8 +228,11 @@ export class Game {
       const tw = ctx.measureText(label).width;
       drawCoin(ctx, w / 2 - tw / 2 - size * 0.4, cy, size * 0.42);
       outlinedText(ctx, label, w / 2 + size * 0.35, cy, size, tc, 'rgba(43,33,24,0.9)', 4);
-    } else {
+    } else if (tc === '#fff') {
       outlinedText(ctx, label, w / 2, cy, size, tc, 'rgba(43,33,24,0.9)', 4);
+    } else {
+      // dark label on a light button: an ink outline would smear it
+      text(ctx, label, w / 2, cy, size, tc, 'center', 900);
     }
     if (o.sub) text(ctx, o.sub, w / 2, cy + size * 0.85, size * 0.5, 'rgba(255,255,255,0.95)');
     ctx.restore();

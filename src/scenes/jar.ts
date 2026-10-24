@@ -8,6 +8,7 @@ import type { Game, Scene } from '../game';
 
 export class JarFillOverlay implements Scene {
   name = 'jar_fill';
+  covers3d = true;
   t = 0;
   chosen: number[] = [];
   page = 0;

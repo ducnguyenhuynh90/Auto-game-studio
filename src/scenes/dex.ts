@@ -6,6 +6,7 @@ import type { Game, Scene } from '../game';
 
 export class DexOverlay implements Scene {
   name = 'dex';
+  covers3d = true;
   t = 0;
   page = 0;
 

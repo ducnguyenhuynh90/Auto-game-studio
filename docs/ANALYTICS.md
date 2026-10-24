@@ -33,4 +33,13 @@ fish_lost by reason / hooks · D1/D7 via session_start per iid.
 `src/remote.ts` folds events into one `PlaySummary` per player (`src/core/playsummary.ts`): sessions[],
 funnel{step: sec}, counts, lost{reason}, species, screens, perfect, bestDegrees, goals, lastScreen,
 activeSec. It writes to `plays/<viewer id>` on funnel steps, trip end, jar open, upgrade, app hide, and
-at most every 20 s while something changed. Analyse with `node tools/analyze-plays.mjs <export dir>`.
+at most every 20 s while something changed.
+
+**Storage layout (2.2.1+):** `plays/<viewer id>/devices/<install id>` (one summary per device, so a second
+device never overwrites the first) + an index doc `plays/<viewer id>` `{devices: {iid: firstSeen}}`.
+Pre-2.2.1 flat docs at `plays/<viewer id>` are still read by the analyzer.
+
+**Pull & analyse:** ArtifactData `list` collection `plays` (index) → for each player, `list`
+`plays/<id>/devices` with `out_dir` = one export dir → `node tools/analyze-plays.mjs <export dir>`.
+Devices merge per player (sessions union, counts summed, funnel = earliest per step; funnel seconds are
+relative to each device's own first launch).

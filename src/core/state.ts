@@ -53,6 +53,10 @@ export interface GameState {
   relics: RelicId[];
   /** °N waiting for the next sealed jar (Magic Salt). */
   pendingJarBonus: number;
+  /** Identifies one journey across devices; rev increases on every save (cloud merge). */
+  saveId?: string;
+  rev?: number;
+  savedAt?: number;
 }
 
 export function newState(): GameState {

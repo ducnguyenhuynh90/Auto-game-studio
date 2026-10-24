@@ -45,6 +45,7 @@ export function drawRelicBadge(ctx: Ctx, x: number, y: number, r: number, color:
 
 export class MissionsOverlay implements Scene {
   name = 'missions';
+  covers3d = true;
   t = 0;
   /** Which sea's missions are shown (defaults to the current one). */
   private seaIdx: number;

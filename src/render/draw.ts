@@ -442,8 +442,11 @@ export interface Particle {
 
 export class Particles {
   list: Particle[] = [];
+  /** Global count multiplier (quality tiers lower it on weak devices). */
+  scale = 1;
 
   burst(x: number, y: number, n: number, colors: string[], opts: { speed?: number; kind?: Particle['kind']; size?: number; life?: number; g?: number; up?: boolean } = {}): void {
+    n = Math.max(1, Math.round(n * this.scale));
     for (let i = 0; i < n; i++) {
       const a = opts.up ? -Math.PI / 2 + (Math.random() - 0.5) * 1.6 : Math.random() * Math.PI * 2;
       const sp = (opts.speed ?? 220) * (0.4 + Math.random() * 0.8);

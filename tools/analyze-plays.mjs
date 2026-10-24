@@ -3,16 +3,56 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+// Export layout (ArtifactData list with out_dir): plays/<uid>.json (index or legacy summary) and
+// plays/<uid>/devices/<iid>.json (one summary per device). Devices are merged into one player.
 const dir = process.argv[2];
-const files = readdirSync(join(dir, 'plays')).filter((f) => f.endsWith('.json'));
-const docs = files.map((f) => {
-  const raw = JSON.parse(readFileSync(join(dir, 'plays', f), 'utf8'));
+const read = (f) => {
+  const raw = JSON.parse(readFileSync(f, 'utf8'));
   return raw.data ?? raw;
+};
+const players = new Map();
+for (const f of readdirSync(join(dir, 'plays'))) {
+  const path = join(dir, 'plays', f);
+  if (f.endsWith('.json')) {
+    const d = read(path);
+    if (d.v === 1) players.set(f.replace('.json', '') + ':legacy', [d]); // pre-2.2 flat summary
+  } else {
+    const devDir = join(path, 'devices');
+    try {
+      players.set(f, readdirSync(devDir).filter((x) => x.endsWith('.json')).map((x) => read(join(devDir, x))));
+    } catch {
+      /* index only */
+    }
+  }
+}
+// drop legacy docs for players that now have device docs
+for (const k of [...players.keys()]) if (k.endsWith(':legacy') && players.has(k.replace(':legacy', ''))) players.delete(k);
+const sumMap = (ms) => ms.reduce((acc, m) => {
+  for (const [k, v] of Object.entries(m ?? {})) acc[k] = (acc[k] ?? 0) + v;
+  return acc;
+}, {});
+const docs = [...players.values()].map((devs) => {
+  const last = [...devs].sort((a, b) => b.lastSeen - a.lastSeen)[0];
+  const funnel = {};
+  for (const d of devs) for (const [k, v] of Object.entries(d.funnel ?? {})) funnel[k] = Math.min(funnel[k] ?? Infinity, v);
+  return {
+    sessions: devs.flatMap((d) => d.sessions ?? []).sort((a, b) => a - b),
+    funnel,
+    counts: sumMap(devs.map((d) => d.counts)),
+    lost: sumMap(devs.map((d) => d.lost)),
+    screens: sumMap(devs.map((d) => d.screens)),
+    perfect: devs.reduce((a, d) => a + (d.perfect ?? 0), 0),
+    activeSec: devs.reduce((a, d) => a + (d.activeSec ?? 0), 0),
+    seas: [...new Set(devs.flatMap((d) => d.seas ?? []))],
+    lastScreen: last.lastScreen,
+    lastError: devs.map((d) => d.lastError).find(Boolean),
+    devices: devs.length,
+  };
 });
 const n = docs.length;
 const pct = (k) => `${k}/${n} (${n ? Math.round((k / n) * 100) : 0}%)`;
 const steps = ['first_launch', 'first_cast', 'first_bite', 'first_catch', 'first_seal', 'second_trip_start', 'first_reveal', 'first_sale', 'first_upgrade', 'third_trip_start', 'first_reef_trip'];
-console.log(`players: ${n}`);
+console.log(`players: ${n} (devices: ${docs.reduce((a, d) => a + d.devices, 0)})`);
 console.log('\nFUNNEL (reached / median seconds from first launch)');
 for (const s of steps) {
   const secs = docs.map((d) => d.funnel?.[s]).filter((v) => v !== undefined).sort((a, b) => a - b);

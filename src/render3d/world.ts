@@ -9,7 +9,9 @@ import { H, W } from '../render/draw';
 import type { Game } from '../game';
 import type { FishingScene } from '../scenes/fishing';
 import type { RevealOverlay } from '../scenes/jar';
+import { PROFILES, type Quality, type QualityProfile } from './quality';
 import {
+  setOutlinesEnabled,
   makeBoat,
   makeBottle,
   makeFish,
@@ -35,7 +37,8 @@ function discard(obj: THREE.Object3D | null | undefined): void {
   obj.parent?.remove(obj);
   obj.traverse((o) => {
     const m = o as THREE.Mesh;
-    if (m.geometry && !m.userData.outline) m.geometry.dispose();
+    // shared template geometry (fish clones) must survive; one-off geometry is freed
+    if (m.geometry && !m.userData.outline && !m.userData.sharedGeo) m.geometry.dispose();
     if (m.userData.disposeMat) (m.material as THREE.Material).dispose();
   });
 }
@@ -94,7 +97,18 @@ class Water {
       arr[i + 1] = Math.sin(x * 0.9 + t * 1.3) * 0.05 + Math.cos(z * 1.1 + t * 1.1) * 0.05;
     }
     pos.needsUpdate = true;
-    this.mesh.geometry.computeVertexNormals();
+    // flatShading derives normals in the fragment shader, so no per-frame computeVertexNormals
+  }
+
+  /** Rebuild with a different grid density (quality tiers). */
+  setSegments(segs: number): void {
+    const params = (this.mesh.geometry as THREE.PlaneGeometry).parameters;
+    if (params.widthSegments === segs) return;
+    const geo = new THREE.PlaneGeometry(params.width, params.height, segs, segs);
+    geo.rotateX(-Math.PI / 2);
+    this.base = (geo.attributes.position.array as Float32Array).slice();
+    this.mesh.geometry.dispose();
+    this.mesh.geometry = geo;
   }
 }
 
@@ -128,7 +142,7 @@ class Ripples {
 class FishingRig {
   root = new THREE.Group();
   camera = new THREE.PerspectiveCamera(42, W / H, 0.1, 200);
-  private water = new Water(70, 56, '#2aa3b9', 0.82);
+  readonly water = new Water(70, 56, '#2aa3b9', 0.82);
   private ripples: Ripples;
   private fish = new Map<object, FishModel>();
   private boat = new THREE.Group();
@@ -521,7 +535,7 @@ class FishingRig {
 class VillageRig {
   root = new THREE.Group();
   camera = new THREE.PerspectiveCamera(36, W / H, 0.1, 200);
-  private water = new Water(80, 40, '#2aa3b9', 1);
+  readonly water = new Water(80, 40, '#2aa3b9', 1);
   private sky = skyTexture('#ffc58a', '#ffeccc');
   private dyn = new THREE.Group();
   private jars: JarModel[] = [];
@@ -783,7 +797,7 @@ const CHART: Record<SeaId, [number, number]> = { lagoon: [0, 4.4], reef: [2.1, 1
 class MapRig {
   root = new THREE.Group();
   camera = new THREE.PerspectiveCamera(40, W / H, 0.1, 200);
-  private water = new Water(70, 40, '#2a8fb0', 1);
+  readonly water = new Water(70, 40, '#2a8fb0', 1);
   private fogs = new Map<SeaId, THREE.Group>();
   private boat: THREE.Group | null = null;
   private boatKind = -1;
@@ -1021,11 +1035,17 @@ export class World {
   showcase = new Showcase();
   private mode: 'village' | 'fishing' | 'map' = 'village';
   private sun: THREE.DirectionalLight;
+  quality: Quality;
+  private profile: QualityProfile;
+  private css = { w: 390, h: 844, dpr: 1 };
+  private frame = 0;
 
-  constructor(canvas: HTMLCanvasElement) {
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  constructor(canvas: HTMLCanvasElement, quality: Quality) {
+    this.quality = quality;
+    this.profile = PROFILES[quality];
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: this.profile.antialias, powerPreference: 'high-performance' });
     this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.shadowMap.type = quality === 'high' ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
     this.scene.add(new THREE.HemisphereLight(0xfff4e0, 0x6a8f6a, 1.5));
     this.sun = new THREE.DirectionalLight(0xfff0d8, 2.0);
     this.sun.position.set(5, 12, 7);
@@ -1041,11 +1061,33 @@ export class World {
     this.village = new VillageRig(this);
     this.map = new MapRig(this);
     this.scene.add(this.village.root, this.fishing.root, this.map.root);
+    this.applyQuality(quality);
   }
 
   resize(cssW: number, cssH: number, dpr: number): void {
-    this.renderer.setPixelRatio(dpr);
+    this.css = { w: cssW, h: cssH, dpr };
+    this.renderer.setPixelRatio(Math.min(dpr, this.profile.maxDpr) * this.profile.scale);
     this.renderer.setSize(cssW, cssH, false);
+  }
+
+  /** Apply a quality tier live (antialiasing is fixed at creation; everything else changes here). */
+  applyQuality(q: Quality): void {
+    this.quality = q;
+    this.profile = PROFILES[q];
+    const p = this.profile;
+    this.sun.castShadow = p.shadows;
+    if (this.sun.shadow.mapSize.x !== p.shadowMap) {
+      this.sun.shadow.mapSize.set(p.shadowMap, p.shadowMap);
+      this.sun.shadow.map?.dispose();
+      this.sun.shadow.map = null;
+    }
+    setOutlinesEnabled(p.outlines);
+    for (const w of [this.fishing.water, this.village.water, this.map.water]) w.setSegments(p.waterSegs);
+    this.resize(this.css.w, this.css.h, this.css.dpr);
+  }
+
+  get particleScale(): number {
+    return this.profile.particles;
   }
 
   project(p: THREE.Vector3, cam: THREE.Camera): ScreenPt {
@@ -1054,6 +1096,11 @@ export class World {
   }
 
   render(game: Game, dt: number): void {
+    // Full-screen menus hide the world: keep the last frame on screen and save the GPU.
+    if (game.overlays.some((o) => o.covers3d)) return;
+    // Low tier draws the 3D layer at half rate; the 2D UI still runs every frame.
+    if (++this.frame % this.profile.frameSkip !== 0) return;
+    dt *= this.profile.frameSkip;
     const reveal = game.overlays.find((o) => o.name === 'reveal') as RevealOverlay | undefined;
     if (reveal) {
       this.showcase.sync(reveal, game.time);

@@ -37,3 +37,12 @@ Only [PLAYER] entries count as product evidence.
     "Sell all" in the market until the first sale. JS errors are now tracked to explain reloads.
   → Real reel skill is far below bot skill: never gate story progress on perfect play (already fixed in 2.0).
   n=1, so these are leads, not conclusions.
+- [SIM] Weak-device proxy (headless software GL, DPR 2, 6× CPU slowdown): 2-3 fps → 15-23 fps with the
+  low tier, and 4 → 29-55 fps unthrottled. Fill rate (pixel count) dominated; outlines and shadows next.
+  The FPS governor steps high → low within about 9 s. Real-device measurements are still missing.
+- [SIM] Service worker pitfall: module scripts sent with `Vary: Origin` miss cache lookups unless
+  `ignoreVary` is set. The offline reload failed until that was fixed.
+- [PLAYER n=1, 2nd device] Opening build 2.2 in a fresh browser storage overwrote that player's play
+  summary (the summary was per device, but the doc was per player). Fixed in 2.2.1 with per-device docs;
+  the lost doc was restored from an earlier export. On that second visit the first cast came at 7 s
+  (vs 99 s on the first visit), but the first visit likely included exploring.

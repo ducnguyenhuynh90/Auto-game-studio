@@ -58,3 +58,12 @@ built, but as ONE connected system rather than separate features:
   paid. No randomized paid rewards exist (that would need founder/legal approval).
 - **Risk acknowledged:** this is far more scope than the evidence supports. Real playtests decide what
   stays; the systems are data-driven (`seas.ts`, `items.ts`, `data.ts`) so they can be trimmed cheaply.
+
+## D-008 · 2026-10-24 · Founder request: social login + speed on weak devices
+- **Login:** guest-first (a login wall before fun costs installs). Sign-in only adds cloud backup and
+  cross-device play. claude.ai identity works now in the playtest page; Google/Apple/Facebook are built
+  on Firebase but **dormant until the founder creates the Firebase project** (an account the founder must
+  own; Apple sign-in needs a paid Apple Developer membership). Minimal data: a save plus a first name.
+- **Weak devices:** tiers + an FPS governor rather than one compromise setting, so good phones keep the
+  cute look and weak phones stay playable. A service worker and a split vendor chunk handle repeat
+  loads and offline play.

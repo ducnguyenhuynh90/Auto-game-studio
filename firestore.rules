@@ -1,0 +1,17 @@
+rules_version = '2';
+// Each signed-in player can read and write only their own save: saves/{their uid}.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /saves/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if request.auth != null && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['state', 'savedAt'])
+        && request.resource.data.state is string
+        && request.resource.data.state.size() < 200000
+        && request.resource.data.savedAt is number;
+    }
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

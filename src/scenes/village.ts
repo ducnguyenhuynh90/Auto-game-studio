@@ -6,12 +6,12 @@ import { SEAS, SEAS_BY_ID, seaComplete, seaLock } from '../core/seas';
 import { agingLevel, canFerment, upgradeCost, type Jar } from '../core/state';
 import type { UpgradeId } from '../core/data';
 import { COLORS, W, clamp01, drawCoin, ease, outlinedText, panel, rr, star, text, type Ctx } from '../render/draw';
-import { isMuted, setMuted } from '../render/audio';
 import type { Game, Scene } from '../game';
 import { JarFillOverlay, RevealOverlay } from './jar';
 import { MarketOverlay } from './market';
 import { DexOverlay } from './dex';
 import { MissionsOverlay, RelicOverlay } from './missions';
+import { SettingsOverlay } from './settings';
 
 const JAR_Y = 640;
 
@@ -277,7 +277,15 @@ export class VillageScene implements Scene {
     ctx.fill();
     const found = SPECIES.filter((sp) => s.dex[sp.id]).length;
     this.game.button(ctx, 'dex', 266, 12, 78, 44, `${found}/${SPECIES.length}`, () => this.game.push(new DexOverlay(this.game)), { color: '#3a8fd9', dark: '#22609e', size: 16, sub: 'Fishdex' });
-    this.game.button(ctx, 'mute', 350, 12, 32, 44, isMuted() ? 'x' : '♪', () => setMuted(!isMuted()), { color: '#8a7a66', dark: '#5f5244', size: 16 });
+    const acc = this.game.account;
+    const needsAttention = !!acc?.conflict || (!!acc && !acc.signedIn && acc.socialProviders.length > 0 && s.stats.jarsOpened > 0);
+    this.game.button(ctx, 'settings', 350, 12, 32, 44, '≡', () => this.game.push(new SettingsOverlay(this.game)), { color: '#8a7a66', dark: '#5f5244', size: 18 });
+    if (needsAttention) {
+      ctx.fillStyle = COLORS.bad;
+      ctx.beginPath();
+      ctx.arc(378, 16, 6, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
 
   /** Current goal with progress, plus the next one, so the player always knows the plan. */
