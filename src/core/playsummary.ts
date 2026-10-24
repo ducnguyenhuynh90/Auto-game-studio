@@ -28,10 +28,12 @@ export interface PlaySummary {
   story?: Record<string, string>;
   /** Furthest sea sailed to. */
   seas?: string[];
+  /** Longest food chain (EXP-005). */
+  bestChain?: number;
 }
 
 const MAX_SESSIONS = 120;
-const COUNTED = ['quality_auto_down', 'login', 'cloud_merge', 'js_error', 'mission_complete', 'level_up', 'gadget_use', 'sail', 'cast', 'hook', 'catch', 'fish_lost', 'trip_start', 'trip_end', 'jar_seal', 'jar_open', 'sell_product', 'keep_product', 'sell_fish', 'upgrade', 'dex_new', 'screen', 'session_start'];
+const COUNTED = ['quality_auto_down', 'login', 'cloud_merge', 'js_error', 'mission_complete', 'level_up', 'gadget_use', 'sail', 'cast', 'hook', 'catch', 'fish_lost', 'trip_start', 'trip_end', 'jar_seal', 'jar_open', 'sell_product', 'keep_product', 'sell_fish', 'upgrade', 'dex_new', 'screen', 'session_start', 'hungry', 'chain_link', 'chain_end'];
 
 export function emptySummary(iid: string, now: number): PlaySummary {
   return { v: 1, iid, firstSeen: now, lastSeen: now, sessions: [], funnel: {}, counts: {}, lost: {}, species: {}, screens: {}, perfect: 0, bestDegrees: 0, goals: [], lastScreen: '', activeSec: 0 };
@@ -75,6 +77,9 @@ export function applyEvent(s: PlaySummary, ev: AnalyticsEvent): PlaySummary {
       break;
     case 'js_error':
       s.lastError = String(p.msg ?? '');
+      break;
+    case 'chain_link':
+      s.bestChain = Math.max(s.bestChain ?? 0, Number(p.links ?? 0));
       break;
     case 'trip_start':
       s.seas ??= [];

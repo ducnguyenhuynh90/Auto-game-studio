@@ -86,3 +86,14 @@ built, but as ONE connected system rather than separate features:
   (An Thới coral reefs, Mekong/Cà Mau mangroves, Hạ Long for Dragon Bay; keep the Abyss fictional to
   avoid sensitive maritime areas).
 - A national flag was deliberately not used in the village dioramas (festival bunting instead).
+
+## D-011 · 2026-10-24 · Founder feedback: make catching a puzzle → food chain (cá lớn nuốt cá bé)
+- Options weighed: (a) bait-matching per species, (b) a merge/packing grid for the catch, (c) combo
+  chains of the same species, (d) a food chain where each catch lures the next bigger fish.
+- Chose (d). It changes the catch moment itself (the founder's complaint), it combines catches into a
+  plan ("combine and think"), it reuses everything already on screen (shadows, reach, depth), it adds
+  no new currency or menu, and it carries a real Vietnamese proverb that fits the story's patience theme.
+- It is also a skill path around the line-reach gate: thinking can replace grinding coins. The sim says
+  Phú Quốc now finishes sooner; we accept that and watch the guardrail in EXP-005.
+- Not randomized paid rewards: chain bonuses are earned coins/XP with no purchase involved.
+- (b) remains a candidate for the CRAFT side (jar packing) if the jar step also feels routine.

@@ -25,39 +25,41 @@ export interface Species {
   shape?: 'prawn' | 'lobster' | 'eel' | 'angler';
   /** Preferred distance band, 0 = near the boat, 1 = farthest water. Needs line reach to cast that far. */
   depth: number;
+  /** Food-chain level (cá lớn nuốt cá bé): landing a level-L fish makes a level-L+1 fish hungry. 0 = not in the chain. */
+  food?: 1 | 2 | 3 | 4;
 }
 
 const ALL: SeaId[] = ['lagoon', 'reef', 'delta', 'bay', 'trench'];
 
 export const SPECIES: Species[] = [
   // Phú Quốc (sea id 'lagoon' kept for save compatibility)
-  { id: 'anchovy', name: 'Anchovy', local: 'Cá cơm', rarity: 1, seas: ['lagoon', 'reef', 'bay'], weight: 40, size: [7, 12], sauce: 16, raw: 3, difficulty: 0.1, color: '#8fb8c9', belly: '#e6f2f5', fin: '#5f8ea3', depth: 0.25 },
-  { id: 'sardine', name: 'Sardine', local: 'Cá trích', rarity: 1, seas: ['lagoon'], weight: 26, size: [12, 20], sauce: 13, raw: 4, difficulty: 0.18, color: '#6f9bc4', belly: '#dfe9f3', fin: '#4a7499', depth: 0.42 },
-  { id: 'scad', name: 'Scad', local: 'Cá nục', rarity: 2, seas: ['lagoon', 'reef'], weight: 14, size: [18, 28], sauce: 12, raw: 8, difficulty: 0.3, color: '#7d8fa8', belly: '#e8e2cf', fin: '#d9b44a', depth: 0.55 },
-  { id: 'mackerel', name: 'Mackerel', local: 'Cá thu', rarity: 2, seas: ['lagoon', 'reef', 'bay'], weight: 9, size: [30, 55], sauce: 11, raw: 14, difficulty: 0.45, color: '#3f7f8c', belly: '#d8e6e3', fin: '#2b5a63', depth: 0.8 },
-  { id: 'crab', name: 'Mud Crab', local: 'Cua', rarity: 2, seas: ['lagoon', 'delta'], weight: 5, size: [12, 20], sauce: 0, raw: 22, difficulty: 0.35, color: '#c0603e', belly: '#e9a37f', fin: '#8f3f25', depth: 0.15 },
+  { id: 'anchovy', name: 'Anchovy', local: 'Cá cơm', rarity: 1, seas: ['lagoon', 'reef', 'bay'], weight: 40, size: [7, 12], sauce: 16, raw: 3, difficulty: 0.1, color: '#8fb8c9', belly: '#e6f2f5', fin: '#5f8ea3', depth: 0.25, food: 1 },
+  { id: 'sardine', name: 'Sardine', local: 'Cá trích', rarity: 1, seas: ['lagoon'], weight: 26, size: [12, 20], sauce: 13, raw: 4, difficulty: 0.18, color: '#6f9bc4', belly: '#dfe9f3', fin: '#4a7499', depth: 0.42, food: 1 },
+  { id: 'scad', name: 'Scad', local: 'Cá nục', rarity: 2, seas: ['lagoon', 'reef'], weight: 14, size: [18, 28], sauce: 12, raw: 8, difficulty: 0.3, color: '#7d8fa8', belly: '#e8e2cf', fin: '#d9b44a', depth: 0.55, food: 2 },
+  { id: 'mackerel', name: 'Mackerel', local: 'Cá thu', rarity: 2, seas: ['lagoon', 'reef', 'bay'], weight: 9, size: [30, 55], sauce: 11, raw: 14, difficulty: 0.45, color: '#3f7f8c', belly: '#d8e6e3', fin: '#2b5a63', depth: 0.8, food: 3 },
+  { id: 'crab', name: 'Mud Crab', local: 'Cua', rarity: 2, seas: ['lagoon', 'delta'], weight: 5, size: [12, 20], sauce: 0, raw: 22, difficulty: 0.35, color: '#c0603e', belly: '#e9a37f', fin: '#8f3f25', depth: 0.15, food: 1 },
   { id: 'bottle', name: 'Message in a Bottle', local: 'Chai thư', rarity: 3, seas: ['lagoon', 'reef'], weight: 2.5, size: [20, 25], sauce: 0, raw: 40, difficulty: 0.2, color: '#7cc7a0', belly: '#d7f5e4', fin: '#4e9a74', depth: 0.6, treasure: true },
   { id: 'golden', name: 'Golden Anchovy', local: 'Cá cơm vàng', rarity: 5, seas: ['lagoon', 'reef'], weight: 0.45, size: [10, 14], sauce: 34, raw: 90, difficulty: 0.6, color: '#f2c14e', belly: '#fff3c4', fin: '#d49a1f', depth: 0.35 },
   // Coral Reef
-  { id: 'squid', name: 'Squid', local: 'Mực', rarity: 2, seas: ['reef'], weight: 14, size: [20, 40], sauce: 18, raw: 16, difficulty: 0.4, color: '#e8b7c8', belly: '#fbe6ee', fin: '#c98aa2', depth: 0.5 },
-  { id: 'snapper', name: 'Red Snapper', local: 'Cá hồng', rarity: 3, seas: ['reef'], weight: 10, size: [35, 70], sauce: 22, raw: 30, difficulty: 0.55, color: '#d9574a', belly: '#f6c9b8', fin: '#a83a30', depth: 0.68 },
-  { id: 'grouper', name: 'Grouper', local: 'Cá mú', rarity: 3, seas: ['reef'], weight: 8, size: [40, 90], sauce: 20, raw: 38, difficulty: 0.65, color: '#8a6a4a', belly: '#d9c2a0', fin: '#5f4630', depth: 0.85 },
+  { id: 'squid', name: 'Squid', local: 'Mực', rarity: 2, seas: ['reef'], weight: 14, size: [20, 40], sauce: 18, raw: 16, difficulty: 0.4, color: '#e8b7c8', belly: '#fbe6ee', fin: '#c98aa2', depth: 0.5, food: 2 },
+  { id: 'snapper', name: 'Red Snapper', local: 'Cá hồng', rarity: 3, seas: ['reef'], weight: 10, size: [35, 70], sauce: 22, raw: 30, difficulty: 0.55, color: '#d9574a', belly: '#f6c9b8', fin: '#a83a30', depth: 0.68, food: 3 },
+  { id: 'grouper', name: 'Grouper', local: 'Cá mú', rarity: 3, seas: ['reef'], weight: 8, size: [40, 90], sauce: 20, raw: 38, difficulty: 0.65, color: '#8a6a4a', belly: '#d9c2a0', fin: '#5f4630', depth: 0.85, food: 3 },
   { id: 'chest', name: 'Sunken Chest', local: 'Rương báu', rarity: 4, seas: ['reef', 'bay'], weight: 1.6, size: [40, 50], sauce: 0, raw: 150, difficulty: 0.5, color: '#b07a3a', belly: '#f2c650', fin: '#7a5224', depth: 0.9, treasure: true },
-  { id: 'trevally', name: 'Giant Trevally', local: 'Cá khế', rarity: 4, seas: ['reef'], weight: 2.5, size: [80, 140], sauce: 24, raw: 120, difficulty: 0.85, color: '#9fb0b8', belly: '#eef2f2', fin: '#3d4f57', depth: 0.95 },
+  { id: 'trevally', name: 'Giant Trevally', local: 'Cá khế', rarity: 4, seas: ['reef'], weight: 2.5, size: [80, 140], sauce: 24, raw: 120, difficulty: 0.85, color: '#9fb0b8', belly: '#eef2f2', fin: '#3d4f57', depth: 0.95, food: 4 },
   // Mangrove Delta
-  { id: 'catfish', name: 'River Catfish', local: 'Cá tra', rarity: 1, seas: ['delta'], weight: 30, size: [30, 60], sauce: 12, raw: 10, difficulty: 0.3, color: '#8d939a', belly: '#dfe2e4', fin: '#5d6268', depth: 0.35 },
-  { id: 'prawn', name: 'Giant River Prawn', local: 'Tôm càng xanh', rarity: 2, seas: ['delta'], weight: 20, size: [15, 30], sauce: 17, raw: 18, difficulty: 0.35, color: '#5f8fc9', belly: '#d8e6f5', fin: '#f08a3a', depth: 0.3, shape: 'prawn' },
-  { id: 'mudskipper', name: 'Mudskipper', local: 'Cá thòi lòi', rarity: 2, seas: ['delta'], weight: 12, size: [10, 20], sauce: 0, raw: 25, difficulty: 0.25, color: '#9a8a5a', belly: '#e6dcb8', fin: '#5aa0d8', depth: 0.1 },
-  { id: 'snakehead', name: 'Snakehead', local: 'Cá lóc', rarity: 3, seas: ['delta'], weight: 9, size: [35, 80], sauce: 19, raw: 45, difficulty: 0.6, color: '#4b5a3a', belly: '#c9c2a0', fin: '#2f3a22', depth: 0.65 },
+  { id: 'catfish', name: 'River Catfish', local: 'Cá tra', rarity: 1, seas: ['delta'], weight: 30, size: [30, 60], sauce: 12, raw: 10, difficulty: 0.3, color: '#8d939a', belly: '#dfe2e4', fin: '#5d6268', depth: 0.35, food: 2 },
+  { id: 'prawn', name: 'Giant River Prawn', local: 'Tôm càng xanh', rarity: 2, seas: ['delta'], weight: 20, size: [15, 30], sauce: 17, raw: 18, difficulty: 0.35, color: '#5f8fc9', belly: '#d8e6f5', fin: '#f08a3a', depth: 0.3, food: 1, shape: 'prawn' },
+  { id: 'mudskipper', name: 'Mudskipper', local: 'Cá thòi lòi', rarity: 2, seas: ['delta'], weight: 12, size: [10, 20], sauce: 0, raw: 25, difficulty: 0.25, color: '#9a8a5a', belly: '#e6dcb8', fin: '#5aa0d8', depth: 0.1, food: 1 },
+  { id: 'snakehead', name: 'Snakehead', local: 'Cá lóc', rarity: 3, seas: ['delta'], weight: 9, size: [35, 80], sauce: 19, raw: 45, difficulty: 0.6, color: '#4b5a3a', belly: '#c9c2a0', fin: '#2f3a22', depth: 0.65, food: 3 },
   // Dragon Bay
-  { id: 'cuttlefish', name: 'Cuttlefish', local: 'Mực nang', rarity: 2, seas: ['bay'], weight: 16, size: [20, 35], sauce: 19, raw: 24, difficulty: 0.4, color: '#c9a07a', belly: '#f2e2cc', fin: '#a07850', depth: 0.5 },
-  { id: 'barracuda', name: 'Barracuda', local: 'Cá nhồng', rarity: 3, seas: ['bay'], weight: 10, size: [50, 120], sauce: 18, raw: 50, difficulty: 0.7, color: '#7f97a8', belly: '#e8eef2', fin: '#4d6170', depth: 0.7, shape: 'eel' },
-  { id: 'lobster', name: 'Spiny Lobster', local: 'Tôm hùm', rarity: 3, seas: ['bay'], weight: 7, size: [25, 45], sauce: 0, raw: 90, difficulty: 0.55, color: '#3f8f8a', belly: '#e8a060', fin: '#c46a3a', depth: 0.85, shape: 'lobster' },
-  { id: 'carp', name: 'Dragon Carp', local: 'Cá chép hóa rồng', rarity: 5, seas: ['bay'], weight: 0.35, size: [60, 100], sauce: 36, raw: 260, difficulty: 0.8, color: '#e8553a', belly: '#ffd27a', fin: '#f2b233', depth: 0.75 },
+  { id: 'cuttlefish', name: 'Cuttlefish', local: 'Mực nang', rarity: 2, seas: ['bay'], weight: 16, size: [20, 35], sauce: 19, raw: 24, difficulty: 0.4, color: '#c9a07a', belly: '#f2e2cc', fin: '#a07850', depth: 0.5, food: 2 },
+  { id: 'barracuda', name: 'Barracuda', local: 'Cá nhồng', rarity: 3, seas: ['bay'], weight: 10, size: [50, 120], sauce: 18, raw: 50, difficulty: 0.7, color: '#7f97a8', belly: '#e8eef2', fin: '#4d6170', depth: 0.7, food: 3, shape: 'eel' },
+  { id: 'lobster', name: 'Spiny Lobster', local: 'Tôm hùm', rarity: 3, seas: ['bay'], weight: 7, size: [25, 45], sauce: 0, raw: 90, difficulty: 0.55, color: '#3f8f8a', belly: '#e8a060', fin: '#c46a3a', depth: 0.85, food: 2, shape: 'lobster' },
+  { id: 'carp', name: 'Dragon Carp', local: 'Cá chép hóa rồng', rarity: 5, seas: ['bay'], weight: 0.35, size: [60, 100], sauce: 36, raw: 260, difficulty: 0.8, color: '#e8553a', belly: '#ffd27a', fin: '#f2b233', depth: 0.75, food: 4 },
   // The Abyss
-  { id: 'angler', name: 'Anglerfish', local: 'Cá vây chân', rarity: 3, seas: ['trench'], weight: 14, size: [30, 70], sauce: 23, raw: 70, difficulty: 0.6, color: '#3b3550', belly: '#6a5f86', fin: '#2a2440', depth: 0.82, shape: 'angler' },
-  { id: 'giantsquid', name: 'Giant Squid', local: 'Mực khổng lồ', rarity: 4, seas: ['trench'], weight: 5, size: [200, 500], sauce: 26, raw: 220, difficulty: 0.9, color: '#c25a5a', belly: '#f0b0a0', fin: '#8a3030', depth: 0.92 },
-  { id: 'oarfish', name: 'Oarfish', local: 'Cá mái chèo', rarity: 5, seas: ['trench'], weight: 0.4, size: [300, 800], sauce: 38, raw: 400, difficulty: 0.95, color: '#c8d6e0', belly: '#f4f8fb', fin: '#e8453a', depth: 0.98, shape: 'eel' },
+  { id: 'angler', name: 'Anglerfish', local: 'Cá vây chân', rarity: 3, seas: ['trench'], weight: 14, size: [30, 70], sauce: 23, raw: 70, difficulty: 0.6, color: '#3b3550', belly: '#6a5f86', fin: '#2a2440', depth: 0.82, food: 2, shape: 'angler' },
+  { id: 'giantsquid', name: 'Giant Squid', local: 'Mực khổng lồ', rarity: 4, seas: ['trench'], weight: 5, size: [200, 500], sauce: 26, raw: 220, difficulty: 0.9, color: '#c25a5a', belly: '#f0b0a0', fin: '#8a3030', depth: 0.92, food: 3 },
+  { id: 'oarfish', name: 'Oarfish', local: 'Cá mái chèo', rarity: 5, seas: ['trench'], weight: 0.4, size: [300, 800], sauce: 38, raw: 400, difficulty: 0.95, color: '#c8d6e0', belly: '#f4f8fb', fin: '#e8453a', depth: 0.98, food: 4, shape: 'eel' },
   // Everywhere
   { id: 'crate', name: 'Mystery Crate', local: 'Thùng bí ẩn', rarity: 3, seas: ALL, weight: 2.2, size: [40, 50], sauce: 0, raw: 0, difficulty: 0.3, color: '#7a5aa8', belly: '#f2c650', fin: '#4a3470', depth: 0.6, crate: true },
 ];

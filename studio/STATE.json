@@ -7,7 +7,7 @@
   "how_to_test": "npm test ; npm run build ; npx vite preview --port 4173 & node tools/playtest.mjs --trips 6 --skill 0.7 --shots (playtests run against the preview build; HMR reloads break bot runs on the dev server)",
   "current_objective": "Get real players onto build 2.0 (progression layer) and measure whether visible goals + the sea story lengthen sessions and bring players back (EXP-003).",
   "biggest_known_problem": "Zero real-player evidence. The playable link and analytics now exist; the blocker is getting 5-10 casual players to open it.",
-  "active_experiment": "EXP-001: does the 3D jar reveal plus 'ferments while you fish' drive a second fishing trip? (needs real players)",
+  "active_experiment": "EXP-005: does the food-chain puzzle (cá lớn nuốt cá bé) make repeat fishing a decision and raise trips per session? Also EXP-001/003/004 pending real players.",
   "recent_results": [
     "Build 2.0 (founder direction D-007): goal + next banner, Captain's Log, Captain XP/levels, cast tangle risk, 5 gear lines (rod/line/hook/bait/boat), 3D sea chart with 5 seas × 4 missions, relics, Mystery Crate gadgets, 12 new species and 4 new recipes, per-sea 3D scenery and boats.",
     "[SIM] Progression sim (tools/sim.ts): story finishes at all skills 0.4-0.8. Reef at 10-30 min, Abyss at 2.4-3.3 h. It caught and fixed a perfect-catch softlock and an economy that maxed gear in 40 min.",
@@ -15,14 +15,15 @@
     "Build 2.1: first reveal shows only 'Sell' until the first sale, market hand pointer, js_error telemetry, analyzer reports errors, seas fished, tangles and stored-not-sold.",
     "Build 2.2: quality tiers + FPS governor (weak-device proxy 2-3 → 15-23 fps), service worker offline cache + split three.js chunk + PWA manifest, accounts: claude.ai cloud save live in the playtest; Google/Apple/Facebook login built on Firebase and dormant until the founder creates the project (docs/TECHNICAL.md has the steps).",
     "Build 2.4 (founder request): Pixar-structured story. Hero Lan, mentor Bà Năm, sidekick Rùa, rival Mr. Tốc, guides Chú Tư and Cô Hạnh. 12 skippable Story Spine scenes across 5 chapters, a giver and reason for every mission, 3D portraits, Rùa rides the boat. docs/STORY.md is the bible; EXP-004 measures skip rate.",
-    "Build 2.5 (founder request): evolution roadmaps with 3D stage models for all 8 upgrade lines + the village (4 named stages); the rod/ship/village visibly evolve in play; island 1 is now Phú Quốc (shrine rock, wooden barrels, sandbars)."
+    "Build 2.5 (founder request): evolution roadmaps with 3D stage models for all 8 upgrade lines + the village (4 named stages); the rod/ship/village visibly evolve in play; island 1 is now Phú Quốc (shrine rock, wooden barrels, sandbars).",
+    "Build 2.6 (founder feedback: catching got boring): food-chain puzzle. Fish have levels 1-4; landing level L makes a level L+1 fish hungry (rises within reach, true colours, bites fast). Chain ×2/×3/×4 pays 16/36/64 coins. Ladder HUD, level chips, Bà Năm scene, tutorial goal 'Chain 2 fish'. [SIM] Phú Quốc finishes in 4-7 trips (was 8-22); bot made 11 links in 6 trips, no errors."
   ],
   "constraints": [
     "No real-money gambling, no randomized paid rewards (needs founder/legal approval).",
     "No sensitive personal data. Analytics uses an anonymous random install id only.",
     "Founder approval is needed before spending money (hosting beyond free tiers, paid UA)."
   ],
-  "next_recommended_action": "1) FOUNDER: share the playtest link with 5-10 players. 2) Pull plays/ data: watch the intro skip rate and first-cast time (EXP-004 guardrails), tutorial completion, and where players stop. 3) Native-speaker review of the Vietnamese lines before any public launch.",
+  "next_recommended_action": "1) FOUNDER: play a few trips of build 2.6 and say whether the food chain makes fishing less routine. 2) Share the playtest link with 5-10 players. 3) Pull plays/ data: chain_link/hungry ratio and trips per session (EXP-005), intro skip rate (EXP-004). 4) Native-speaker review of the Vietnamese lines.",
   "playtest_link": "https://claude.ai/artifact/Vmwfyv5LjKtVFc31t6mdwG (private claude.ai Artifact; the founder shares it from the page's Share menu)",
   "analytics": "Each signed-in player at Contributor level or above (or an org member) writes one summary doc to plays/<viewer id> in the artifact store; only the owner can read it. Pull: ArtifactData list collection=plays out_dir=<dir>, then node tools/analyze-plays.mjs <dir>. Viewers without write access still play; their data stays local only.",
   "how_to_publish": "node tools/build-artifact.mjs, then Artifact publish of dist-artifact/mam-village.html to the URL above (pass url from a new session after an Artifact read)."

@@ -48,3 +48,8 @@ Only [PLAYER] entries count as product evidence.
   (vs 99 s on the first visit), but the first visit likely included exploring.
 - [FOUNDER] 2026-10-24: goal text was too small, and bare "2/3" counters didn't read as progress. The banner is
   now 18 px with a "Caught 2/3" verb label and a 14 px Next line; the fishing HUD shows the live counter.
+- [FOUNDER] 2026-10-24: after many trips catching feels routine; wants puzzle-like thinking and combining.
+  Responded with the food-chain layer (D-011, EXP-005).
+- [SIM] Food chain: when planners chase hungry fish, the deep Mackerel mission no longer needs the line
+  upgrade, so the Phú Quốc story finishes in 4-7 simulated trips (was 8-22). End-game pacing is unchanged
+  (2.6-4 h); bottlenecks are still the boat and the Dragon Bay legend.

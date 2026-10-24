@@ -430,10 +430,18 @@ class FishingRig {
         this.root.add(m.group);
         this.fish.set(sh, m);
       }
+      // A hungry fish rises near the surface and shows its true colours (food chain).
+      const hungry = !!(sh as { hungry?: boolean }).hungry;
+      if (m.group.userData.hungry !== hungry) {
+        m.group.userData.hungry = hungry;
+        if (hungry) m.setSilhouette(false);
+        else if (m.group.userData.revealed) m.setSilhouette(true, null);
+      }
+      if (hungry) m.group.userData.revealed = true;
       this.screenToWater(sh.x, sh.y, tmp);
       const hooked = sh.state === 'hooked';
       // out-of-reach fish swim deeper, so they read fainter through the water
-      m.group.position.set(tmp.x, hooked ? -0.12 : sh.locked ? -0.7 : -0.32, tmp.z);
+      m.group.position.set(tmp.x, hooked ? -0.12 : hungry ? -0.04 : sh.locked ? -0.7 : -0.32, tmp.z);
       const heading = sh.state === 'approach' ? Math.atan2(-(f.bobber.y - sh.y), f.bobber.x - sh.x) : sh.dir > 0 ? 0 : Math.PI;
       m.group.rotation.y = heading + Math.sin(sh.phase * 0.5) * 0.15;
       if (hooked && f.reel) m.group.rotation.z = Math.sin(t * 30) * f.reel.thrash * 2;

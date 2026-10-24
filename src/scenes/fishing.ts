@@ -2,10 +2,11 @@
 import { analytics } from '../core/analytics';
 import { BALANCE, RARITY_COLOR, RARITY_LABEL, SPECIES_BY_ID, type SeaId } from '../core/data';
 import { Reel, castDistance, castPower, rollShadow, type ShadowSpec } from '../core/fishing';
+import { HUNGRY_DIFFICULTY, addChainLink, foodLevel, ladder, rollHungry, topLevel } from '../core/chain';
 import { GADGETS, hasRelic, type GadgetId } from '../core/items';
 import { SEAS_BY_ID } from '../core/seas';
 import { goalPair, progressLabel } from '../core/goals';
-import { pendingScene } from '../core/story';
+import { SCENES, pendingScene } from '../core/story';
 import { StoryOverlay } from './story';
 import { range } from '../core/rng';
 import { addCatch, agingLevel, castsPerTrip, duplicateCatch, finishTrip, useGadget, type CaughtFish } from '../core/state';
@@ -26,7 +27,12 @@ interface Shadow extends ShadowSpec {
   alpha: number;
   /** Deeper than the current line can reach: visible, but out of range. */
   locked: boolean;
+  /** Food chain: this fish smelled the last catch, swam up within reach and bites fast. */
+  hungry?: boolean;
 }
+
+/** Food-chain level colours (1 small … 4 apex), shared by the shadow chips and the ladder. */
+const FOOD_COLOR = ['', '#5cb85c', '#3a8fd9', '#a35bd6', '#f0a81c'];
 
 type Phase = 'aim' | 'charging' | 'flying' | 'waiting' | 'bite' | 'reel' | 'result' | 'card' | 'summary';
 
@@ -59,7 +65,12 @@ export class FishingScene implements Scene {
   resultText = '';
   resultColor = '#fff';
   resultT = 0;
-  card: { fish: CaughtFish; isNew: boolean; isRecord: boolean; t: number; gadget?: GadgetId; doubled: boolean; xp: number } | null = null;
+  card: { fish: CaughtFish; isNew: boolean; isRecord: boolean; t: number; gadget?: GadgetId; doubled: boolean; xp: number; link?: { links: number; coins: number; top: boolean } } | null = null;
+  /** Food chain: links in the current chain, and the level of its last fish. */
+  chain = 0;
+  chainLevel = 0;
+  bestTripChain = 0;
+  tripChainCoins = 0;
   tripCatches: CaughtFish[] = [];
   tripTreasure = 0;
   hintT = 0;
@@ -110,14 +121,18 @@ export class FishingScene implements Scene {
     return this.game.state.stats.catches === 0;
   }
 
-  spawnShadow(initial = false): void {
+  spawnShadow(initial = false, species?: string): Shadow {
     const g = this.game;
     let spec = rollShadow(g.rng, this.sea, g.state.upgrades.bait);
+    if (species) {
+      const fixed = SPECIES_BY_ID[species];
+      spec = { species, size: Math.round(range(g.rng, fixed.size[0], fixed.size[1]) * 10) / 10, depth: fixed.depth };
+    }
     // First-ever cast of the game: guarantee a friendly anchovy close to the boat lane.
     if (this.tutorial && this.shadows.length === 0) spec = { species: 'anchovy', size: 10, depth: 0.3 };
     const dir: 1 | -1 = g.rng() < 0.5 ? 1 : -1;
     const sp = SPECIES_BY_ID[spec.species];
-    this.shadows.push({
+    const sh: Shadow = {
       ...spec,
       x: initial ? range(g.rng, 40, W - 40) : dir === 1 ? -60 : W + 60,
       y: depthToY(spec.depth),
@@ -127,7 +142,52 @@ export class FishingScene implements Scene {
       state: 'swim',
       alpha: initial ? 1 : 0,
       locked: spec.depth > this.reach + 0.02,
-    });
+    };
+    this.shadows.push(sh);
+    return sh;
+  }
+
+  /** The food chain starts on the second trip, once the basic cast-and-reel loop is learned. */
+  get chainEnabled(): boolean {
+    return this.game.state.stats.trips >= 1;
+  }
+
+  get hungryFish(): Shadow | null {
+    return this.shadows.find((sh) => sh.hungry && sh.state !== 'flee') ?? null;
+  }
+
+  /** A level-L fish was landed: the nearest level-L+1 fish gets hungry and swims up within reach. */
+  private wakeHungry(level: number): void {
+    if (level >= topLevel(this.sea)) return;
+    const next = level + 1;
+    const swimming = this.shadows.filter((sh) => sh.state === 'swim' && !sh.hungry && foodLevel(sh.species) === next);
+    let h: Shadow | null = swimming.sort((a, b) => Math.abs(a.x - W / 2) - Math.abs(b.x - W / 2))[0] ?? null;
+    if (!h) {
+      const id = rollHungry(this.game.rng, this.sea, level, this.game.state.upgrades.bait);
+      if (!id) return;
+      h = this.spawnShadow(false, id);
+    }
+    h.hungry = true;
+    // Rise to just inside the line's reach (deep fish come up to eat; shallow ones stay put).
+    h.depth = Math.max(0.2, Math.min(h.depth, this.reach - 0.1));
+    h.locked = false;
+    h.speed = Math.max(h.speed, 40);
+    analytics.track('hungry', { species: h.species, level: next, sea: this.sea, chain: this.chain });
+    const sc = SCENES.find((x) => x.id === 'food_chain');
+    if (sc && !this.game.state.storySeen.includes(sc.id)) this.game.push(new StoryOverlay(this.game, [sc]));
+  }
+
+  /** The chain breaks: a waiting hungry fish loses interest and swims off. */
+  private breakChain(): void {
+    const h = this.hungryFish;
+    if (h) {
+      h.hungry = false;
+      h.state = 'flee';
+      h.dir = h.x < W / 2 ? -1 : 1;
+    }
+    if (this.chain >= 2) analytics.track('chain_end', { links: this.chain, sea: this.sea });
+    this.chain = 0;
+    this.chainLevel = 0;
   }
 
   // ---------- Input ----------
@@ -178,6 +238,16 @@ export class FishingScene implements Scene {
     const R = 95;
     let best: Shadow | null = null;
     let bestD = Infinity;
+    // A hungry fish rushes the bait from farther away and bites almost at once.
+    const h = this.hungryFish;
+    if (h && h.state === 'swim' && Math.hypot((h.x - this.bobber.x) * 0.6, h.y - this.bobber.y) < 150) {
+      this.phase = 'waiting';
+      this.nibbles = 2;
+      this.target = h;
+      h.state = 'approach';
+      this.waitTimer = range(this.game.rng, 0.3, 0.6) * this.waitScale();
+      return;
+    }
     for (const sh of this.shadows) {
       if (sh.state !== 'swim' || sh.locked) continue;
       const d = Math.hypot((sh.x - this.bobber.x) * 0.6, sh.y - this.bobber.y);
@@ -214,7 +284,8 @@ export class FishingScene implements Scene {
     this.phase = 'reel';
     this.target.state = 'hooked';
     const up = this.game.state.upgrades;
-    this.reel = new Reel({ difficulty: sp.difficulty, rodLevel: up.rod, hookLevel: up.hook, assist: this.tutorial, zoneMult: this.effects.has('pearl') ? 1.5 : 1 }, this.game.rng);
+    const difficulty = sp.difficulty * (this.target.hungry ? HUNGRY_DIFFICULTY : 1);
+    this.reel = new Reel({ difficulty, rodLevel: up.rod, hookLevel: up.hook, assist: this.tutorial, zoneMult: this.effects.has('pearl') ? 1.5 : 1 }, this.game.rng);
     this.hintT = 0;
     sfx.splash();
     vibrate(40);
@@ -225,6 +296,8 @@ export class FishingScene implements Scene {
   private lose(text: string, reason: string): void {
     const sp = this.target ? SPECIES_BY_ID[this.target.species] : null;
     analytics.track('fish_lost', { reason, species: sp?.id ?? 'none' });
+    // A tangle never reached the water, so a waiting hungry fish keeps waiting.
+    if (reason !== 'tangled') this.breakChain();
     this.phase = 'result';
     this.resultText = text;
     this.resultColor = '#ffd9cc';
@@ -256,9 +329,28 @@ export class FishingScene implements Scene {
       doubled = true;
     }
     this.tripXp += res.xp;
-    if (res.levelUps > 0) this.game.levelUp();
+    let levelUps = res.levelUps;
     this.shadows = this.shadows.filter((x) => x !== sh);
-    this.card = { ...res, t: 0, doubled };
+    // Food chain: a hungry fish extends the chain; anything else starts a new one from this fish.
+    let link: { links: number; coins: number; top: boolean } | undefined;
+    const lvl = this.chainEnabled ? foodLevel(sh.species) : 0;
+    if (sh.hungry) this.chain++;
+    else {
+      this.breakChain();
+      this.chain = lvl ? 1 : 0;
+    }
+    this.chainLevel = lvl;
+    if (this.chain >= 2) {
+      const b = addChainLink(s, this.chain);
+      levelUps += b.levelUps;
+      this.tripXp += b.xp;
+      this.tripChainCoins += b.coins;
+      link = { links: this.chain, coins: b.coins, top: lvl >= topLevel(this.sea) };
+      analytics.track('chain_link', { links: this.chain, species: sh.species, sea: this.sea, coins: b.coins });
+    }
+    this.bestTripChain = Math.max(this.bestTripChain, this.chain);
+    if (levelUps > 0) this.game.levelUp();
+    this.card = { ...res, t: 0, doubled, link };
     this.phase = 'card';
     this.target = null;
     this.reel = null;
@@ -272,6 +364,7 @@ export class FishingScene implements Scene {
     if (res.isNew) analytics.track('dex_new', { species: sp.id, total: Object.keys(s.dex).length });
     this.game.commit();
     this.spawnShadow();
+    if (lvl) this.wakeHungry(lvl);
   }
 
   private closeCard(): void {
@@ -288,7 +381,7 @@ export class FishingScene implements Scene {
     const s = this.game.state;
     this.fullTrip = this.castsLeft <= 0;
     finishTrip(s, this.fullTrip);
-    analytics.track('trip_end', { sea: this.sea, catches: this.tripCatches.length, casts: this.totalCasts - this.castsLeft, trip: s.stats.trips });
+    analytics.track('trip_end', { sea: this.sea, catches: this.tripCatches.length, casts: this.totalCasts - this.castsLeft, trip: s.stats.trips, bestChain: this.bestTripChain });
     this.game.commit();
     this.phase = 'summary';
     this.t = 0;
@@ -394,7 +487,20 @@ export class FishingScene implements Scene {
   private updateShadow(sh: Shadow, dt: number): void {
     sh.phase += dt * (3 + sh.speed / 10);
     sh.alpha = Math.min(1, sh.alpha + dt);
-    if (sh.state === 'swim') {
+    if (sh.state === 'swim' && sh.hungry) {
+      // circles the casting lane at its risen depth, waiting for the next bait
+      const tx = W / 2 + Math.sin(sh.phase * 0.12) * 70;
+      const ty = depthToY(sh.depth);
+      const dx = tx - sh.x;
+      const dy = ty - sh.y;
+      const d = Math.hypot(dx, dy);
+      if (d > 1) {
+        const step = Math.min(d, sh.speed * 1.4 * dt);
+        sh.x += (dx / d) * step;
+        sh.y += (dy / d) * step;
+        if (Math.abs(dx) > 4) sh.dir = dx > 0 ? 1 : -1;
+      }
+    } else if (sh.state === 'swim') {
       sh.x += sh.dir * sh.speed * dt;
       sh.y += Math.sin(sh.phase * 0.3) * 4 * dt;
       if (sh.x > W + 70) sh.dir = -1;
@@ -497,6 +603,43 @@ export class FishingScene implements Scene {
       this.drawItemBar(ctx);
     }
     this.drawShadowLabels(ctx);
+    this.drawChainLadder(ctx);
+  }
+
+  /** The sea's food chain as a ladder of fish, with the current chain lit up. */
+  private drawChainLadder(ctx: Ctx): void {
+    if (!this.chainEnabled || this.phase === 'reel' || this.phase === 'card' || this.phase === 'summary') return;
+    const rungs = ladder(this.sea);
+    if (rungs.length < 2) return;
+    const colW = 52;
+    const w = rungs.length * colW + 14;
+    const x0 = W - w - 10;
+    const y = 700;
+    panel(ctx, x0, y, w, 62, 'rgba(255,248,236,0.93)', 14);
+    const title = this.chain >= 2 ? `FOOD CHAIN ×${this.chain}` : 'FOOD CHAIN · big eats small';
+    text(ctx, title, x0 + w / 2, y + 11, 10, this.chain >= 2 ? '#b8860b' : 'rgba(43,33,24,0.65)', 'center', 900);
+    const start = this.chain ? this.chainLevel - this.chain + 1 : 99;
+    const hungry = this.hungryFish;
+    rungs.forEach((r, i) => {
+      const cx = x0 + 7 + colW * i + colW / 2;
+      const cy = y + 38;
+      const lit = r.level >= start && r.level <= this.chainLevel;
+      const next = !!hungry && foodLevel(hungry.species) === r.level;
+      if (lit || next) {
+        ctx.fillStyle = lit ? 'rgba(240,168,28,0.35)' : `rgba(240,168,28,${0.15 + 0.15 * Math.sin(this.t * 6)})`;
+        rr(ctx, cx - colW / 2 + 3, y + 20, colW - 6, 38, 10);
+        ctx.fill();
+      }
+      // the fish of this rung that the player is most likely to meet
+      const sp = hungry && next ? SPECIES_BY_ID[hungry.species] : [...r.species].sort((a, b) => b.weight - a.weight)[0];
+      drawFish(ctx, sp.id, cx + 4, cy, 34);
+      ctx.fillStyle = FOOD_COLOR[r.level];
+      ctx.beginPath();
+      ctx.arc(cx - 17, cy - 10, 7, 0, Math.PI * 2);
+      ctx.fill();
+      text(ctx, String(r.level), cx - 17, cy - 9, 10, '#fff', 'center', 900);
+      if (i > 0) text(ctx, '›', cx - colW / 2, cy, 16, 'rgba(43,33,24,0.5)', 'center', 900);
+    });
   }
 
   /** The current goal with a live counter ("Caught 2/3"), so progress is visible while fishing. */
@@ -549,8 +692,35 @@ export class FishingScene implements Scene {
     if (this.phase === 'card' || this.phase === 'summary') return;
     const sonar = this.effects.has('sonar');
     let lockedShown = 0;
+    const planning = this.phase === 'aim' || this.phase === 'charging' || this.phase === 'result';
     for (const sh of this.shadows) {
       if (sh.state === 'flee' || sh.alpha < 0.5) continue;
+      const lvl = this.chainEnabled ? foodLevel(sh.species) : 0;
+      if (sh.hungry && sh.state !== 'hooked') {
+        const pulse = 1 + Math.sin(this.t * 6) * 0.12;
+        ctx.strokeStyle = COLORS.gold;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.ellipse(sh.x, sh.y, 42 * pulse, 20 * pulse, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        if (planning) {
+          const hx = Math.max(50, Math.min(W - 50, sh.x));
+          ctx.fillStyle = '#e67e22';
+          rr(ctx, hx - 42, sh.y - 44, 84, 20, 10);
+          ctx.fill();
+          text(ctx, 'HUNGRY!', hx, sh.y - 34, 12, '#fff', 'center', 900);
+        }
+      } else if (lvl && planning && !sh.locked) {
+        // food-chain level chip under every catchable fish, so the order can be planned
+        ctx.fillStyle = FOOD_COLOR[lvl];
+        ctx.beginPath();
+        ctx.arc(sh.x, sh.y + 22, 8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        text(ctx, String(lvl), sh.x, sh.y + 23, 10, '#fff', 'center', 900);
+      }
       if (sonar) {
         const sp = SPECIES_BY_ID[sh.species];
         ctx.font = '700 11px sans-serif';
@@ -622,7 +792,9 @@ export class FishingScene implements Scene {
     const pulse = 1 + Math.sin(this.t * 5) * 0.05;
     if (this.phase === 'aim') {
       outlinedText(ctx, 'HOLD to aim', W / 2, 420, 30 * pulse, '#fff', COLORS.ink, 6);
-      text(ctx, 'release to cast at a shadow', W / 2, 452, 16, '#fff');
+      const hungry = this.hungryFish;
+      if (hungry) outlinedText(ctx, `cast at the HUNGRY ${SPECIES_BY_ID[hungry.species].name} to chain`, W / 2, 452, 16, COLORS.gold, COLORS.ink, 4);
+      else text(ctx, 'release to cast at a shadow', W / 2, 452, 16, '#fff');
       this.drawHand(ctx, W / 2 + 40, 640, true);
     } else if (this.phase === 'charging') {
       outlinedText(ctx, 'Release!', W / 2, 420, 26, '#fff', COLORS.ink, 6);
@@ -706,6 +878,15 @@ export class FishingScene implements Scene {
     }
     ctx.restore();
     if (c.doubled && c.t > 0.4) outlinedText(ctx, 'x2  OCTO NET!', W / 2, 395, 22, '#d9a8ff', COLORS.ink, 5);
+    if (c.link && c.t > 0.3) {
+      const lk = ease.outBack(clamp01((c.t - 0.3) / 0.4));
+      ctx.save();
+      ctx.translate(W / 2, 352);
+      ctx.scale(lk, lk);
+      outlinedText(ctx, c.link.top ? `TOP OF THE CHAIN ×${c.link.links}!` : `FOOD CHAIN ×${c.link.links}!`, 0, 0, 26, COLORS.gold, COLORS.ink, 6);
+      outlinedText(ctx, `+${c.link.coins} coins`, 0, 28, 17, '#fff', COLORS.ink, 4);
+      ctx.restore();
+    }
     if (c.isNew && c.t > 0.5) {
       ctx.save();
       ctx.translate(W / 2 + 140, 440);
@@ -740,7 +921,8 @@ export class FishingScene implements Scene {
       text(ctx, 'The sea was quiet today.', 0, -120, 18);
       text(ctx, 'Aim the circle at a shadow!', 0, -90, 15, 'rgba(43,33,24,0.7)');
     }
-    fish.slice(0, 9).forEach((f, i) => {
+    // a third row would run into the food-chain line
+    fish.slice(0, this.bestTripChain >= 2 ? 6 : 9).forEach((f, i) => {
       const cx = -110 + (i % 3) * 110;
       const cy = -140 + Math.floor(i / 3) * 80;
       ctx.fillStyle = 'rgba(43,33,24,0.06)';
@@ -750,6 +932,7 @@ export class FishingScene implements Scene {
       text(ctx, `${f.size}cm${f.perfect ? ' ★' : ''}`, cx, cy + 22, 12, COLORS.ink);
     });
     if (this.tripTreasure > 0) text(ctx, `Treasure: +${this.tripTreasure} coins`, 0, 95, 18, '#b8860b');
+    if (this.bestTripChain >= 2) text(ctx, `Best food chain ×${this.bestTripChain} · +${this.tripChainCoins} coins`, 0, 50, 15, '#b8860b', 'center', 900);
     text(ctx, `+${this.tripXp} XP`, 0, 72, 15, '#a35bd6', 'center', 900);
     if (this.tripGadgets.length) text(ctx, `Found: ${this.tripGadgets.map((g) => GADGETS[g].name).join(', ')}`, 0, 165, 13, '#7a5aa8', 'center', 900);
     const ready = s.jars.filter((j) => j.sealed && agingLevel(s, j, Date.now()) >= 1).length;

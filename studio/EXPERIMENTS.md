@@ -48,3 +48,22 @@
 - **Guardrails:** first_cast time must not rise meaningfully (intro is 6 short lines); tutorial completion
   must not drop. If the intro skip rate is > 60%, cut it to 3 lines and move the rest into ambient lines.
 - **Result:** pending real players.
+
+## EXP-005 · Food-chain puzzle makes repeat fishing a decision, not a routine
+- **Problem:** [FOUNDER] "Fishing catch got boring after I play many times." Every cast was the same
+  action with no choice.
+- **Change (build 2.6):** food-chain levels on every fish; landing level L makes a level-L+1 fish hungry
+  (rises within reach, bites fast, a little easier); chain ×2/×3/×4 bonuses; any other catch breaks it.
+  See docs/GAME_DESIGN.md "Food chain puzzle".
+- **Hypothesis:** giving each cast a plan (which fish next?) raises trips per session and D1 return for
+  players past trip 3, compared with build 2.5.
+- **Primary metric:** trips per session after trip 3 (`trip_start` per `session_start`).
+- **Secondary:** share of hungry fish that become chain links (`chain_link / hungry`, should land around
+  40-70%: lower means unreadable, near 100% means no real choice); best chain per player; D1.
+- **Guardrails:** casts per catch must not get worse; the Phú Quốc story should not finish in under
+  ~8 minutes for typical players (it now can finish faster through chains); `food_chain` scene skip rate.
+- **Simulation (NOT evidence):** at skill 0.4-0.8 the Phú Quốc story finishes in trips 4-7 (was 8-22)
+  because the deep Mackerel is reachable through a chain; the full story still takes 2.6-4 h. Coins at
+  trip 400 rose about 10-20%. Browser bot (skill 0.75, 6 trips): 16 hungry fish, 11 links, best ×3,
+  no errors.
+- **Result:** pending real players. The founder's own feel ("is it less boring?") is the first signal.

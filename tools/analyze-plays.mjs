@@ -48,6 +48,7 @@ const docs = [...players.values()].map((devs) => {
     lastError: devs.map((d) => d.lastError).find(Boolean),
     devices: devs.length,
     story: Object.assign({}, ...devs.map((d) => d.story ?? {})),
+    bestChain: Math.max(0, ...devs.map((d) => d.bestChain ?? 0)),
   };
 });
 const n = docs.length;
@@ -84,6 +85,9 @@ console.log(`  last screen when leaving: ${JSON.stringify(lastScreens)}`);
 console.log(`  players with JS errors: ${pct(docs.filter((d) => (d.counts?.js_error ?? 0) > 0).length)}  ${docs.map((d) => d.lastError).filter(Boolean).slice(0, 3).join(' | ')}`);
 const seaReach = {};
 for (const d of docs) for (const x of d.seas ?? []) seaReach[x] = (seaReach[x] ?? 0) + 1;
+const hungry = sum((d) => d.counts?.hungry);
+const chainLinks = sum((d) => d.counts?.chain_link);
+console.log(`  food chain (EXP-005): hungry fish ${hungry} · chain links ${chainLinks} (${hungry ? Math.round((100 * chainLinks) / hungry) : 0}% taken) · best chain/player ${JSON.stringify(docs.map((d) => d.bestChain ?? 0))}`);
 console.log(`  seas fished: ${JSON.stringify(seaReach)} · missions/player: ${(sum((d) => d.counts?.mission_complete) / Math.max(1, n)).toFixed(1)} · tangles: ${sum((d) => d.lost?.tangled)} of ${sum((d) => d.counts?.cast)} casts`);
 const views = docs.flatMap((d) => Object.entries(d.story ?? {}));
 const skipped = views.filter(([, v]) => v.startsWith('skipped')).length;

@@ -13,7 +13,8 @@
 4. Sound pass: ambient waves/gulls loop; reel ratchet loop.
 5. Performance pass: shadow map size, reuse geometries, pause the WebGL render under the opaque market/dex overlays.
 6. Reveal shareability: capture a 5 s clip or still of Legendary reveals (growth moment).
-7. Daily first-trip bonus or "catch of the day" (return reason), only after D1 data.
+7. **Jar packing puzzle** (D-011 option b): if jar filling also feels routine, make it a small grid where fish shape and salt placement matter.
+8. Daily first-trip bonus or "catch of the day" (return reason), only after D1 data.
 
 ## Later (needs evidence first)
 - Boss fish, weather, more zones, recipes beyond 5, cosmetics, social or leaderboards, LiveOps.

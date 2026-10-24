@@ -42,7 +42,7 @@ export interface GameState {
   upgrades: Record<UpgradeId, number>;
   dex: Record<string, { count: number; best: number }>;
   cellar: Record<string, number>; // recipe id -> best °N ever made
-  stats: { trips: number; fullTrips: number; casts: number; catches: number; perfects: number; jarsOpened: number; sold: number; earned: number; tangles: number };
+  stats: { trips: number; fullTrips: number; casts: number; catches: number; perfects: number; jarsOpened: number; sold: number; earned: number; tangles: number; chains: number; bestChain: number };
   /** The sea the boat is set to sail to. */
   sea: SeaId;
   goalsDone: string[];
@@ -72,7 +72,7 @@ export function newState(): GameState {
     upgrades: { rod: 0, line: 0, hook: 0, bait: 0, boat: 0, jars: 0, salt: 0, stall: 0 },
     dex: {},
     cellar: {},
-    stats: { trips: 0, fullTrips: 0, casts: 0, catches: 0, perfects: 0, jarsOpened: 0, sold: 0, earned: 0, tangles: 0 },
+    stats: { trips: 0, fullTrips: 0, casts: 0, catches: 0, perfects: 0, jarsOpened: 0, sold: 0, earned: 0, tangles: 0, chains: 0, bestChain: 0 },
     sea: 'lagoon',
     goalsDone: [],
     xp: 0,

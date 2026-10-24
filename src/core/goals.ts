@@ -19,12 +19,14 @@ export const GOALS: Goal[] = [
   { id: 'open1', text: 'Open your jar!', reward: 0, done: (s) => s.stats.jarsOpened >= 1 },
   { id: 'sell1', text: 'Sell your fish sauce', reward: 0, done: (s) => s.stats.sold >= 1 },
   { id: 'jar2', text: 'Buy a second jar', reward: 10, done: (s) => s.upgrades.jars >= 1 },
+  { id: 'chain2', text: 'Chain 2 fish: big eats small', reward: 10, done: (s) => (s.stats.bestChain ?? 0) >= 2, progress: (s) => [Math.min(2, Math.max(s.stats.bestChain ?? 0, 0)), 2] },
   { id: 'gear1', text: 'Upgrade your fishing gear', reward: 10, done: (s) => s.upgrades.rod + s.upgrades.line + s.upgrades.hook + s.upgrades.bait >= 1 },
 ];
 
 /** Past-tense verb for a goal's progress counter: "Catch 3 fish" → "Caught 2/3". */
 const VERBS: Record<string, string> = {
   catch: 'Caught',
+  chain: 'Chained',
   land: 'Landed',
   brew: 'Brewed',
   haul: 'Hauled',

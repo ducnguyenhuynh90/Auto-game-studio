@@ -88,6 +88,16 @@ if (import.meta.env.DEV && params.has('scene')) {
   if (which && which in SEAS_BY_ID) game.goFishing(which as SeaId);
   if (which === 'fishing') game.goFishing('lagoon');
   if (which === 'map') game.goMap();
+  if (which === 'chain') {
+    // food chain: an anchovy was just landed on a later trip, so a scad is hungry
+    st.stats.trips = Math.max(2, st.stats.trips);
+    st.stats.catches = Math.max(5, st.stats.catches);
+    game.goFishing('lagoon');
+    const f = game.scene as unknown as { chain: number; chainLevel: number; wakeHungry: (l: number) => void };
+    f.chain = 1;
+    f.chainLevel = 1;
+    f.wakeHungry(1);
+  }
   if (which === 'reveal') {
     for (let i = 0; i < 3; i++) addCatch(st, 'anchovy', 10, 0.9);
     sealJar(st, 0, st.bucket.map((f) => f.uid), game.rng, Date.now());

@@ -162,7 +162,10 @@ await page.evaluate(({ skill }) => {
           }
           const cands = f.shadows.filter((sh) => sh.state === 'swim' && !sh.locked);
           cands.sort((a, b) => Math.abs(a.x - 195) - Math.abs(b.x - 195));
-          const tgt = cands[0];
+          // a planning player casts at the hungry fish (food chain) when one is up
+          const hungry = cands.find((sh) => sh.hungry);
+          if (hungry) shot('fish_hungry');
+          const tgt = hungry && Math.random() < skill ? hungry : cands[0];
           // power maps to distance: distance = power / overcast * reach
           const depth = tgt ? (600 - tgt.y) / 425 : 0.3;
           aimTarget = (depth / f.reach) * 0.9;
@@ -196,7 +199,7 @@ await page.evaluate(({ skill }) => {
         } else if (f.phase === 'card') {
           if (f.card.t > 0.9 && !f.card.shotDone) {
             f.card.shotDone = true;
-            shot(`card_${f.card.fish.species}`);
+            shot(f.card.link ? `card_chain${f.card.link.links}_${f.card.fish.species}` : `card_${f.card.fish.species}`);
             if (f.card.gadget) bot.log.push({ ev: 'crate', gadget: f.card.gadget, trip: s.stats.trips });
             wait = 0.4;
           } else if (f.card.t > 1.4) {
@@ -252,7 +255,7 @@ const report = await page.evaluate(() => {
     gpu: g.world ? { geometries: g.world.renderer.info.memory.geometries, textures: g.world.renderer.info.memory.textures, calls: g.world.renderer.info.render.calls, tris: g.world.renderer.info.render.triangles } : null,
     state: { coins: g.state.coins, upgrades: g.state.upgrades, stats: g.state.stats, dex: Object.keys(g.state.dex), cellar: g.state.cellar, goalsDone: g.state.goalsDone },
     funnel: window.__mam.analytics.funnelState(),
-    counts: { cast: count('cast'), catch: count('catch'), lost: count('fish_lost'), jar_open: count('jar_open'), upgrade: count('upgrade'), mission: count('mission_complete'), relic: count('relic_unlock'), level: count('level_up'), gadget: count('gadget_use') },
+    counts: { cast: count('cast'), catch: count('catch'), lost: count('fish_lost'), jar_open: count('jar_open'), upgrade: count('upgrade'), mission: count('mission_complete'), relic: count('relic_unlock'), level: count('level_up'), gadget: count('gadget_use'), hungry: count('hungry'), chain_link: count('chain_link') },
     progress: { storySeen: g.state.storySeen, sea: g.state.sea, xp: g.state.xp, missions: g.state.missionsDone, relics: g.state.relics, gadgets: g.state.gadgets },
     lostReasons: ev.filter((x) => x.e === 'fish_lost').map((x) => x.p.reason),
     log: window.__bot.log,

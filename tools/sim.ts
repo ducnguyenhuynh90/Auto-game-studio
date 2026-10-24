@@ -4,6 +4,7 @@
 declare const process: { argv: string[] };
 import { BALANCE, SPECIES_BY_ID, UPGRADES, type UpgradeId } from '../src/core/data';
 import { castDistance, rollShadow } from '../src/core/fishing';
+import { HUNGRY_DIFFICULTY, addChainLink, foodLevel, rollHungry } from '../src/core/chain';
 import { checkGoals } from '../src/core/goals';
 import { levelForXp } from '../src/core/progression';
 import { makeRng } from '../src/core/rng';
@@ -27,6 +28,9 @@ for (let trip = 1; trip <= trips; trip++) {
   const target = SEAS.find((x) => !seaComplete(s, x) && !seaLock(s, x));
   if (target) s.sea = target.id;
   const reach = BALANCE.lineReach[s.upgrades.line];
+  // food chain (from trip 2): after a catch, a hungry fish one level up rises within reach
+  let chain = 0;
+  let hungry: string | null = null;
   for (let c = 0; c < castsPerTrip(s); c++) {
     s.stats.casts++;
     // aim: skilled players avoid the red band and pick reachable shadows
@@ -34,16 +38,36 @@ for (let trip = 1; trip <= trips; trip++) {
       s.stats.tangles++;
       continue;
     }
+    // planners (share = skill) cast at the hungry fish; everyone else fishes as before
+    const chasing = hungry !== null && rng() < skill;
     let spec = rollShadow(rng, s.sea, s.upgrades.bait);
+    if (chasing) {
+      const hsp = SPECIES_BY_ID[hungry!];
+      spec = { species: hungry!, size: (hsp.size[0] + hsp.size[1]) / 2, depth: Math.min(hsp.depth, reach - 0.1) };
+    }
     for (let tries = 0; tries < 4 && spec.depth > reach; tries++) spec = rollShadow(rng, s.sea, s.upgrades.bait);
-    if (spec.depth > reach) continue; // only unreachable fish around this cast
+    if (spec.depth > reach) {
+      chain = 0;
+      hungry = null;
+      continue; // only unreachable fish around this cast
+    }
     castDistance(Math.min(1, spec.depth / reach) * BALANCE.overcast, reach);
     const sp = SPECIES_BY_ID[spec.species];
+    const diff = sp.difficulty * (chasing ? HUNGRY_DIFFICULTY : 1);
     // missed bite / snapped / escaped, harder fish and weak hooks fail more
-    const fail = 0.08 + (1 - skill) * 0.2 + sp.difficulty * 0.25 - s.upgrades.hook * 0.05 - s.upgrades.rod * 0.03;
-    if (rng() < Math.max(0.03, fail)) continue;
-    const fresh = Math.min(1, Math.max(0, skill + (rng() - 0.5) * 0.6 - sp.difficulty * 0.15));
+    const fail = 0.08 + (1 - skill) * 0.2 + diff * 0.25 - s.upgrades.hook * 0.05 - s.upgrades.rod * 0.03;
+    if (rng() < Math.max(0.03, fail)) {
+      chain = 0;
+      hungry = null;
+      continue;
+    }
+    const fresh = Math.min(1, Math.max(0, skill + (rng() - 0.5) * 0.6 - diff * 0.15));
     addCatch(s, spec.species, spec.size, fresh, s.sea, rng);
+    if (trip < 2) continue;
+    const lvl = foodLevel(spec.species);
+    chain = chasing ? chain + 1 : lvl ? 1 : 0;
+    if (chain >= 2) addChainLink(s, chain);
+    hungry = lvl ? rollHungry(rng, s.sea, lvl, s.upgrades.bait) : null;
   }
   finishTrip(s, true);
   // brew: open ready jars (wait for 2 aging levels when possible), seal new ones
@@ -75,7 +99,7 @@ for (let trip = 1; trip <= trips; trip++) {
     if (m.relic) mark(`RELIC ${m.relic} (${m.sea.name} done)`, trip);
   }
   for (const sea of SEAS) if (!seaLock(s, sea)) mark(`unlock ${sea.name}`, trip);
-  for (const id of ['golden', 'carp', 'oarfish', 'giantsquid']) if (s.dex[id]) mark(`caught ${id}`, trip);
+  for (const id of ['golden', 'carp', 'oarfish', 'giantsquid', 'trevally']) if (s.dex[id]) mark(`caught ${id}`, trip);
   mark(`level ${levelForXp(s.xp)}`, trip);
   if (trip % 25 === 0) mark(`coins ${s.coins} earned ${s.stats.earned} @${trip}`, trip);
 }
@@ -86,4 +110,4 @@ for (const [k, t] of Object.entries(milestones).sort((a, b) => a[1] - b[1])) {
   if (k.startsWith('level') && Number(k.split(' ')[1]) % 5 !== 0) continue;
   console.log(`trip ${String(t).padStart(3)} (~${min(t).padStart(7)})  ${k}`);
 }
-console.log(`\nfinal: coins ${s.coins}, level ${levelForXp(s.xp)}, relics ${s.relics.join(',')}, upgrades ${JSON.stringify(s.upgrades)}, tangles ${s.stats.tangles}`);
+console.log(`\nfinal: coins ${s.coins}, level ${levelForXp(s.xp)}, relics ${s.relics.join(',')}, upgrades ${JSON.stringify(s.upgrades)}, tangles ${s.stats.tangles}, chain links ${s.stats.chains}, best chain ${s.stats.bestChain}`);

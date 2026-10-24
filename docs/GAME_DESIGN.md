@@ -60,3 +60,35 @@
   (protected-origin nước mắm from cá cơm, aged in wooden barrels). In game: Lan's village sits under a
   small shrine on a sea rock (inspired by Dinh Cậu), wooden mắm barrels stand by the house, and the
   sea has palm sandbars and fishing buoys. The sea id stays `lagoon` for save compatibility.
+
+## Food chain puzzle (build 2.6, founder feedback "catching got boring")
+**Problem.** After many trips every cast was the same: aim at the nearest shadow, wait, reel. There was no
+decision to make, so nothing to think about.
+
+**Rule: *cá lớn nuốt cá bé*, big fish eat small fish.** Every fish has a food-chain level (1 small …
+4 apex), shown as a coloured chip under its shadow while aiming. Landing a level-L fish makes the nearest
+level-L+1 fish **hungry**: it rises to just inside the line's reach, shows its true colours, circles the
+casting lane, and bites almost at once (difficulty ×0.75). Catch it next and the chain grows:
+
+| Link | Bonus |
+|---|---|
+| ×2 | +16 coins, +20 XP |
+| ×3 | +36 coins, +30 XP |
+| ×4 | +64 coins, +40 XP |
+
+- **Any other catch, or a lost fish, breaks the chain** and the hungry fish swims off. A tangle doesn't
+  break the chain, because the bait never reached the water.
+- **The puzzle:** with 5 casts, the order matters. Which small fish do you take first so the right big
+  one rises? It is also a way to reach deep fish **without** a line upgrade (Phú Quốc's deep Mackerel:
+  anchovy → scad → mackerel). That gives early players a skill-based path besides grinding coins.
+- **Ladders:** Phú Quốc anchovy/sardine/crab → scad → mackerel. Reef anchovy → scad/squid →
+  snapper/grouper/mackerel → Giant Trevally. Delta prawn/mudskipper/crab → catfish → snakehead. Bay
+  anchovy → cuttlefish/lobster → barracuda/mackerel → (Dragon Carp). Abyss angler → giant squid →
+  (Oarfish).
+- **Honesty:** legendaries never appear on demand; they only join a chain if one is already swimming.
+  Which fish rises uses the normal spawn weights, decided when it appears, so nothing is a hidden roll.
+- **Teaching:** starts on trip 2, once cast-and-reel is learned. The first hungry fish plays a 3-line
+  Bà Năm scene. A tutorial goal, "Chain 2 fish: big eats small", sits before the gear goal. The ladder
+  panel (bottom right) shows the sea's chain with the current chain lit.
+- Code: `src/core/chain.ts` (pure, tested), `src/scenes/fishing.ts` (hungry behaviour and UI). Measured by
+  EXP-005.

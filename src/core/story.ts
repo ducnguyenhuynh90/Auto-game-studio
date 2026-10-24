@@ -64,6 +64,17 @@ export const SCENES: StoryScene[] = [
     ],
   },
   {
+    // Played by the fishing scene the first time a hungry fish rises (never picked by pendingScene).
+    id: 'food_chain',
+    where: 'fishing',
+    when: () => false,
+    lines: [
+      { who: 'nam', text: 'Look, Lan! That fish smelled your catch. Cá lớn nuốt cá bé: big fish eat small fish.' },
+      { who: 'lan', text: 'It swam right up to the boat! Even deep fish come up when they\'re hungry?' },
+      { who: 'nam', text: 'Cast at the hungry one next. Small, then bigger, then biggest. Think before you cast.' },
+    ],
+  },
+  {
     id: 'tutorial_done',
     where: 'village',
     when: (s) => s.goalsDone.includes('gear1'),
@@ -200,7 +211,7 @@ export const MISSION_STORY: Record<string, { giver: CharacterId; why: string; do
   l_good: { giver: 'nam', why: 'Fresh fish make honest sauce. Show me gentle hands.', done: 'Gentle hands! The jars will thank you.' },
   l_sardine: { giver: 'nam', why: 'Sardines for the Hàm Ninh market tomorrow morning.', done: 'Five sardines! The neighbours will eat tonight.' },
   l_fine: { giver: 'nam', why: 'Phú Quốc mắm is famous everywhere. Make one worthy of the name.', done: 'Real Phú Quốc mắm. My memory stirs…' },
-  l_mackerel: { giver: 'lan', why: 'Big mackerel swim deep. Time for a longer line!', done: 'Deep water isn\'t so scary after all.' },
+  l_mackerel: { giver: 'lan', why: 'Mackerel swim too deep for my line… unless a hungry one comes up to eat.', done: 'Deep water isn\'t so scary after all.' },
   r_snapper: { giver: 'rua', why: 'Rùa keeps staring at a red shadow by the coral…', done: 'Rùa blinked twice. I think that\'s a "well done".' },
   r_squid: { giver: 'nam', why: 'Squid ink for the recipe notes, I think. Or for supper.', done: 'Enough squid for notes AND supper!' },
   r_reserve: { giver: 'nam', why: 'Your grandfather brewed Reef Reserve. Try it.', done: 'Just like his. He would be proud.' },
