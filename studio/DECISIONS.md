@@ -28,3 +28,12 @@
 ## D-005 · 2026-10-24 · Retention target kept at D1 38% / D7 14% / D30 6%
 - Research puts this near the top decile for casual games (median ≈ 22/4/0.7, puzzle ≈ 32/13/5). Kept
   deliberately ambitious. It will not be lowered to declare success.
+
+## D-006 · 2026-10-24 · Playtest distribution and analytics through a claude.ai Artifact
+- **Why:** GitHub Pages needs the founder to change repo settings; an Artifact gives a private playable
+  link right away, and its built-in store is a zero-setup, owner-only analytics backend. No third-party
+  service, no cost, no personal data: an opaque viewer id plus gameplay counts.
+- **Shape:** one bounded summary doc per player (`src/core/playsummary.ts`) instead of raw events, which
+  keeps the store far below its 25k-doc cap. Raw events stay in the player's localStorage.
+- **Limit:** only players at Contributor level or above (or org members) can write. Outside view-only
+  players still play, but we get no data from them. Pages remains the path for broad public tests.

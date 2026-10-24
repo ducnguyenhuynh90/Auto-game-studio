@@ -28,3 +28,9 @@ first_sale → first_upgrade → third_trip_start → first_reef_trip
 ## Key ratios (see SUCCESS.yaml)
 second_trip_start/first_launch · first_seal/first_catch · first_sale/first_catch (tutorial proxy) ·
 fish_lost by reason / hooks · D1/D7 via session_start per iid.
+
+## Remote summary (Artifact build)
+`src/remote.ts` folds events into one `PlaySummary` per player (`src/core/playsummary.ts`): sessions[],
+funnel{step: sec}, counts, lost{reason}, species, screens, perfect, bestDegrees, goals, lastScreen,
+activeSec. It writes to `plays/<viewer id>` on funnel steps, trip end, jar open, upgrade, app hide, and
+at most every 20 s while something changed. Analyse with `node tools/analyze-plays.mjs <export dir>`.

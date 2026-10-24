@@ -6,17 +6,21 @@
   "how_to_run": "npm install && npm run dev  (open http://localhost:5173, ?reset=1 wipes the save, ?seed=N, ?speed=N)",
   "how_to_test": "npm test ; npm run build ; npx vite preview --port 4173 & node tools/playtest.mjs --trips 6 --skill 0.7 --shots (playtests run against the preview build; HMR reloads break bot runs on the dev server)",
   "current_objective": "Get the CATCH→CRAFT→REVEAL→PROGRESS slice in front of real players and measure the first-session funnel.",
-  "biggest_known_problem": "Zero real-player evidence. Everything about fun or retention is unvalidated. Second biggest: there is no analytics backend, so even when someone plays we learn nothing.",
+  "biggest_known_problem": "Zero real-player evidence. The playable link and analytics now exist; the blocker is getting 5-10 casual players to open it.",
   "active_experiment": "EXP-001: does the 3D jar reveal plus 'ferments while you fish' drive a second fishing trip? (needs real players)",
   "recent_results": [
     "v0 2D slice: bot completes catch → seal → trip → reveal → sell → upgrade with no errors.",
     "Founder asked for cute three.js 3D: the world, fishing, catch trophy and jar reveal are now 3D; UI fish icons are rendered from the 3D models.",
-    "[SIM] A skilled bot (0.7) lands 13-15 of 15 casts, mostly perfect; a low-skill bot (0.3) lands 20 of 20 with only 4 perfect. Skill currently drives quality (°N, coins) far more than catch success."
+    "[SIM] A skilled bot (0.7) lands 13-15 of 15 casts, mostly perfect; a low-skill bot (0.3) lands 20 of 20 with only 4 perfect. Skill currently drives quality (°N, coins) far more than catch success.",
+    "Published playtest build 1.1 as a claude.ai Artifact with a per-player summary store and an analysis script. The store was verified empty with the access rules working (ordinary players cannot read other players' data)."
   ],
   "constraints": [
     "No real-money gambling, no randomized paid rewards (needs founder/legal approval).",
     "No sensitive personal data. Analytics uses an anonymous random install id only.",
     "Founder approval is needed before spending money (hosting beyond free tiers, paid UA)."
   ],
-  "next_recommended_action": "1) FOUNDER: enable GitHub Pages and merge this branch to main to get a playable URL; approve an analytics sink. 2) Recruit 5-10 casual playtesters and watch the first 10 minutes. 3) Meanwhile: decide whether catching should carry real failure risk (reef fish harder), add an ambient sound loop, and make the Reef visually distinct (coral, rocks)."
+  "next_recommended_action": "1) FOUNDER: share the playtest link with 5-10 casual players (Contributor access, or people in your org) and ask them to play twice on different days. 2) After players arrive: pull plays/ and run tools/analyze-plays.mjs, then pick the biggest funnel drop and fix that. 3) Meanwhile (low cost): make the Reef visually distinct, add ambient sound, add a performance pass for low-end phones.",
+  "playtest_link": "https://claude.ai/artifact/Vmwfyv5LjKtVFc31t6mdwG (private claude.ai Artifact; the founder shares it from the page's Share menu)",
+  "analytics": "Each signed-in player at Contributor level or above (or an org member) writes one summary doc to plays/<viewer id> in the artifact store; only the owner can read it. Pull: ArtifactData list collection=plays out_dir=<dir>, then node tools/analyze-plays.mjs <dir>. Viewers without write access still play; their data stays local only.",
+  "how_to_publish": "node tools/build-artifact.mjs, then Artifact publish of dist-artifact/mam-village.html to the URL above (pass url from a new session after an Artifact read)."
 }

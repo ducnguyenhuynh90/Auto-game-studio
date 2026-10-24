@@ -1,0 +1,42 @@
+// Turns per-player summaries (plays/<id> docs exported with ArtifactData list + out_dir) into
+// funnel and retention numbers. usage: node tools/analyze-plays.mjs <dir containing plays/*.json>
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+const dir = process.argv[2];
+const files = readdirSync(join(dir, 'plays')).filter((f) => f.endsWith('.json'));
+const docs = files.map((f) => {
+  const raw = JSON.parse(readFileSync(join(dir, 'plays', f), 'utf8'));
+  return raw.data ?? raw;
+});
+const n = docs.length;
+const pct = (k) => `${k}/${n} (${n ? Math.round((k / n) * 100) : 0}%)`;
+const steps = ['first_launch', 'first_cast', 'first_bite', 'first_catch', 'first_seal', 'second_trip_start', 'first_reveal', 'first_sale', 'first_upgrade', 'third_trip_start', 'first_reef_trip'];
+console.log(`players: ${n}`);
+console.log('\nFUNNEL (reached / median seconds from first launch)');
+for (const s of steps) {
+  const secs = docs.map((d) => d.funnel?.[s]).filter((v) => v !== undefined).sort((a, b) => a - b);
+  console.log(`  ${s.padEnd(18)} ${pct(secs.length).padEnd(14)} median ${secs.length ? secs[Math.floor(secs.length / 2)] : '-'}s`);
+}
+const DAY = 86400000;
+const now = Date.now();
+const ret = (d0, d1) => {
+  const eligible = docs.filter((d) => now - d.sessions[0] >= d1 * DAY);
+  const kept = eligible.filter((d) => d.sessions.some((t) => t - d.sessions[0] >= d0 * DAY && t - d.sessions[0] < d1 * DAY));
+  return `${kept.length}/${eligible.length}` + (eligible.length ? ` (${Math.round((kept.length / eligible.length) * 100)}%)` : '');
+};
+console.log('\nRETENTION (returned in window after first session / players old enough)');
+console.log(`  D1  ${ret(1, 2)}   D7  ${ret(7, 8)}   D30 ${ret(30, 31)}`);
+const sum = (f) => docs.reduce((a, d) => a + (f(d) ?? 0), 0);
+console.log('\nBEHAVIOUR');
+console.log(`  median active minutes: ${docs.map((d) => d.activeSec / 60).sort((a, b) => a - b)[Math.floor(n / 2)]?.toFixed(1) ?? '-'}`);
+console.log(`  sessions/player: ${(sum((d) => d.sessions.length) / Math.max(1, n)).toFixed(1)}`);
+const hooks = sum((d) => d.counts?.hook);
+const lost = {};
+for (const d of docs) for (const [k, v] of Object.entries(d.lost ?? {})) lost[k] = (lost[k] ?? 0) + v;
+console.log(`  casts ${sum((d) => d.counts?.cast)} · hooks ${hooks} · catches ${sum((d) => d.counts?.catch)} · perfect ${sum((d) => d.perfect)}`);
+console.log(`  losses by reason: ${JSON.stringify(lost)}`);
+console.log(`  opened Fishdex at least once: ${pct(docs.filter((d) => (d.screens?.dex ?? 0) > 0).length)}`);
+const lastScreens = {};
+for (const d of docs) lastScreens[d.lastScreen || '?'] = (lastScreens[d.lastScreen || '?'] ?? 0) + 1;
+console.log(`  last screen when leaving: ${JSON.stringify(lastScreens)}`);

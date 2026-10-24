@@ -1,4 +1,5 @@
 import { analytics } from './core/analytics';
+import { startPlaySummary } from './remote';
 import { resetSave } from './core/save';
 import { Game } from './game';
 import { H, W } from './render/draw';
@@ -42,6 +43,7 @@ if (import.meta.env.DEV && params.has('scene')) {
   }
 }
 
+startPlaySummary();
 analytics.funnelStep('first_launch');
 analytics.track('session_start', { trips: game.state.stats.trips, coins: game.state.coins, returning: game.state.stats.catches > 0 });
 

@@ -54,6 +54,7 @@ class Analytics {
   readonly events: AnalyticsEvent[] = [];
   private funnel: Record<string, number>;
   private readonly endpoint: string | undefined = import.meta.env?.VITE_ANALYTICS_URL;
+  private listeners: ((ev: AnalyticsEvent) => void)[] = [];
 
   constructor() {
     this.iid = safeGet('mam_iid') ?? rid();
@@ -67,6 +68,7 @@ class Analytics {
     const stored: AnalyticsEvent[] = JSON.parse(safeGet(STORE_KEY) ?? '[]');
     stored.push(ev);
     safeSet(STORE_KEY, JSON.stringify(stored.slice(-MAX_EVENTS)));
+    for (const fn of this.listeners) fn(ev);
     if (this.endpoint && typeof navigator !== 'undefined' && navigator.sendBeacon) {
       navigator.sendBeacon(this.endpoint, JSON.stringify(ev));
     }
@@ -80,6 +82,11 @@ class Analytics {
     safeSet(FUNNEL_KEY, JSON.stringify(this.funnel));
     const start = this.funnel.first_launch ?? now;
     this.track('funnel', { step, sec: Math.round((now - start) / 1000), ...p });
+  }
+
+  /** Subscribe to every tracked event (used by remote sinks). */
+  onEvent(fn: (ev: AnalyticsEvent) => void): void {
+    this.listeners.push(fn);
   }
 
   funnelState(): Record<string, number> {
