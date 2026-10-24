@@ -110,9 +110,11 @@ await page.evaluate(({ skill }) => {
         const empty = jars.findIndex((j) => !j.sealed);
         const costs = { jars: [40, 140, 320], rod: [70, 260], salt: [110, 300], boat: [180], stall: [90, 280] };
         const canBuy = Object.entries(costs).some(([id, c]) => c[s.upgrades[id]] !== undefined && s.coins >= c[s.upgrades[id]]);
-        if (ready >= 0) tap(start + ready * spacing, 600);
-        else if (empty >= 0 && ferm >= 3) tap(start + empty * spacing, 600);
-        else if (s.shelf.length || canBuy) tap(306, 430);
+        const jp = (i) => g.world?.village.jarScreen(i) ?? { x: start + i * spacing, y: 640 };
+        const mp = g.world?.village.marketScreen() ?? { x: 306, y: 430 };
+        if (ready >= 0) tap(jp(ready).x, jp(ready).y - 40);
+        else if (empty >= 0 && ferm >= 3) tap(jp(empty).x, jp(empty).y - 40);
+        else if (s.shelf.length || canBuy) tap(mp.x, mp.y);
         else {
           bot.trips++;
           const reef = s.upgrades.boat >= 1 && bot.trips % 2 === 0;
@@ -151,8 +153,11 @@ await page.evaluate(({ skill }) => {
           if (want && !f.holding) g.pointerDown(195, 500);
           if (!want && f.holding) g.pointerUp(195, 500);
         } else if (f.phase === 'card') {
-          if (f.card.t > 0.9) {
+          if (f.card.t > 0.9 && !f.card.shotDone) {
+            f.card.shotDone = true;
             shot(`card_${f.card.fish.species}`);
+            wait = 0.4;
+          } else if (f.card.t > 1.4) {
             g.pointerUp(195, 500);
             g.pointerDown(195, 500);
             g.pointerUp(195, 500);

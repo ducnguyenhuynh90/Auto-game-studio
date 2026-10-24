@@ -5,10 +5,13 @@ import { makeRng, type Rng } from './core/rng';
 import { loadState, saveState } from './core/save';
 import type { GameState } from './core/state';
 import { sfx, unlockAudio, vibrate } from './render/audio';
+import type { World } from './render3d/world';
 import { COLORS, H, Particles, W, clamp01, drawCoin, ease, outlinedText, rr, text, type Ctx } from './render/draw';
 
 export interface Scene {
   name: string;
+  /** Opaque overlays hide every layer below them (e.g. the 3D reveal showcase). */
+  opaque?: boolean;
   update(dt: number): void;
   draw(ctx: Ctx): void;
   down?(x: number, y: number): void;
@@ -64,6 +67,8 @@ export class Game {
   private pressedId: string | null = null;
   private toasts: Toast[] = [];
   private floats: FloatText[] = [];
+  /** 3D world layer; null in headless tests. */
+  world: World | null = null;
   coinPulse = 0;
   shake = 0;
   // Scene navigation is wired in main.ts to keep this module free of scene imports.
@@ -206,7 +211,9 @@ export class Game {
     this.scene.update(dt);
     for (const o of [...this.overlays]) o.update(dt);
     this.particles.update(dt);
-    for (const t of this.toasts) t.t += dt;
+    // Toasts wait while a full-screen moment (the reveal) is on screen, so they never cover it.
+    const blocking = this.overlays.some((o) => o.opaque);
+    if (!blocking) for (const t of this.toasts) t.t += dt;
     this.toasts = this.toasts.filter((t) => t.t < 2.6);
     for (const f of this.floats) f.t += dt;
     this.floats = this.floats.filter((f) => f.t < 1.3);
@@ -218,15 +225,16 @@ export class Game {
     this.hits = [];
     ctx.save();
     if (this.shake > 0) ctx.translate((Math.random() - 0.5) * this.shake * 14, (Math.random() - 0.5) * this.shake * 14);
-    this.scene.draw(ctx);
+    const opaqueIdx = this.overlays.map((o) => !!o.opaque).lastIndexOf(true);
+    if (opaqueIdx < 0) this.scene.draw(ctx);
     ctx.restore();
-    for (const o of this.overlays) {
+    for (const o of this.overlays.slice(Math.max(0, opaqueIdx))) {
       this.hits = []; // only the top-most layer is interactive
       o.draw(ctx);
     }
     this.particles.draw(ctx);
     this.drawFloats(ctx);
-    this.drawToasts(ctx);
+    if (!this.overlays.some((o) => o.opaque)) this.drawToasts(ctx);
   }
 
   private drawFloats(ctx: Ctx): void {

@@ -1,0 +1,19 @@
+# Directional targets. These are hypotheses, not doctrine. Revisions must be documented in studio/DECISIONS.md.
+# Benchmarks researched 2026-10 (vendor blogs, GameAnalytics summaries): median casual D1≈22%, D7≈4%, D30≈0.7%;
+# top-10% ≈ 40/12/4; puzzle ≈ 32/13/5. Our D1 38% / D7 14% target is roughly top-decile, which is intended.
+product_state: VERTICAL_SLICE   # CONCEPT | PROTOTYPE | VERTICAL_SLICE | INTERNAL_ALPHA | EXTERNAL_ALPHA | SOFT_LAUNCH | PMF_CANDIDATE | PMF_VALIDATED
+real_player_evidence: none      # no real players yet; nothing below has been measured
+targets:
+  tutorial_completion: 0.85      # proxy: goal 'sell1' reached
+  d1_retention: 0.38
+  d7_retention: 0.14
+  d30_retention: 0.06
+  second_fishing_trip_rate: 0.55 # funnel: second_trip_start / first_launch
+  core_crafting_participation: 0.70  # first_seal / first_catch
+  collection_engagement: 0.40    # opened Fishdex at least once / D1 players
+  sessions_per_active_day: 3
+  crash_free_sessions: 0.995
+  critical_production_bugs: 0
+long_term:
+  ltv_over_cpi: 1.5
+measured: {}

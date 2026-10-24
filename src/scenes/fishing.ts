@@ -10,8 +10,6 @@ import type { Game, Scene } from '../game';
 
 const NEAR_Y = 600;
 const FAR_Y = 175;
-const ROD_TIP = { x: 222, y: 668 };
-const BOAT_Y = 745;
 
 interface Shadow extends ShadowSpec {
   x: number;
@@ -25,13 +23,8 @@ interface Shadow extends ShadowSpec {
 
 type Phase = 'aim' | 'charging' | 'flying' | 'waiting' | 'bite' | 'reel' | 'result' | 'card' | 'summary';
 
-function depthToY(d: number): number {
+export function depthToY(d: number): number {
   return NEAR_Y - d * (NEAR_Y - FAR_Y);
-}
-
-function shadowLen(sp: ShadowSpec): number {
-  // On-screen size grows with real size but compressed so tiny fish stay visible.
-  return 22 + Math.sqrt(sp.size) * 7.5;
 }
 
 export class FishingScene implements Scene {
@@ -41,7 +34,7 @@ export class FishingScene implements Scene {
   castsLeft = BALANCE.castsPerTrip;
   holdTime = 0;
   power = 0;
-  bobber = { x: W / 2, y: NEAR_Y, sx: 0, sy: 0, t: 0, dip: 0 };
+  bobber = { x: W / 2, y: NEAR_Y, t: 0, dip: 0 };
   target: Shadow | null = null;
   waitTimer = 0;
   nibbles = 0;
@@ -121,7 +114,7 @@ export class FishingScene implements Scene {
     this.castsLeft--;
     s.stats.casts++;
     const ty = depthToY(this.power);
-    this.bobber = { x: W / 2, y: ty, sx: ROD_TIP.x, sy: ROD_TIP.y, t: 0, dip: 0 };
+    this.bobber = { x: W / 2, y: ty, t: 0, dip: 0 };
     sfx.cast();
     analytics.track('cast', { power: Math.round(this.power * 100) / 100, zone: this.zone });
     analytics.funnelStep('first_cast');
@@ -212,7 +205,7 @@ export class FishingScene implements Scene {
     else sfx.catch();
     vibrate(sp.rarity >= 3 ? [40, 40, 40, 40, 120] : 60);
     const colors = sp.rarity >= 3 ? [RARITY_COLOR[sp.rarity], COLORS.gold, '#fff'] : ['#ffffff', '#bfe9f2', COLORS.gold];
-    this.game.particles.burst(W / 2, 330, sp.rarity >= 3 ? 60 : 26, colors, { speed: 320, kind: sp.rarity >= 3 ? 'star' : 'confetti', size: 7, g: 300, life: 1.3 });
+    this.game.particles.burst(W / 2, 260, sp.rarity >= 3 ? 60 : 26, colors, { speed: 320, kind: sp.rarity >= 3 ? 'star' : 'confetti', size: 7, g: 300, life: 1.3 });
     analytics.track('catch', { species: sp.id, rarity: sp.rarity, size: sh.size, fresh: Math.round(fresh * 100) / 100, perfect: res.fish.perfect, isNew: res.isNew, zone: this.zone });
     analytics.funnelStep('first_catch', { species: sp.id });
     if (res.isNew) analytics.track('dex_new', { species: sp.id, total: Object.keys(s.dex).length });
@@ -347,12 +340,14 @@ export class FishingScene implements Scene {
   }
 
   // ---------- Draw ----------
+  /** Screen y where the cast would land right now (the 3D reticle follows this). */
+  aimScreenY(): number {
+    return depthToY(this.phase === 'charging' ? this.power : 0.35 + Math.sin(this.t * 1.5) * 0.05);
+  }
+
   draw(ctx: Ctx): void {
-    this.drawWater(ctx);
-    for (const sh of this.shadows) this.drawShadow(ctx, sh);
-    this.drawAimGuide(ctx);
-    this.drawLineAndBobber(ctx);
-    this.drawBoat(ctx);
+    // Water, fish, boat, line and reticle are rendered in 3D (render3d/world.ts); this is the UI layer.
+    this.drawPowerMeter(ctx);
     this.drawHud(ctx);
     if (this.phase === 'reel' && this.reel) this.drawReelUi(ctx, this.reel);
     this.drawPrompts(ctx);
@@ -364,282 +359,20 @@ export class FishingScene implements Scene {
     if (this.phase === 'summary') this.drawSummary(ctx);
   }
 
-  private drawWater(ctx: Ctx): void {
-    const reef = this.zone === 'reef';
-    const g = ctx.createLinearGradient(0, 0, 0, H);
-    g.addColorStop(0, reef ? '#ffcf9c' : '#ffd9a8');
-    g.addColorStop(0.09, reef ? '#ffb88a' : '#ffe9c4');
-    g.addColorStop(0.1, reef ? '#0c4f6e' : '#1b7f9a');
-    g.addColorStop(0.55, reef ? '#137291' : '#2aa3b9');
-    g.addColorStop(1, reef ? '#1d97a8' : '#5cc9cf');
+  private drawPowerMeter(ctx: Ctx): void {
+    if (this.phase !== 'charging') return;
+    const x = 30;
+    const top = 470;
+    const h = 220;
+    panel(ctx, x - 12, top - 12, 24, h + 24, 'rgba(255,248,236,0.9)', 12);
+    const g = ctx.createLinearGradient(0, top + h, 0, top);
+    g.addColorStop(0, '#7fd18b');
+    g.addColorStop(1, '#2d7fd8');
     ctx.fillStyle = g;
-    ctx.fillRect(0, 0, W, H);
-    // distant islands
-    ctx.fillStyle = reef ? 'rgba(40,70,80,0.55)' : 'rgba(60,110,90,0.55)';
-    ctx.beginPath();
-    ctx.moveTo(0, 85);
-    ctx.quadraticCurveTo(50, 50, 110, 84);
-    ctx.quadraticCurveTo(140, 70, 170, 85);
-    ctx.lineTo(0, 85);
-    ctx.moveTo(260, 85);
-    ctx.quadraticCurveTo(320, 40, 390, 80);
-    ctx.lineTo(390, 85);
+    rr(ctx, x - 7, top + h * (1 - this.power), 14, h * this.power, 6);
     ctx.fill();
-    // sun
-    ctx.fillStyle = 'rgba(255,240,200,0.9)';
-    ctx.beginPath();
-    ctx.arc(300, 52, 18, 0, Math.PI * 2);
-    ctx.fill();
-    // wave lines
-    ctx.strokeStyle = 'rgba(255,255,255,0.13)';
-    ctx.lineWidth = 2;
-    for (let i = 0; i < 16; i++) {
-      const y = 110 + i * 46 + Math.sin(this.t * 0.8 + i) * 4;
-      const off = (this.t * 12 * (i % 2 ? 1 : -1) + i * 70) % 120;
-      ctx.beginPath();
-      for (let x = -120 + off; x < W + 60; x += 120) {
-        ctx.moveTo(x, y);
-        ctx.quadraticCurveTo(x + 15, y - 5, x + 30, y);
-      }
-      ctx.stroke();
-    }
-    // depth hints
-    text(ctx, 'deep water', W - 12, FAR_Y - 40, 12, 'rgba(255,255,255,0.35)', 'right');
-    text(ctx, 'shallows', W - 12, NEAR_Y + 30, 12, 'rgba(255,255,255,0.35)', 'right');
-  }
-
-  private drawShadow(ctx: Ctx, sh: Shadow): void {
-    const sp = SPECIES_BY_ID[sh.species];
-    const len = shadowLen(sh);
-    const hooked = sh.state === 'hooked';
-    ctx.save();
-    ctx.globalAlpha = sh.alpha * (hooked ? 0.9 : 0.75);
-    // Rarity shimmer is an honest signal: what you see is what is there.
-    if (sp.rarity >= 4) {
-      const pulse = 0.5 + Math.sin(this.t * 4 + sh.phase) * 0.3;
-      const gg = ctx.createRadialGradient(sh.x, sh.y, 0, sh.x, sh.y, len);
-      gg.addColorStop(0, sp.id === 'golden' ? `rgba(255,215,90,${pulse})` : `rgba(200,150,255,${pulse * 0.8})`);
-      gg.addColorStop(1, 'rgba(255,215,90,0)');
-      ctx.fillStyle = gg;
-      ctx.beginPath();
-      ctx.arc(sh.x, sh.y, len, 0, Math.PI * 2);
-      ctx.fill();
-    } else if (sp.treasure) {
-      ctx.fillStyle = `rgba(255,255,255,${0.4 + Math.sin(this.t * 6) * 0.3})`;
-      star(ctx, sh.x + len * 0.3, sh.y - len * 0.25, 5);
-    }
-    ctx.translate(sh.x, sh.y);
-    if (sh.dir < 0) ctx.scale(-1, 1);
-    ctx.fillStyle = hooked ? 'rgba(10,30,40,0.75)' : 'rgba(8,40,55,0.55)';
-    const h = len * 0.32;
-    const tail = Math.sin(sh.phase) * h * 0.3;
-    ctx.beginPath();
-    ctx.ellipse(0, 0, len * 0.45, h / 2, 0, 0, Math.PI * 2);
-    ctx.moveTo(-len * 0.38, 0);
-    ctx.lineTo(-len * 0.62, -h * 0.5 + tail);
-    ctx.lineTo(-len * 0.62, h * 0.5 + tail);
-    ctx.closePath();
-    ctx.fill();
-    ctx.restore();
-  }
-
-  private drawAimGuide(ctx: Ctx): void {
-    if (this.phase !== 'charging' && this.phase !== 'aim') return;
-    const y = depthToY(this.phase === 'charging' ? this.power : 0.35 + Math.sin(this.t * 1.5) * 0.05);
-    ctx.save();
-    ctx.globalAlpha = this.phase === 'charging' ? 1 : 0.45;
-    ctx.setLineDash([6, 8]);
-    ctx.strokeStyle = 'rgba(255,255,255,0.7)';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(ROD_TIP.x, ROD_TIP.y);
-    ctx.quadraticCurveTo(W / 2 + 20, (ROD_TIP.y + y) / 2 - 80, W / 2, y);
-    ctx.stroke();
-    ctx.setLineDash([]);
-    // landing reticle
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.ellipse(W / 2, y, 34, 13, 0, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.ellipse(W / 2, y, 6, 3, 0, 0, Math.PI * 2);
-    ctx.fillStyle = '#fff';
-    ctx.fill();
-    ctx.restore();
-    if (this.phase === 'charging') {
-      // power meter beside the boat
-      const x = 30;
-      const top = 470;
-      const h = 220;
-      panel(ctx, x - 12, top - 12, 24, h + 24, 'rgba(255,248,236,0.9)', 12);
-      const g = ctx.createLinearGradient(0, top + h, 0, top);
-      g.addColorStop(0, '#7fd18b');
-      g.addColorStop(1, '#2d7fd8');
-      ctx.fillStyle = g;
-      rr(ctx, x - 7, top + h * (1 - this.power), 14, h * this.power, 6);
-      ctx.fill();
-    }
-  }
-
-  private bobberPos(): { x: number; y: number } {
-    const b = this.bobber;
-    if (this.phase === 'flying') {
-      const k = ease.outCubic(clamp01(b.t));
-      const x = b.sx + (b.x - b.sx) * k;
-      const y = b.sy + (b.y - b.sy) * k - Math.sin(k * Math.PI) * 120;
-      return { x, y };
-    }
-    return { x: b.x, y: b.y };
-  }
-
-  private drawLineAndBobber(ctx: Ctx): void {
-    if (!['flying', 'waiting', 'bite', 'reel'].includes(this.phase)) return;
-    let { x, y } = this.bobberPos();
-    if (this.phase === 'reel' && this.target) {
-      x = this.target.x;
-      y = this.target.y;
-    }
-    const strain = this.reel ? clamp01(this.reel.strain / 0.6) : 0;
-    const tension = this.reel ? this.reel.tension : 0;
-    ctx.save();
-    ctx.strokeStyle = strain > 0.1 ? `rgb(255,${Math.round(255 - strain * 160)},${Math.round(255 - strain * 200)})` : 'rgba(255,255,255,0.9)';
-    ctx.lineWidth = 1.6 + tension;
-    ctx.beginPath();
-    ctx.moveTo(ROD_TIP.x, ROD_TIP.y);
-    const sag = this.phase === 'reel' ? (1 - tension) * 60 : 40;
-    const jitter = strain > 0.1 ? (Math.random() - 0.5) * 6 * strain : 0;
-    ctx.quadraticCurveTo((ROD_TIP.x + x) / 2 + jitter, (ROD_TIP.y + y) / 2 + sag, x, y);
-    ctx.stroke();
-    ctx.restore();
-    if (this.phase === 'reel') return;
-    // bobber
-    const bob = Math.sin(this.t * 3) * 2 + this.bobber.dip * 7 + (this.phase === 'bite' ? 10 + Math.sin(this.t * 40) * 3 : 0);
-    if (this.phase !== 'flying') {
-      ctx.strokeStyle = 'rgba(255,255,255,0.5)';
-      ctx.lineWidth = 2;
-      const rk = (this.t * 0.8) % 1;
-      ctx.globalAlpha = 1 - rk;
-      ctx.beginPath();
-      ctx.ellipse(x, y + 4, 10 + rk * 26, 4 + rk * 9, 0, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.globalAlpha = 1;
-    }
-    ctx.save();
-    ctx.translate(x, y + bob);
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = COLORS.ink;
-    ctx.fillStyle = '#e74c3c';
-    ctx.beginPath();
-    ctx.arc(0, 0, 8, Math.PI, 0);
-    ctx.fill();
-    ctx.stroke();
-    ctx.fillStyle = '#fff';
-    ctx.beginPath();
-    ctx.arc(0, 0, 8, 0, Math.PI);
-    ctx.fill();
-    ctx.stroke();
-    ctx.restore();
-  }
-
-  private drawBoat(ctx: Ctx): void {
-    const bobY = Math.sin(this.t * 1.6) * 3;
-    const reeling = this.phase === 'reel' && this.reel;
-    ctx.save();
-    ctx.translate(W / 2 - 20, BOAT_Y + bobY);
-    // ripple
-    ctx.fillStyle = 'rgba(255,255,255,0.18)';
-    ctx.beginPath();
-    ctx.ellipse(0, 22, 120, 26, 0, 0, Math.PI * 2);
-    ctx.fill();
-    const wooden = this.game.state.upgrades.boat >= 1;
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = COLORS.ink;
-    if (wooden) {
-      ctx.fillStyle = '#4f86b8';
-      ctx.beginPath();
-      ctx.moveTo(-110, -5);
-      ctx.quadraticCurveTo(-90, 45, 0, 45);
-      ctx.quadraticCurveTo(90, 45, 120, -10);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-      ctx.fillStyle = '#d24a3a';
-      ctx.fillRect(-100, -5, 215, 9);
-      ctx.strokeRect(-100, -5, 215, 9);
-      // eye on the bow (Vietnamese boat tradition)
-      ctx.fillStyle = '#fff';
-      ctx.beginPath();
-      ctx.ellipse(85, 14, 10, 6, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-      ctx.fillStyle = COLORS.ink;
-      ctx.beginPath();
-      ctx.arc(87, 14, 3, 0, Math.PI * 2);
-      ctx.fill();
-    } else {
-      // thúng chai: round woven basket boat
-      ctx.fillStyle = '#7b5a35';
-      ctx.beginPath();
-      ctx.ellipse(0, 8, 74, 32, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-      ctx.strokeStyle = 'rgba(40,25,10,0.45)';
-      ctx.lineWidth = 2;
-      for (let i = -3; i <= 3; i++) {
-        ctx.beginPath();
-        ctx.moveTo(i * 18, -20);
-        ctx.quadraticCurveTo(i * 22, 10, i * 16, 38);
-        ctx.stroke();
-      }
-      ctx.strokeStyle = COLORS.ink;
-      ctx.lineWidth = 3;
-      ctx.fillStyle = '#a57a48';
-      ctx.beginPath();
-      ctx.ellipse(0, -4, 74, 18, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-      ctx.fillStyle = '#4a3420';
-      ctx.beginPath();
-      ctx.ellipse(0, -2, 62, 12, 0, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    // fisherman with nón lá (conical hat)
-    const lean = reeling ? -0.12 - this.reel!.tension * 0.1 : 0;
-    ctx.save();
-    ctx.translate(10, -12);
-    ctx.rotate(lean);
-    ctx.fillStyle = '#3d6f8f';
-    rr(ctx, -14, -42, 28, 40, 10);
-    ctx.fill();
-    ctx.strokeStyle = COLORS.ink;
-    ctx.stroke();
-    ctx.fillStyle = '#e8b98a';
-    ctx.beginPath();
-    ctx.arc(0, -52, 11, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-    ctx.fillStyle = '#f2d98a';
-    ctx.beginPath();
-    ctx.moveTo(-26, -54);
-    ctx.lineTo(0, -80);
-    ctx.lineTo(26, -54);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-    ctx.restore();
-    ctx.restore();
-    // rod
-    const bend = reeling ? this.reel!.tension * 26 : this.phase === 'charging' ? -this.power * 18 : 0;
-    ctx.save();
-    ctx.strokeStyle = '#5a3a1a';
-    ctx.lineWidth = 4;
-    ctx.lineCap = 'round';
-    ctx.beginPath();
-    ctx.moveTo(W / 2 - 6, BOAT_Y - 30 + bobY);
-    ctx.quadraticCurveTo(W / 2 + 10, ROD_TIP.y + 20 + bend * 0.3, ROD_TIP.x + bend * 0.3, ROD_TIP.y + bend + bobY);
-    ctx.stroke();
-    ctx.restore();
+    text(ctx, 'far', x, top - 22, 11, '#fff');
+    text(ctx, 'near', x, top + h + 22, 11, '#fff');
   }
 
   private drawHud(ctx: Ctx): void {
@@ -668,7 +401,7 @@ export class FishingScene implements Scene {
 
   private drawReelUi(ctx: Ctx, r: Reel): void {
     const x = 40;
-    const y = 520;
+    const y = 150; // top of screen: keeps the fight between bobber and boat visible
     const w = W - 80;
     const h = 28;
     panel(ctx, x - 10, y - 46, w + 20, h + 70, 'rgba(255,248,236,0.94)', 16);
@@ -727,7 +460,7 @@ export class FishingScene implements Scene {
       outlinedText(ctx, '!', this.bobber.x, this.bobber.y - 50, 64 * k, COLORS.gold, COLORS.ink, 7);
       outlinedText(ctx, 'TAP!', W / 2, 420, 46 * k, '#fff', COLORS.ink, 7);
     } else if (this.phase === 'reel' && this.hintT < 4) {
-      outlinedText(ctx, 'HOLD to reel · let go to ease', W / 2, 440, 18, '#fff', COLORS.ink, 5);
+      outlinedText(ctx, 'HOLD to reel · let go to ease', W / 2, 250, 18, '#fff', COLORS.ink, 5);
     }
   }
 
@@ -756,61 +489,44 @@ export class FishingScene implements Scene {
   }
 
   private drawCard(ctx: Ctx): void {
+    // The fish itself leaps up as a 3D trophy above this panel (see FishingRig.updateTrophy).
     const c = this.card!;
     const sp = SPECIES_BY_ID[c.fish.species];
-    ctx.fillStyle = `rgba(10,30,40,${0.55 * clamp01(c.t * 3)})`;
-    ctx.fillRect(0, 0, W, H);
-    // rays for rare
-    if (sp.rarity >= 3) {
-      ctx.save();
-      ctx.translate(W / 2, 330);
-      ctx.rotate(this.t * 0.4);
-      ctx.fillStyle = `rgba(255,230,150,${0.18 * clamp01(c.t * 2)})`;
-      for (let i = 0; i < 12; i++) {
-        ctx.rotate(Math.PI / 6);
-        ctx.beginPath();
-        ctx.moveTo(0, 0);
-        ctx.lineTo(-40, -420);
-        ctx.lineTo(40, -420);
-        ctx.fill();
-      }
-      ctx.restore();
-    }
-    const k = ease.outBack(clamp01(c.t / 0.45));
+    const k = ease.outBack(clamp01((c.t - 0.25) / 0.4));
     ctx.save();
-    ctx.translate(W / 2, 400);
+    ctx.translate(W / 2, 520);
     ctx.scale(k, k);
-    panel(ctx, -160, -200, 320, 380, COLORS.paper, 24);
+    panel(ctx, -160, -80, 320, 200, COLORS.paper, 24);
     ctx.fillStyle = RARITY_COLOR[sp.rarity];
-    rr(ctx, -160, -200, 320, 46, 24);
+    rr(ctx, -80, -98, 160, 34, 14);
     ctx.fill();
-    ctx.fillRect(-160, -170, 320, 16);
-    outlinedText(ctx, RARITY_LABEL[sp.rarity].toUpperCase(), 0, -176, 18, '#fff', COLORS.ink, 4);
-    const fl = Math.min(220, 70 + sp.size[1] * 1.6);
-    drawFish(ctx, sp.id, 0, -70, fl, { wiggle: this.t * 8, angle: Math.sin(this.t * 3) * 0.08 });
-    outlinedText(ctx, sp.name, 0, 22, 30, '#fff', COLORS.ink, 6);
-    text(ctx, sp.local, 0, 50, 16, 'rgba(43,33,24,0.6)', 'center', 600);
-    text(ctx, sp.treasure ? `+${sp.raw} coins!` : `${c.fish.size} cm`, 0, 84, 22, COLORS.ink);
+    ctx.strokeStyle = COLORS.ink;
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    outlinedText(ctx, RARITY_LABEL[sp.rarity].toUpperCase(), 0, -81, 17, '#fff', COLORS.ink, 4);
+    outlinedText(ctx, sp.name, 0, -38, 30, '#fff', COLORS.ink, 6);
+    text(ctx, sp.local, 0, -10, 15, 'rgba(43,33,24,0.6)', 'center', 600);
+    text(ctx, sp.treasure ? `+${sp.raw} coins!` : `${c.fish.size} cm`, 0, 20, 22, COLORS.ink);
     if (!sp.treasure) {
       const fresh = c.fish.freshness;
       const stars = fresh >= 0.8 ? 3 : fresh >= 0.5 ? 2 : 1;
       for (let i = 0; i < 3; i++) {
         ctx.fillStyle = i < stars ? COLORS.gold : 'rgba(43,33,24,0.15)';
-        star(ctx, -36 + i * 36, 120, 14);
+        star(ctx, -36 + i * 36, 56, 14);
         if (i < stars) {
           ctx.strokeStyle = COLORS.ink;
           ctx.lineWidth = 2;
           ctx.stroke();
         }
       }
-      text(ctx, c.fish.perfect ? 'PERFECT CATCH — extra fresh!' : stars === 2 ? 'Good catch' : 'Bruised — less fresh', 0, 150, 14, c.fish.perfect ? COLORS.good : COLORS.ink);
+      text(ctx, c.fish.perfect ? 'PERFECT CATCH — extra fresh!' : stars === 2 ? 'Good catch' : 'Bruised — less fresh', 0, 88, 14, c.fish.perfect ? COLORS.good : COLORS.ink);
     }
     ctx.restore();
-    if (c.isNew && c.t > 0.3) {
+    if (c.isNew && c.t > 0.5) {
       ctx.save();
-      ctx.translate(W / 2 + 130, 215);
+      ctx.translate(W / 2 + 140, 440);
       ctx.rotate(0.25);
-      const nk = ease.outElastic(clamp01((c.t - 0.3) / 0.6));
+      const nk = ease.outElastic(clamp01((c.t - 0.5) / 0.6));
       ctx.scale(nk, nk);
       ctx.fillStyle = COLORS.bad;
       star(ctx, 0, 0, 38);
@@ -819,10 +535,10 @@ export class FishingScene implements Scene {
       ctx.stroke();
       outlinedText(ctx, 'NEW!', 0, 2, 17, '#fff', COLORS.ink, 4);
       ctx.restore();
-    } else if (c.isRecord && c.t > 0.3) {
-      outlinedText(ctx, 'NEW RECORD SIZE!', W / 2, 640, 20, COLORS.gold, COLORS.ink, 5);
+    } else if (c.isRecord && c.t > 0.5) {
+      outlinedText(ctx, 'NEW RECORD SIZE!', W / 2, 410, 20, COLORS.gold, COLORS.ink, 5);
     }
-    if (c.t > 0.6) text(ctx, 'tap to continue', W / 2, 700, 16, 'rgba(255,255,255,0.85)');
+    if (c.t > 0.6) outlinedText(ctx, 'tap to continue', W / 2, 680, 16, '#fff', COLORS.ink, 4);
   }
 
   private drawSummary(ctx: Ctx): void {

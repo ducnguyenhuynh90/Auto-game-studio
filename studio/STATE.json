@@ -1,0 +1,21 @@
+{
+  "updated": "2026-10-24",
+  "product_state": "VERTICAL_SLICE",
+  "real_player_evidence": "none",
+  "build": "Vite + TypeScript. three.js 3D world (src/render3d) under a 2D canvas UI layer (src/scenes). Pure rules in src/core (unit-tested).",
+  "how_to_run": "npm install && npm run dev  (open http://localhost:5173, ?reset=1 wipes the save, ?seed=N, ?speed=N)",
+  "how_to_test": "npm test (rules) ; npm run build ; node tools/playtest.mjs --trips 6 --shots (bot playthrough + screenshots in playtest-output/)",
+  "current_objective": "Get the CATCH→CRAFT→REVEAL→PROGRESS slice in front of real players and measure the first-session funnel.",
+  "biggest_known_problem": "Zero real-player evidence. Everything about fun or retention is unvalidated. Second biggest: there is no analytics backend, so even when someone plays we learn nothing.",
+  "active_experiment": "EXP-001: does the 3D jar reveal plus 'ferments while you fish' drive a second fishing trip? (needs real players)",
+  "recent_results": [
+    "v0 2D slice: bot playthrough shows the loop is completable with no errors; first sale at about 90s of game time, first upgrade at trip 2.",
+    "Founder asked for a cute three.js 3D look; ported the world to 3D, keeping rules and UI unchanged."
+  ],
+  "constraints": [
+    "No real-money gambling, no randomized paid rewards (needs founder/legal approval).",
+    "No sensitive personal data. Analytics uses an anonymous random install id only.",
+    "Founder approval is needed before spending money (hosting beyond free tiers, paid UA)."
+  ],
+  "next_recommended_action": "1) Deploy to a free static host (GitHub Pages workflow is included; the founder must enable Pages). 2) Stand up a minimal event sink (VITE_ANALYTICS_URL). 3) Recruit 5-10 casual playtesters and watch the first 10 minutes. 4) Meanwhile: replace the 2D fish icons with 3D thumbnails and tune reel difficulty for non-expert players."
+}

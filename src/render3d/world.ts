@@ -1,0 +1,755 @@
+// three.js world layer. Gameplay logic still lives in screen space (390x844 logical);
+// the world maps those positions onto 3D water/ground so logic, hit-testing and visuals agree.
+import * as THREE from 'three';
+import { RARITY_COLOR, RECIPES_BY_ID, SPECIES_BY_ID, TIERS, tierFor } from '../core/data';
+import { agingLevel, villageLevel, type GameState } from '../core/state';
+import { H, W } from '../render/draw';
+import type { Game } from '../game';
+import type { FishingScene } from '../scenes/fishing';
+import type { RevealOverlay } from '../scenes/jar';
+import {
+  makeBasketBoat,
+  makeBottle,
+  makeFish,
+  makeFisherman,
+  makeHouse,
+  makeJar,
+  makeLantern,
+  makeMarket,
+  makePalm,
+  makeSaltPile,
+  makeSunburst,
+  makeWoodenBoat,
+  mesh,
+  outline,
+  toon,
+  type FishModel,
+  type JarModel,
+} from './models';
+
+export interface ScreenPt {
+  x: number;
+  y: number;
+}
+
+function skyTexture(top: string, bottom: string): THREE.CanvasTexture {
+  const c = document.createElement('canvas');
+  c.width = 2;
+  c.height = 256;
+  const g = c.getContext('2d')!;
+  const grad = g.createLinearGradient(0, 0, 0, 256);
+  grad.addColorStop(0, top);
+  grad.addColorStop(1, bottom);
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 2, 256);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+/** Low-poly animated water: vertices bob on CPU, flat shading gives the faceted toy look. */
+class Water {
+  mesh: THREE.Mesh;
+  private base: Float32Array;
+  constructor(size: number, segs: number, color: string, opacity: number) {
+    const geo = new THREE.PlaneGeometry(size, size, segs, segs);
+    geo.rotateX(-Math.PI / 2);
+    this.base = (geo.attributes.position.array as Float32Array).slice();
+    const mat = new THREE.MeshPhongMaterial({ color, flatShading: true, transparent: true, opacity, shininess: 80, specular: 0x9fe8ff });
+    this.mesh = new THREE.Mesh(geo, mat);
+    this.mesh.receiveShadow = true;
+  }
+  update(t: number): void {
+    const pos = this.mesh.geometry.attributes.position as THREE.BufferAttribute;
+    const arr = pos.array as Float32Array;
+    for (let i = 0; i < arr.length; i += 3) {
+      const x = this.base[i];
+      const z = this.base[i + 2];
+      arr[i + 1] = Math.sin(x * 0.9 + t * 1.3) * 0.05 + Math.cos(z * 1.1 + t * 1.1) * 0.05;
+    }
+    pos.needsUpdate = true;
+    this.mesh.geometry.computeVertexNormals();
+  }
+}
+
+class Ripples {
+  private list: { m: THREE.Mesh; t: number; life: number; size: number }[] = [];
+  constructor(private parent: THREE.Object3D) {}
+  spawn(p: THREE.Vector3, size = 1, life = 0.9): void {
+    const m = new THREE.Mesh(new THREE.RingGeometry(0.8, 1, 32), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8, depthWrite: false }));
+    m.rotation.x = -Math.PI / 2;
+    m.position.set(p.x, 0.06, p.z);
+    this.parent.add(m);
+    this.list.push({ m, t: 0, life, size });
+  }
+  update(dt: number): void {
+    for (const r of this.list) {
+      r.t += dt;
+      const k = r.t / r.life;
+      r.m.scale.setScalar(0.1 + k * r.size);
+      (r.m.material as THREE.MeshBasicMaterial).opacity = 0.8 * (1 - k);
+    }
+    for (const r of this.list.filter((r) => r.t >= r.life)) {
+      this.parent.remove(r.m);
+      r.m.geometry.dispose();
+    }
+    this.list = this.list.filter((r) => r.t < r.life);
+  }
+}
+
+// =============== Fishing ===============
+class FishingRig {
+  root = new THREE.Group();
+  camera = new THREE.PerspectiveCamera(42, W / H, 0.1, 200);
+  private water = new Water(70, 56, '#2aa3b9', 0.82);
+  private ripples: Ripples;
+  private fish = new Map<object, FishModel>();
+  private boat = new THREE.Group();
+  private boatKind = -1;
+  private fisher = makeFisherman();
+  private rod = new THREE.Group();
+  private rodTip = new THREE.Object3D();
+  private line: THREE.Line;
+  private bobber = new THREE.Group();
+  private reticle: THREE.Mesh;
+  private trophy: FishModel | null = null;
+  private trophyFor: object | null = null;
+  private trophyT = 0;
+  private trophyFrom = new THREE.Vector3();
+  private burst = makeSunburst();
+  private sky: { lagoon: THREE.Texture; reef: THREE.Texture };
+  private prevPhase = '';
+  private prevNibbles = 0;
+  private raycaster = new THREE.Raycaster();
+  private plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+  private zone = '';
+  private islands = new THREE.Group();
+
+  constructor(private world: World) {
+    this.camera.position.set(0, 5.6, 9.6);
+    this.camera.lookAt(0, -0.2, -2.6);
+    this.root.add(this.camera);
+    this.sky = { lagoon: skyTexture('#ffc98f', '#ffeccc'), reef: skyTexture('#f7a77a', '#ffd7a8') };
+    this.root.add(this.water.mesh);
+    this.ripples = new Ripples(this.root);
+    // distant islands
+    for (const [x, z, s, c] of [
+      [-12, -32, 5, '#5f9a62'],
+      [-4, -38, 3, '#6aa86b'],
+      [14, -30, 6, '#57905a'],
+    ] as const) {
+      const isl = mesh(new THREE.SphereGeometry(1, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), toon(c), false);
+      isl.scale.set(s * 1.6, s * 0.7, s);
+      isl.position.set(x, -0.2, z);
+      this.islands.add(isl);
+      if (s > 4) {
+        const p = makePalm(2.4);
+        p.position.set(x + 1, s * 0.6, z + 1);
+        this.islands.add(p);
+      }
+    }
+    this.root.add(this.islands);
+    // boat + fisherman + rod
+    this.boat.position.set(-0.35, 0, 3.6);
+    this.boat.scale.setScalar(0.8);
+    this.root.add(this.boat);
+    this.fisher.position.set(0.15, 0.2, 0.1);
+    this.fisher.rotation.y = Math.PI + 0.25;
+    this.boat.add(this.fisher);
+    const rodMesh = mesh(new THREE.CylinderGeometry(0.018, 0.03, 2.4, 6), toon('#5a3a1a'));
+    rodMesh.position.y = 1.2;
+    this.rod.add(rodMesh);
+    this.rodTip.position.y = 2.4;
+    this.rod.add(this.rodTip);
+    this.rod.position.set(0.4, 0.8, -0.1);
+    this.boat.add(this.rod);
+    // line
+    const lg = new THREE.BufferGeometry().setFromPoints(Array.from({ length: 24 }, () => new THREE.Vector3()));
+    this.line = new THREE.Line(lg, new THREE.LineBasicMaterial({ color: 0xffffff }));
+    this.line.frustumCulled = false;
+    this.root.add(this.line);
+    // bobber
+    const top = mesh(new THREE.SphereGeometry(0.11, 14, 10, 0, Math.PI * 2, 0, Math.PI / 2), toon('#e74c3c'));
+    const bot = mesh(new THREE.SphereGeometry(0.11, 14, 10, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), toon('#ffffff'));
+    outline(top, 1.12);
+    outline(bot, 1.12);
+    this.bobber.add(top, bot);
+    this.root.add(this.bobber);
+    // aim reticle
+    this.reticle = new THREE.Mesh(new THREE.RingGeometry(0.42, 0.52, 32), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9, depthWrite: false }));
+    this.reticle.rotation.x = -Math.PI / 2;
+    const dot = new THREE.Mesh(new THREE.CircleGeometry(0.08, 16), this.reticle.material);
+    this.reticle.add(dot);
+    this.root.add(this.reticle);
+    // catch showcase lives in camera space
+    this.burst.position.set(0, 0.62, -4.5);
+    this.camera.add(this.burst);
+  }
+
+  screenToWater(x: number, y: number, out = new THREE.Vector3()): THREE.Vector3 {
+    const ndc = new THREE.Vector2((x / W) * 2 - 1, -(y / H) * 2 + 1);
+    this.raycaster.setFromCamera(ndc, this.camera);
+    this.raycaster.ray.intersectPlane(this.plane, out);
+    return out;
+  }
+
+  private setBoat(kind: number): void {
+    if (kind === this.boatKind) return;
+    this.boatKind = kind;
+    for (const c of [...this.boat.children]) if (c !== this.fisher && c !== this.rod) this.boat.remove(c);
+    const b = kind >= 1 ? makeWoodenBoat() : makeBasketBoat();
+    if (kind >= 1) {
+      b.rotation.y = Math.PI / 2;
+      b.position.y = -0.1;
+      b.scale.setScalar(0.9);
+      this.fisher.position.set(0.1, 0.2, 0.4);
+    }
+    this.boat.add(b);
+  }
+
+  sync(f: FishingScene, game: Game, dt: number): void {
+    const t = game.time;
+    if (f.zone !== this.zone) {
+      this.zone = f.zone;
+      this.world.scene.background = f.zone === 'reef' ? this.sky.reef : this.sky.lagoon;
+      (this.water.mesh.material as THREE.MeshPhongMaterial).color.set(f.zone === 'reef' ? '#167f9e' : '#2aa3b9');
+      this.world.scene.fog = new THREE.Fog(f.zone === 'reef' ? '#ffcf9e' : '#ffe3bb', 22, 55);
+    }
+    this.setBoat(game.state.upgrades.boat);
+    this.water.update(t);
+    this.ripples.update(dt);
+    this.boat.position.y = Math.sin(t * 1.6) * 0.05;
+    this.boat.rotation.z = Math.sin(t * 1.1) * 0.04;
+
+    // shadows → fish meshes
+    const alive = new Set<object>();
+    const tmp = new THREE.Vector3();
+    for (const sh of f.shadows) {
+      alive.add(sh);
+      let m = this.fish.get(sh);
+      const sp = SPECIES_BY_ID[sh.species];
+      if (!m) {
+        m = makeFish(sh.species);
+        const len = 0.3 + Math.sqrt(sh.size) * 0.1;
+        m.group.scale.setScalar(len);
+        m.setSilhouette(true, sp.rarity >= 4 ? (sp.id === 'golden' ? '#ffd35a' : '#c99bff') : sp.treasure ? '#fff2b0' : null);
+        this.root.add(m.group);
+        this.fish.set(sh, m);
+      }
+      this.screenToWater(sh.x, sh.y, tmp);
+      const hooked = sh.state === 'hooked';
+      m.group.position.set(tmp.x, hooked ? -0.12 : -0.32, tmp.z);
+      const heading = sh.state === 'approach' ? Math.atan2(-(f.bobber.y - sh.y), f.bobber.x - sh.x) : sh.dir > 0 ? 0 : Math.PI;
+      m.group.rotation.y = heading + Math.sin(sh.phase * 0.5) * 0.15;
+      if (hooked && f.reel) m.group.rotation.z = Math.sin(t * 30) * f.reel.thrash * 2;
+      if (m.tail) m.tail.rotation.y = Math.sin(sh.phase * (hooked ? 3 : 1.5)) * 0.5;
+      m.group.visible = sh.alpha > 0.05;
+      if (hooked && Math.random() < 0.15) this.ripples.spawn(m.group.position, 1.2, 0.6);
+    }
+    for (const [k, m] of this.fish) {
+      if (!alive.has(k)) {
+        this.root.remove(m.group);
+        this.fish.delete(k);
+      }
+    }
+
+    // rod pose
+    const tension = f.reel?.tension ?? 0;
+    const charge = f.phase === 'charging' ? f.power : 0;
+    this.rod.rotation.x = -0.75 - tension * 0.35 + charge * 0.6;
+    this.rod.rotation.z = -0.15;
+    this.fisher.rotation.x = f.phase === 'reel' ? -0.12 - tension * 0.1 : 0;
+    this.camera.updateMatrixWorld();
+    this.root.updateMatrixWorld(true);
+    const tip = this.rodTip.getWorldPosition(new THREE.Vector3());
+
+    // bobber
+    const showLine = ['flying', 'waiting', 'bite', 'reel'].includes(f.phase);
+    const landing = this.screenToWater(f.bobber.x, f.bobber.y);
+    let bob = landing.clone();
+    if (f.phase === 'flying') {
+      const k = Math.min(1, f.bobber.t);
+      const e = 1 - Math.pow(1 - k, 3);
+      bob = tip.clone().lerp(landing, e);
+      bob.y += Math.sin(e * Math.PI) * 2.2;
+    } else {
+      bob.y = 0.06 + Math.sin(t * 3) * 0.03 - f.bobber.dip * 0.12 - (f.phase === 'bite' ? 0.18 + Math.sin(t * 40) * 0.04 : 0);
+    }
+    this.bobber.visible = showLine && f.phase !== 'reel';
+    this.bobber.position.copy(bob);
+    if (f.phase !== this.prevPhase) {
+      if (f.phase === 'waiting') this.ripples.spawn(landing, 1.6);
+      if (f.phase === 'bite') {
+        this.ripples.spawn(landing, 2.4, 0.7);
+        this.ripples.spawn(landing, 1.4, 0.5);
+      }
+      if (f.phase === 'reel') this.ripples.spawn(landing, 2.8, 0.8);
+      if (f.phase === 'card') this.startTrophy(f);
+      this.prevPhase = f.phase;
+    }
+    if (f.nibbles !== this.prevNibbles) {
+      if (f.nibbles > 0) this.ripples.spawn(landing, 0.9, 0.5);
+      this.prevNibbles = f.nibbles;
+    }
+
+    // line
+    this.line.visible = showLine;
+    if (showLine) {
+      let end = bob;
+      if (f.phase === 'reel' && f.target) {
+        const fm = this.fish.get(f.target);
+        if (fm) end = fm.group.position.clone().setY(0.02);
+      }
+      const sag = f.phase === 'reel' ? (1 - tension) * 0.9 : 0.6;
+      const mid = tip.clone().lerp(end, 0.5);
+      mid.y -= sag;
+      const curve = new THREE.QuadraticBezierCurve3(tip, mid, end);
+      const pts = curve.getPoints(23);
+      const jitter = f.reel && f.reel.strain > 0.1 ? f.reel.strain * 0.05 : 0;
+      const arr = (this.line.geometry.attributes.position as THREE.BufferAttribute).array as Float32Array;
+      pts.forEach((p, i) => {
+        arr[i * 3] = p.x + (Math.random() - 0.5) * jitter;
+        arr[i * 3 + 1] = p.y;
+        arr[i * 3 + 2] = p.z;
+      });
+      this.line.geometry.attributes.position.needsUpdate = true;
+      const strain = f.reel ? Math.min(1, f.reel.strain / 0.6) : 0;
+      (this.line.material as THREE.LineBasicMaterial).color.setRGB(1, 1 - strain * 0.65, 1 - strain * 0.8);
+    }
+
+    // aim reticle follows the charge
+    this.reticle.visible = f.phase === 'aim' || f.phase === 'charging';
+    if (this.reticle.visible) {
+      const y = f.aimScreenY();
+      const p = this.screenToWater(W / 2, y);
+      this.reticle.position.set(p.x, 0.08, p.z);
+      const s = f.phase === 'charging' ? 1 : 0.8 + Math.sin(t * 4) * 0.08;
+      this.reticle.scale.setScalar(s);
+      (this.reticle.material as THREE.MeshBasicMaterial).opacity = f.phase === 'charging' ? 0.95 : 0.5;
+    }
+
+    this.updateTrophy(f, dt, t);
+  }
+
+  private startTrophy(f: FishingScene): void {
+    if (!f.card) return;
+    if (this.trophy) this.camera.remove(this.trophy.group);
+    const sp = SPECIES_BY_ID[f.card.fish.species];
+    this.trophy = makeFish(sp.id);
+    this.trophyFor = f.card;
+    this.trophyT = 0;
+    const s = Math.min(1.15, 0.5 + Math.sqrt(sp.size[1]) * 0.055);
+    this.trophy.group.scale.setScalar(s);
+    this.camera.add(this.trophy.group);
+    // start from where the fish was, in camera space
+    this.trophyFrom.set(0, -2.2, -4.2);
+    (this.burst.material as THREE.MeshBasicMaterial).color.set(sp.rarity >= 3 ? RARITY_COLOR[sp.rarity] : '#ffe6a0');
+  }
+
+  private updateTrophy(f: FishingScene, dt: number, t: number): void {
+    const active = f.phase === 'card' && f.card && this.trophy && this.trophyFor === f.card;
+    this.burst.visible = !!active;
+    if (!active) {
+      if (this.trophy && f.phase !== 'card') {
+        this.camera.remove(this.trophy.group);
+        this.trophy = null;
+      }
+      return;
+    }
+    const tr = this.trophy!;
+    this.trophyT += dt;
+    const k = Math.min(1, this.trophyT / 0.55);
+    const target = new THREE.Vector3(0, 0.62, -4.2);
+    const p = this.trophyFrom.clone().lerp(target, 1 - Math.pow(1 - k, 3));
+    p.y += Math.sin(k * Math.PI) * 0.8;
+    tr.group.position.copy(p);
+    tr.group.rotation.set(Math.sin(t * 2) * 0.1, -0.5 + Math.sin(t * 1.3) * 0.5, k < 1 ? (1 - k) * 6 : Math.sin(t * 3) * 0.08);
+    if (tr.tail) tr.tail.rotation.y = Math.sin(t * 10) * 0.5;
+    this.burst.rotation.z = t * 0.4;
+    this.burst.scale.setScalar(k * 0.8);
+    (this.burst.material as THREE.MeshBasicMaterial).opacity = 0.18;
+  }
+}
+
+// =============== Village ===============
+class VillageRig {
+  root = new THREE.Group();
+  camera = new THREE.PerspectiveCamera(36, W / H, 0.1, 200);
+  private water = new Water(80, 40, '#2aa3b9', 1);
+  private sky = skyTexture('#ffc58a', '#ffeccc');
+  private dyn = new THREE.Group();
+  private jars: JarModel[] = [];
+  private jarPos: THREE.Vector3[] = [];
+  private key = '';
+  private boat: THREE.Group | null = null;
+  private fisher = makeFisherman('#d9573f');
+  private palms: THREE.Group[] = [];
+  private market: THREE.Group | null = null;
+  private lanterns: THREE.Mesh[] = [];
+  private bubbles: THREE.Mesh[] = [];
+  private shelfBottles = new THREE.Group();
+  marketPos = new THREE.Vector3(1.9, 0, -0.9);
+
+  constructor(private world: World) {
+    this.camera.position.set(0, 14, 17.5);
+    this.camera.lookAt(0, 0, -0.9);
+    this.water.mesh.position.y = -0.25;
+    this.root.add(this.water.mesh);
+    // island: sand rim + grass top
+    const sand = mesh(new THREE.CylinderGeometry(6.4, 7, 0.6, 28), toon('#f0d9a6'), false);
+    sand.position.y = -0.15;
+    sand.scale.set(0.66, 1, 1);
+    this.root.add(sand);
+    const grass = mesh(new THREE.CylinderGeometry(5.6, 5.9, 0.3, 28), toon('#8cc265'), false);
+    grass.position.set(0, 0.05, 0.2);
+    grass.scale.set(0.64, 1, 0.98);
+    this.root.add(grass);
+    // dock
+    const dock = new THREE.Group();
+    const deck = mesh(new THREE.BoxGeometry(1, 0.12, 3.2), toon('#a06a3d'));
+    outline(deck, 1.02);
+    deck.position.y = 0.2;
+    dock.add(deck);
+    for (const z of [-1.4, -0.4, 0.6])
+      for (const x of [-0.45, 0.45]) {
+        const post = mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.9), toon('#6e4423'));
+        post.position.set(x, -0.15, z);
+        dock.add(post);
+      }
+    dock.position.set(2.6, 0, -6.6);
+    this.root.add(dock);
+    // palms
+    for (const [x, z, h] of [
+      [-3.3, -3.4, 2.6],
+      [-2.9, 4.2, 2.0],
+      [3.4, 1.6, 2.2],
+    ] as const) {
+      const p = makePalm(h);
+      p.position.set(x, 0.15, z);
+      this.palms.push(p);
+      this.root.add(p);
+    }
+    this.fisher.position.set(-1.6, 0.2, 0.6);
+    this.fisher.scale.setScalar(0.85);
+    this.root.add(this.fisher);
+    this.root.add(this.dyn);
+    this.root.add(this.shelfBottles);
+  }
+
+  /** Rebuild the parts of the village that depend on upgrades. */
+  private rebuild(s: GameState): void {
+    const lvl = villageLevel(s);
+    const key = [s.jars.length, s.upgrades.boat, s.upgrades.salt, s.upgrades.stall, lvl >= 6, lvl >= 3 ? lvl : 0].join(',');
+    if (key === this.key) return;
+    this.key = key;
+    this.dyn.clear();
+    const house = makeHouse(lvl);
+    house.position.set(-1.7, 0.15, -2.9);
+    house.rotation.y = 0.25;
+    this.dyn.add(house);
+    this.market = makeMarket(s.upgrades.stall);
+    this.market.position.copy(this.marketPos).setY(0.15);
+    this.market.rotation.y = -0.3;
+    this.dyn.add(this.market);
+    // drying rack between house and market
+    const rack = new THREE.Group();
+    for (const x of [-0.5, 0.5]) {
+      const post = mesh(new THREE.CylinderGeometry(0.04, 0.04, 1), toon('#6e4423'));
+      post.position.set(x, 0.5, 0);
+      rack.add(post);
+    }
+    const bar = mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.1), toon('#6e4423'));
+    bar.rotation.z = Math.PI / 2;
+    bar.position.y = 0.95;
+    rack.add(bar);
+    rack.position.set(1.4, 0.15, -3.6);
+    rack.name = 'rack';
+    this.dyn.add(rack);
+    // boat at dock
+    this.boat = s.upgrades.boat >= 1 ? makeWoodenBoat() : makeBasketBoat();
+    this.boat.position.set(0.6, -0.2, -7.6);
+    this.boat.scale.setScalar(s.upgrades.boat >= 1 ? 0.8 : 0.75);
+    this.boat.rotation.y = s.upgrades.boat >= 1 ? Math.PI / 2 : 0;
+    this.dyn.add(this.boat);
+    // salt piles
+    for (let i = 0; i < (s.upgrades.salt > 0 ? s.upgrades.salt + 1 : 0); i++) {
+      const p = makeSaltPile();
+      p.position.set(-3.0 + i * 0.5, 0.15, -0.7 + (i % 2) * 0.3);
+      this.dyn.add(p);
+    }
+    // lantern string grows with prosperity
+    this.lanterns = [];
+    if (lvl >= 3) {
+      const n = Math.min(9, lvl + 1);
+      for (let i = 0; i < n; i++) {
+        const u = (i + 1) / (n + 1);
+        const l = makeLantern(i % 2 ? '#f2b233' : '#e8443a');
+        l.position.set(-3 + u * 6, 2.6 - 4 * 0.5 * u * (1 - u), -1.6);
+        this.lanterns.push(l);
+        this.dyn.add(l);
+      }
+    }
+    // jars
+    for (const j of this.jars) this.root.remove(j.group);
+    this.jars = [];
+    this.jarPos = [];
+    const n = s.jars.length;
+    const spacing = n <= 2 ? 1.5 : 1.15;
+    for (let i = 0; i < n; i++) {
+      const jm = makeJar();
+      const x = (i - (n - 1) / 2) * spacing;
+      jm.group.position.set(x, 0.2, 2.5);
+      jm.group.scale.setScalar(0.85);
+      this.jars.push(jm);
+      this.jarPos.push(jm.group.position.clone());
+      this.root.add(jm.group);
+    }
+    const mat = mesh(new THREE.CylinderGeometry(1, 1, 0.04, 28), toon('#c79a5a', { opacity: 0.55 }), false);
+    mat.scale.set(n <= 2 ? 2.3 : 2.9, 1, 0.75);
+    mat.position.set(0, 0.2, 2.6);
+    this.dyn.add(mat);
+  }
+
+  sync(game: Game, dt: number): void {
+    const s = game.state;
+    const t = game.time;
+    this.world.scene.background = this.sky;
+    this.world.scene.fog = new THREE.Fog('#ffe3bb', 26, 60);
+    this.rebuild(s);
+    this.water.update(t);
+    const now = Date.now();
+    s.jars.forEach((j, i) => {
+      const jm = this.jars[i];
+      if (!jm) return;
+      const pressed = game.isPressed(`jar${i}`);
+      const lvl = j.sealed ? agingLevel(s, j, now) : 0;
+      const ready = j.sealed && lvl >= 1;
+      jm.lid.visible = j.sealed;
+      const base = this.jarPos[i];
+      const hop = ready ? Math.abs(Math.sin(t * 4 + i)) * 0.18 : 0;
+      jm.group.position.set(base.x, base.y + hop, base.z);
+      const sc = 0.85 * (pressed ? 0.92 : 1);
+      const squash = ready ? 1 + Math.sin(t * 8 + i) * 0.04 : 1;
+      jm.group.scale.set(sc * squash, sc / squash, sc * squash);
+      jm.group.rotation.z = j.sealed && !ready ? Math.sin(t * 2 + i) * 0.03 : ready ? Math.sin(t * 8 + i) * 0.05 : 0;
+      const bodyMat = jm.body.material as THREE.MeshToonMaterial;
+      if (ready && !jm.body.userData.glowMat) {
+        jm.body.userData.glowMat = true;
+        jm.body.material = bodyMat.clone();
+      }
+      if (jm.body.userData.glowMat) {
+        const m = jm.body.material as THREE.MeshToonMaterial;
+        m.emissive.setRGB(ready ? 0.35 + Math.sin(t * 5) * 0.15 : 0, ready ? 0.22 + Math.sin(t * 5) * 0.1 : 0, 0);
+      }
+    });
+    // fermentation bubbles
+    this.bubbles = this.bubbles.filter((b) => {
+      b.position.y += dt * 0.6;
+      b.scale.multiplyScalar(1 + dt * 0.8);
+      (b.material as THREE.MeshBasicMaterial).opacity -= dt * 0.6;
+      if ((b.material as THREE.MeshBasicMaterial).opacity <= 0) {
+        this.root.remove(b);
+        return false;
+      }
+      return true;
+    });
+    s.jars.forEach((j, i) => {
+      if (j.sealed && this.jars[i] && Math.random() < dt * 1.5) {
+        const b = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8 }));
+        const p = this.jarPos[i];
+        b.position.set(p.x + (Math.random() - 0.5) * 0.3, p.y + 1.1, p.z);
+        this.root.add(b);
+        this.bubbles.push(b);
+      }
+    });
+    // ambient life
+    for (const p of this.palms) {
+      const top = p.getObjectByName('top');
+      if (top) top.rotation.z = Math.sin(t * 1.2 + p.position.x) * 0.06;
+    }
+    if (this.boat) {
+      this.boat.position.y = -0.2 + Math.sin(t * 1.5) * 0.05;
+      this.boat.rotation.z = Math.sin(t * 1.2) * 0.04;
+    }
+    this.fisher.position.y = 0.2 + Math.abs(Math.sin(t * 2.2)) * 0.05;
+    this.fisher.rotation.y = Math.sin(t * 0.5) * 0.6;
+    this.lanterns.forEach((l, i) => (l.rotation.z = Math.sin(t * 2 + i) * 0.15));
+    const star = this.market?.getObjectByName('star');
+    if (star) star.rotation.y = t * 2;
+    if (this.market) {
+      const pressed = game.isPressed('market');
+      this.market.scale.setScalar(pressed ? 0.95 : 1);
+    }
+    // bottles on the market table
+    const shelfKey = String(Math.min(4, s.shelf.length));
+    if (this.shelfBottles.userData.key !== shelfKey) {
+      this.shelfBottles.userData.key = shelfKey;
+      this.shelfBottles.clear();
+      s.shelf.slice(0, 4).forEach((p, i) => {
+        const b = makeBottle(RECIPES_BY_ID[p.recipe].color, tierFor(p.degrees).color);
+        b.scale.setScalar(0.38);
+        b.position.set(this.marketPos.x - 0.55 + i * 0.36, 0.84, this.marketPos.z + 0.1 + i * 0.1);
+        this.shelfBottles.add(b);
+      });
+    }
+    // fish drying on the rack mirrors your bucket
+    const rack = this.dyn.getObjectByName('rack');
+    if (rack && rack.userData.n !== Math.min(5, s.bucket.length)) {
+      rack.userData.n = Math.min(5, s.bucket.length);
+      for (const c of rack.children.filter((c) => c.userData.fish)) rack.remove(c);
+      s.bucket.slice(0, 5).forEach((f, i) => {
+        const fm = makeFish(f.species);
+        fm.group.scale.setScalar(0.32);
+        fm.group.rotation.z = -Math.PI / 2;
+        fm.group.position.set(-0.4 + i * 0.2, 0.75, 0.05);
+        fm.group.userData.fish = true;
+        rack.add(fm.group);
+      });
+    }
+  }
+
+  jarScreen(i: number): ScreenPt | null {
+    const p = this.jarPos[i];
+    if (!p) return null;
+    return this.world.project(p, this.camera);
+  }
+  marketScreen(): ScreenPt {
+    return this.world.project(this.marketPos.clone().setY(0.8), this.camera);
+  }
+}
+
+// =============== Reveal showcase ===============
+class Showcase {
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(34, W / H, 0.1, 100);
+  private jar = makeJar();
+  private bottle: THREE.Group | null = null;
+  private bottleKey = '';
+  private burst = makeSunburst();
+  private glow = new THREE.PointLight(0xffd38a, 0, 6);
+
+  constructor() {
+    this.scene.background = new THREE.Color('#2a1a10');
+    this.camera.position.set(0, 1.25, 12);
+    this.camera.lookAt(0, 1.25, 0);
+    this.scene.add(new THREE.HemisphereLight(0xfff1dc, 0x3a2a1a, 1.2));
+    const key = new THREE.DirectionalLight(0xffffff, 1.6);
+    key.position.set(2, 4, 5);
+    this.scene.add(key);
+    this.burst.position.set(0, 1.0, -3);
+    this.burst.scale.setScalar(1.6);
+    this.scene.add(this.burst);
+    this.jar.group.scale.setScalar(1.9);
+    this.scene.add(this.jar.group);
+    this.glow.position.set(0, 1.5, -1);
+    this.scene.add(this.glow);
+  }
+
+  sync(r: RevealOverlay, t: number): void {
+    const tier = tierFor(r.shown);
+    const ti = TIERS.indexOf(tier);
+    const burstMat = this.burst.material as THREE.MeshBasicMaterial;
+    this.burst.rotation.z = t * 0.3;
+    if (r.phase === 'knock') {
+      const k = r.knockT;
+      this.jar.group.position.set(0, 0.3, 0);
+      this.jar.group.rotation.z = Math.sin(t * 40) * 0.08 * k;
+      this.jar.group.scale.set(1.9 * (1 + k * 0.08), 1.9 * (1 - k * 0.08), 1.9 * (1 + k * 0.08));
+      this.jar.lid.position.y = 1 + r.knocks * 0.03 + k * 0.08;
+      this.jar.lid.rotation.set(0, 0, Math.sin(t * 30) * 0.05 * k);
+      this.jar.lid.visible = true;
+      burstMat.color.set('#ffdca0');
+      burstMat.opacity = 0.08 + r.knocks * 0.08;
+      this.glow.intensity = r.knocks * 1.5;
+      if (this.bottle) this.bottle.visible = false;
+      return;
+    }
+    const popK = r.phase === 'pop' ? Math.min(1, r.phaseT / 0.7) : 1;
+    this.jar.group.rotation.z = 0;
+    const settle = Math.min(1, popK * 1.5);
+    this.jar.group.scale.setScalar(1.9 - 0.5 * settle);
+    this.jar.group.position.set(0, 0.3 - 1.35 * settle, 0);
+    this.jar.lid.position.set(popK * 2.5, 1 + popK * 4, popK * 1.5);
+    this.jar.lid.rotation.set(popK * 5, 0, popK * 3);
+    const key = r.recipeId + '|' + (r.phase === 'done' ? tier.id : 'x');
+    if (key !== this.bottleKey) {
+      this.bottleKey = key;
+      if (this.bottle) this.scene.remove(this.bottle);
+      this.bottle = makeBottle(RECIPES_BY_ID[r.recipeId].color, r.phase === 'done' ? tier.color : '#fff8ec');
+      this.bottle.scale.setScalar(1.55);
+      this.scene.add(this.bottle);
+    }
+    const b = this.bottle!;
+    b.visible = true;
+    const rise = 1 + 2.70158 * Math.pow(popK - 1, 3) + 1.70158 * Math.pow(popK - 1, 2);
+    b.position.set(0, -0.6 + rise * 0.95, 0.3);
+    b.rotation.y = r.phase === 'done' ? Math.sin(t * 1.2) * 0.5 : t * 2;
+    burstMat.color.set(r.phase === 'pop' ? '#ffe6a0' : tier.color);
+    burstMat.opacity = 0.12 + ti * 0.05;
+    this.glow.intensity = 1 + ti * 0.6;
+    this.glow.color.set(tier.color);
+  }
+}
+
+// =============== World ===============
+export class World {
+  renderer: THREE.WebGLRenderer;
+  scene = new THREE.Scene();
+  fishing: FishingRig;
+  village: VillageRig;
+  showcase = new Showcase();
+  private mode: 'village' | 'fishing' = 'village';
+  private sun: THREE.DirectionalLight;
+
+  constructor(canvas: HTMLCanvasElement) {
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.scene.add(new THREE.HemisphereLight(0xfff4e0, 0x6a8f6a, 1.5));
+    this.sun = new THREE.DirectionalLight(0xfff0d8, 2.0);
+    this.sun.position.set(5, 12, 7);
+    this.sun.castShadow = true;
+    this.sun.shadow.mapSize.set(1024, 1024);
+    const sc = this.sun.shadow.camera;
+    sc.left = -9;
+    sc.right = 9;
+    sc.top = 9;
+    sc.bottom = -9;
+    this.scene.add(this.sun);
+    this.fishing = new FishingRig(this);
+    this.village = new VillageRig(this);
+    this.scene.add(this.village.root, this.fishing.root);
+  }
+
+  resize(cssW: number, cssH: number, dpr: number): void {
+    this.renderer.setPixelRatio(dpr);
+    this.renderer.setSize(cssW, cssH, false);
+  }
+
+  project(p: THREE.Vector3, cam: THREE.Camera): ScreenPt {
+    const v = p.clone().project(cam);
+    return { x: ((v.x + 1) / 2) * W, y: ((1 - v.y) / 2) * H };
+  }
+
+  render(game: Game, dt: number): void {
+    const reveal = game.overlays.find((o) => o.name === 'reveal') as RevealOverlay | undefined;
+    if (reveal) {
+      this.showcase.sync(reveal, game.time);
+      this.renderer.render(this.showcase.scene, this.showcase.camera);
+      return;
+    }
+    this.mode = game.scene.name === 'fishing' ? 'fishing' : 'village';
+    this.village.root.visible = this.mode === 'village';
+    this.fishing.root.visible = this.mode === 'fishing';
+    let cam: THREE.PerspectiveCamera;
+    if (this.mode === 'fishing') {
+      this.fishing.sync(game.scene as FishingScene, game, dt);
+      cam = this.fishing.camera;
+    } else {
+      this.village.sync(game, dt);
+      cam = this.village.camera;
+    }
+    this.renderer.render(this.scene, cam);
+  }
+}
+

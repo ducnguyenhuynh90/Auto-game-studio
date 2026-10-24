@@ -2,16 +2,21 @@ import { analytics } from './core/analytics';
 import { resetSave } from './core/save';
 import { Game } from './game';
 import { H, W } from './render/draw';
+import { World } from './render3d/world';
 import { FishingScene } from './scenes/fishing';
 import { VillageScene } from './scenes/village';
+import { RevealOverlay } from './scenes/jar';
+import { addCatch, sealJar } from './core/state';
 
 const params = new URLSearchParams(location.search);
 if (params.has('reset')) resetSave();
 
 const canvas = document.getElementById('game') as HTMLCanvasElement;
 const ctx = canvas.getContext('2d')!;
+const worldCanvas = document.getElementById('world') as HTMLCanvasElement;
 const seed = Number(params.get('seed') ?? Date.now() % 1e9);
 const game = new Game(seed);
+game.world = new World(worldCanvas);
 if (params.has('speed')) game.timeScale = Number(params.get('speed'));
 
 game.goVillage = () => game.setScene(new VillageScene(game));
@@ -21,6 +26,19 @@ game.goFishing = (zone) => {
 };
 game.goVillage();
 
+// Dev-only shortcuts for visual QA: ?scene=fishing | reef | reveal
+if (import.meta.env.DEV && params.has('scene')) {
+  const which = params.get('scene');
+  const st = game.state;
+  if (which === 'fishing' || which === 'reef') game.goFishing(which === 'reef' ? 'reef' : 'lagoon');
+  if (which === 'reveal') {
+    for (let i = 0; i < 3; i++) addCatch(st, 'anchovy', 10, 0.9);
+    sealJar(st, 0, st.bucket.map((f) => f.uid), game.rng, Date.now());
+    st.stats.trips++;
+    game.push(new RevealOverlay(game, 0));
+  }
+}
+
 analytics.funnelStep('first_launch');
 analytics.track('session_start', { trips: game.state.stats.trips, coins: game.state.coins, returning: game.state.stats.catches > 0 });
 
@@ -29,8 +47,11 @@ let scale = 1;
 function resize(): void {
   const dpr = Math.min(3, window.devicePixelRatio || 1);
   scale = Math.min(window.innerWidth / W, window.innerHeight / H);
-  canvas.style.width = `${W * scale}px`;
-  canvas.style.height = `${H * scale}px`;
+  for (const c of [canvas, worldCanvas]) {
+    c.style.width = `${W * scale}px`;
+    c.style.height = `${H * scale}px`;
+  }
+  game.world?.resize(W * scale, H * scale, dpr);
   canvas.width = Math.round(W * scale * dpr);
   canvas.height = Math.round(H * scale * dpr);
   ctx.setTransform(scale * dpr, 0, 0, scale * dpr, 0, 0);
@@ -64,6 +85,7 @@ function frame(now: number): void {
   const dt = (now - last) / 1000;
   last = now;
   game.update(dt);
+  game.world?.render(game, Math.min(0.05, dt) * game.timeScale);
   ctx.clearRect(0, 0, W, H);
   game.draw(ctx);
   requestAnimationFrame(frame);

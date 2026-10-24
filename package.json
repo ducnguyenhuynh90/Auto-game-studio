@@ -13,9 +13,13 @@
     "sim": "vite-node tools/sim.ts"
   },
   "devDependencies": {
+    "@types/three": "^0.170.0",
     "typescript": "~5.8",
     "vite": "^6.4.5",
     "vite-node": "^3.2.4",
     "vitest": "^3.2.7"
+  },
+  "dependencies": {
+    "three": "^0.170.0"
   }
 }

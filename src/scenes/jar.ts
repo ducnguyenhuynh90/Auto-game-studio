@@ -3,7 +3,7 @@ import { analytics } from '../core/analytics';
 import { BALANCE, RARITY_COLOR, RECIPES_BY_ID, SPECIES_BY_ID, TIERS, tierFor } from '../core/data';
 import { agingLevel, bestJarFill, canFerment, jarDegrees, openJar, productPrice, recipeFor, sealJar, sellProduct, type Product } from '../core/state';
 import { sfx, vibrate } from '../render/audio';
-import { COLORS, H, W, clamp01, drawBottle, drawFish, drawJar, ease, outlinedText, panel, rr, star, text, type Ctx } from '../render/draw';
+import { COLORS, H, W, clamp01, drawFish, drawJar, ease, outlinedText, panel, rr, star, text, type Ctx } from '../render/draw';
 import type { Game, Scene } from '../game';
 
 export class JarFillOverlay implements Scene {
@@ -132,6 +132,7 @@ type RevealPhase = 'knock' | 'pop' | 'count' | 'done';
 
 export class RevealOverlay implements Scene {
   name = 'reveal';
+  opaque = true;
   t = 0;
   phase: RevealPhase = 'knock';
   knocks = 0;
@@ -144,8 +145,8 @@ export class RevealOverlay implements Scene {
   newRecipe = false;
   newBest = false;
   sold = false;
-  private readonly degrees: number;
-  private readonly recipe: string;
+  readonly degrees: number;
+  readonly recipeId: string;
   private readonly agingLvl: number;
 
   constructor(
@@ -156,7 +157,7 @@ export class RevealOverlay implements Scene {
     const j = s.jars[jarIndex];
     // Quality is fully determined before the reveal: the animation only shows it.
     this.degrees = jarDegrees(s, j, Date.now());
-    this.recipe = j.recipe;
+    this.recipeId = j.recipe;
     this.agingLvl = agingLevel(s, j, Date.now());
   }
 
@@ -209,7 +210,7 @@ export class RevealOverlay implements Scene {
       sfx.catch();
     }
     vibrate(ti >= 3 ? [60, 40, 60, 40, 200] : 80);
-    analytics.track('jar_open', { recipe: this.recipe, degrees: this.degrees, tier: tier.id, aging: this.agingLvl, newRecipe: res.newRecipe });
+    analytics.track('jar_open', { recipe: this.recipeId, degrees: this.degrees, tier: tier.id, aging: this.agingLvl, newRecipe: res.newRecipe });
     analytics.funnelStep('first_reveal', { tier: tier.id });
     this.game.commit();
   }
@@ -220,7 +221,7 @@ export class RevealOverlay implements Scene {
     this.knockT = 1;
     sfx.knock(this.knocks);
     vibrate(20 + this.knocks * 15);
-    this.game.particles.burst(W / 2, 300, 6 + this.knocks * 6, ['#ffe9a8', '#fff'], { speed: 140 + this.knocks * 60, size: 4, g: 100, life: 0.6 });
+    this.game.particles.burst(W / 2, 330, 6 + this.knocks * 6, ['#ffe9a8', '#fff'], { speed: 140 + this.knocks * 60, size: 4, g: 100, life: 0.6 });
     if (this.knocks >= 3) {
       this.phase = 'pop';
       this.phaseT = 0;
@@ -245,68 +246,24 @@ export class RevealOverlay implements Scene {
   }
 
   draw(ctx: Ctx): void {
+    // Jar, bottle, glow and sunburst are rendered by the 3D showcase (render3d/world.ts).
     const s = this.game.state;
-    ctx.fillStyle = 'rgba(15,10,5,0.82)';
-    ctx.fillRect(0, 0, W, H);
     const tier = tierFor(this.shown);
     const ti = TIERS.indexOf(tier);
-    // light rays intensify through the sequence
-    const rayK = this.phase === 'knock' ? this.knocks * 0.06 : this.phase === 'pop' ? 0.25 : 0.2 + ti * 0.05;
-    ctx.save();
-    ctx.translate(W / 2, 300);
-    ctx.rotate(this.t * 0.3);
-    ctx.fillStyle = this.phase === 'knock' ? `rgba(255,220,150,${rayK})` : hexA(tier.color, rayK);
-    for (let i = 0; i < 14; i++) {
-      ctx.rotate((Math.PI * 2) / 14);
-      ctx.beginPath();
-      ctx.moveTo(0, 0);
-      ctx.lineTo(-34, -480);
-      ctx.lineTo(34, -480);
-      ctx.fill();
-    }
-    ctx.restore();
-
-    const recipe = RECIPES_BY_ID[this.recipe];
+    const recipe = RECIPES_BY_ID[this.recipeId];
+    outlinedText(ctx, recipe.name, W / 2, 110, 26, '#fff', COLORS.ink, 6);
     if (this.phase === 'knock') {
-      const wob = Math.sin(this.t * 40) * 0.08 * this.knockT;
-      const sq = 1 + this.knockT * 0.06;
-      ctx.save();
-      ctx.translate(W / 2, 420);
-      ctx.scale(sq, 2 - sq);
-      drawJar(ctx, 0, 0, 170, { wobble: wob, glow: 0.3 + this.knocks * 0.25, lidOffset: this.knocks * 4 + this.knockT * 8 });
-      ctx.restore();
-      // cracks of light leaking from the lid
-      ctx.strokeStyle = `rgba(255,235,170,${0.4 + this.knocks * 0.2})`;
-      ctx.lineWidth = 3;
-      for (let i = 0; i < this.knocks * 3; i++) {
-        const a = -Math.PI / 2 + (i - this.knocks * 1.5) * 0.25;
-        ctx.beginPath();
-        ctx.moveTo(W / 2 + Math.cos(a) * 60, 250 + Math.sin(a) * 20);
-        ctx.lineTo(W / 2 + Math.cos(a) * 120, 250 + Math.sin(a) * 60);
-        ctx.stroke();
-      }
-      outlinedText(ctx, recipe.name, W / 2, 140, 26, '#fff', COLORS.ink, 6);
-      text(ctx, `Aged ${'★'.repeat(this.agingLvl)}${'☆'.repeat(BALANCE.maxAging - this.agingLvl)}`, W / 2, 172, 16, COLORS.gold);
+      text(ctx, `Aged ${'★'.repeat(this.agingLvl)}${'☆'.repeat(BALANCE.maxAging - this.agingLvl)}`, W / 2, 144, 16, COLORS.gold);
       const p = 1 + Math.sin(this.t * 6) * 0.06;
-      outlinedText(ctx, ['TAP to open!', 'Again!', 'One more!'][this.knocks] ?? '', W / 2, 560, 34 * p, '#fff', COLORS.ink, 7);
+      outlinedText(ctx, ['TAP to open!', 'Again!', 'One more!'][this.knocks] ?? '', W / 2, 640, 34 * p, '#fff', COLORS.ink, 7);
       return;
     }
-
-    // jar after pop: lid flies away, bottle rises
-    const popK = this.phase === 'pop' ? clamp01(this.phaseT / 0.7) : 1;
-    drawJar(ctx, W / 2, 560, 150, { lidOffset: 20 + popK * 600, lidAngle: popK * 4, glow: 0.8 });
-    const rise = ease.outBack(popK);
-    const by = 560 - 80 - rise * 160;
-    drawBottle(ctx, W / 2, by, 190, this.recipe, tier.color);
-    outlinedText(ctx, recipe.name, W / 2, 120, 26, '#fff', COLORS.ink, 6);
-
     if (this.phase === 'count' || this.phase === 'done') {
-      // the degree counter
       const done = this.phase === 'done';
       const stamp = done ? ease.outElastic(clamp01(this.phaseT / 0.7)) : 1;
-      outlinedText(ctx, `${this.shown.toFixed(1)}°N`, W / 2, 180, 52 * (done ? 1 + (stamp - 1) * 0.3 : 1), '#fff', COLORS.ink, 8);
+      outlinedText(ctx, `${this.shown.toFixed(1)}°N`, W / 2, 168, 52 * (done ? 1 + (stamp - 1) * 0.3 : 1), '#fff', COLORS.ink, 8);
       ctx.save();
-      ctx.translate(W / 2, 236);
+      ctx.translate(W / 2, 224);
       ctx.scale(stamp, stamp);
       ctx.rotate(done ? -0.06 : 0);
       ctx.fillStyle = tier.color;
@@ -317,34 +274,33 @@ export class RevealOverlay implements Scene {
       ctx.stroke();
       outlinedText(ctx, tier.name.toUpperCase(), 0, 1, 26, '#fff', COLORS.ink, 5);
       ctx.restore();
-      // tier ladder so players see how close the next tier was (honest, from real value)
+      // tier ladder: shows how close the next tier was, from the real value
       const lx = 40;
       const lw = W - 80;
       const maxD = 50;
       ctx.fillStyle = 'rgba(255,255,255,0.15)';
-      rr(ctx, lx, 280, lw, 10, 5);
+      rr(ctx, lx, 268, lw, 10, 5);
       ctx.fill();
       TIERS.forEach((t) => {
         ctx.fillStyle = t.color;
-        ctx.fillRect(lx + (lw * t.min) / maxD - 1, 276, 3, 18);
+        ctx.fillRect(lx + (lw * t.min) / maxD - 1, 264, 3, 18);
       });
       ctx.fillStyle = tier.color;
-      rr(ctx, lx, 280, (lw * Math.min(maxD, this.shown)) / maxD, 10, 5);
+      rr(ctx, lx, 268, (lw * Math.min(maxD, this.shown)) / maxD, 10, 5);
       ctx.fill();
     }
-
     if (this.phase === 'done' && this.product) {
-      if (this.newRecipe) this.badge(ctx, W / 2 + 120, 120, 'NEW\nRECIPE', COLORS.bad);
-      else if (this.newBest) this.badge(ctx, W / 2 + 120, 120, 'NEW\nBEST', '#3a8fd9');
+      if (this.newRecipe) this.badge(ctx, W / 2 + 125, 150, 'NEW\nRECIPE', COLORS.bad);
+      else if (this.newBest) this.badge(ctx, W / 2 + 125, 150, 'NEW\nBEST', '#3a8fd9');
       const next = TIERS[ti + 1];
-      if (next) text(ctx, `${(next.min - this.degrees).toFixed(1)}°N from ${next.name}`, W / 2, 312, 14, 'rgba(255,255,255,0.75)');
+      if (next) text(ctx, `${(next.min - this.degrees).toFixed(1)}°N from ${next.name}`, W / 2, 298, 14, 'rgba(255,255,255,0.75)');
       if (this.phaseT > 0.6) {
         const tip = this.agingLvl < BALANCE.maxAging ? 'Tip: let jars age longer (more trips) for higher °N' : 'Tip: perfect catches make fresher, stronger sauce';
         text(ctx, tip, W / 2, 668, 13, 'rgba(255,255,255,0.7)');
         const price = productPrice(s, this.product);
         this.game.button(ctx, 'sell', 30, 700, 200, 76, `Sell ${price}`, () => this.sell(), { color: COLORS.good, dark: '#2f7a3b', coin: true, size: 26, pulse: true });
         this.game.button(ctx, 'keep', 240, 700, 120, 76, 'Keep', () => {
-          analytics.track('keep_product', { recipe: this.recipe, degrees: this.degrees });
+          analytics.track('keep_product', { recipe: this.recipeId, degrees: this.degrees });
           this.game.pop(this);
         }, { color: '#8a7a66', dark: '#5f5244', size: 22, sub: 'sell later' });
       }
@@ -365,9 +321,4 @@ export class RevealOverlay implements Scene {
     label.split('\n').forEach((l, i) => outlinedText(ctx, l, 0, -8 + i * 17, 14, '#fff', COLORS.ink, 3));
     ctx.restore();
   }
-}
-
-function hexA(hex: string, a: number): string {
-  const n = parseInt(hex.slice(1), 16);
-  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
 }
