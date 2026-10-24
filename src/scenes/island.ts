@@ -54,7 +54,11 @@ export class IslandScene implements Scene {
   selected: number | null = null;
   private introChecked = false;
 
-  constructor(private game: Game) {
+  constructor(
+    private game: Game,
+    tile?: number,
+  ) {
+    if (tile !== undefined) this.selected = tile;
     game.islandOut = { fish: 0, salt: 0, jars: 0, bottles: 0, coins: 0 };
     analytics.track('island_open', { level: islandLevel(game.state), staff: game.state.island.staff.length });
   }

@@ -16,7 +16,8 @@ import { MapScene } from './scenes/map';
 import { IslandScene } from './scenes/island';
 import { PuzzleHubOverlay, SaltPuzzleOverlay, ShopPuzzleOverlay } from './scenes/puzzles';
 import { FISHING_LEVELS } from './core/puzzles';
-import { catchUp } from './core/island';
+import { SCENES } from './core/story';
+import { build, buyPlot, canExpand, catchUp, hire, terrain, type BuildingId } from './core/island';
 import { RevealOverlay } from './scenes/jar';
 import { addCatch, canFerment, sealJar, upgradeCost } from './core/state';
 import { UPGRADES } from './core/data';
@@ -64,7 +65,7 @@ if (params.has('speed')) game.timeScale = Number(params.get('speed'));
 
 game.goVillage = () => game.setScene(new VillageScene(game));
 game.goMap = () => game.setScene(new MapScene(game));
-game.goIsland = () => game.setScene(new IslandScene(game));
+game.goIsland = (tile) => game.setScene(new IslandScene(game, tile));
 game.goPuzzles = () => {
   game.goIsland();
   game.push(new PuzzleHubOverlay(game));
@@ -108,6 +109,24 @@ if (import.meta.env.DEV && params.has('scene')) {
   if (which && which in SEAS_BY_ID) game.goFishing(which as SeaId);
   if (which === 'fishing') game.goFishing('lagoon');
   if (which === 'map') game.goMap();
+  if (which === 'estate') {
+    // a busy island business for visual QA of the main screen overview
+    st.stats.sold = Math.max(1, st.stats.sold);
+    st.coins = 50000;
+    const I = { buyPlot, build, hire, canExpand, terrain };
+    for (let k = 0; k < 14; k++) {
+      const t = [...Array(63).keys()].find((i) => I.canExpand(st, i) && 'bcsgf'.includes(I.terrain(i)));
+      if (t !== undefined) I.buyPlot(st, t);
+    }
+    const plan: [string, BuildingId][] = [['b', 'dock'], ['c', 'dock'], ['s', 'saltfield'], ['b', 'saltfield'], ['g', 'brewhouse'], ['g', 'shop'], ['g', 'warehouse'], ['g', 'lantern'], ['f', 'lantern']];
+    for (const [ter, id] of plan) {
+      const t = st.island.owned.find((i) => I.terrain(i) === ter && !st.island.buildings.some((b) => b.tile === i));
+      if (t !== undefined && I.build(st, t, id)) I.hire(st, t);
+    }
+    st.coins = 3000;
+    st.storySeen = SCENES.map((x) => x.id);
+    game.goVillage();
+  }
   if (which === 'fpuzzle') game.goFishingPuzzle(Number(params.get('level') ?? 1) - 1);
   if (which === 'island' || which === 'puzzles' || which === 'salt' || which === 'shop') {
     // a small running business for visual QA
@@ -171,17 +190,53 @@ function toLogical(e: PointerEvent): [number, number] {
   const r = canvas.getBoundingClientRect();
   return [((e.clientX - r.left) / r.width) * W, ((e.clientY - r.top) / r.height) * H];
 }
+// Two fingers pinch-zoom (the island overview); one finger taps, holds and drags as before.
+const touches = new Map<number, [number, number]>();
+let pinchDist = 0;
+const spread = () => {
+  const [a, b] = [...touches.values()];
+  return Math.hypot(a[0] - b[0], a[1] - b[1]);
+};
 canvas.addEventListener('pointerdown', (e) => {
   e.preventDefault();
   canvas.setPointerCapture(e.pointerId);
+  touches.set(e.pointerId, toLogical(e));
+  if (touches.size === 2) {
+    pinchDist = spread();
+    // the first finger's press becomes a pinch, not a tap
+    game.pointerCancel();
+    return;
+  }
+  if (touches.size > 2) return;
   game.pointerDown(...toLogical(e));
 });
-canvas.addEventListener('pointerup', (e) => {
+const release = (e: PointerEvent) => {
   e.preventDefault();
+  const wasPinch = touches.size >= 2;
+  touches.delete(e.pointerId);
+  if (wasPinch || touches.size > 0) return;
   game.pointerUp(...toLogical(e));
+};
+canvas.addEventListener('pointerup', release);
+canvas.addEventListener('pointercancel', release);
+canvas.addEventListener('pointermove', (e) => {
+  if (touches.has(e.pointerId)) touches.set(e.pointerId, toLogical(e));
+  if (touches.size === 2) {
+    const d = spread();
+    if (pinchDist > 0 && d > 0) game.zoomBy(d / pinchDist);
+    pinchDist = d;
+    return;
+  }
+  game.pointerMove(...toLogical(e));
 });
-canvas.addEventListener('pointercancel', (e) => game.pointerUp(...toLogical(e)));
-canvas.addEventListener('pointermove', (e) => game.pointerMove(...toLogical(e)));
+canvas.addEventListener(
+  'wheel',
+  (e) => {
+    e.preventDefault();
+    game.zoomBy(Math.exp(-e.deltaY * 0.0015));
+  },
+  { passive: false },
+);
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
 document.addEventListener('visibilitychange', () => {

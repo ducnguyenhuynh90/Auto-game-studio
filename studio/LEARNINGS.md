@@ -57,3 +57,7 @@ Only [PLAYER] entries count as product evidence.
   long level track, with a tycoon island map for growth and trading (D-012, EXP-006).
 - [SIM] Island automation roughly doubles income and shortens the story ~15%; the boat and legends stay
   the gates. Staff output is capped by jar count and aging time more than by fishers.
+- [FOUNDER] 2026-10-24: the main screen didn't reflect the island business; wants a zoomed-out overview
+  where buildings and staff are visible at work. Built 3.1 (living island main screen).
+- [SIM] Rendering: the estate overview cost ~720 draw calls until static geometry was merged per material
+  and clouds instanced (~270). Merge static scenery by default in new 3D scenes.

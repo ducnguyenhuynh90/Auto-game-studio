@@ -128,3 +128,24 @@ Brewer +1°N per level and waits for ★★ aging from Lv 3; Shopkeeper +25% spe
 
 Code: `src/core/island.ts`, `src/core/puzzles.ts` (pure, tested), `src/scenes/island.ts`,
 `src/scenes/puzzles.ts`, fishing puzzle mode in `src/scenes/fishing.ts`. QA: `tools/island-qa.mjs`.
+
+## Living island main screen (build 3.1, founder feedback)
+**Problem:** [FOUNDER] buying buildings and hiring staff didn't show on the main screen.
+**Change:** the village screen is now one continuous 3D world. The village diorama sits on its home plot
+and every island plot, building and staff member is built around it (`src/render3d/estate.ts`).
+- **Island view** (button, pinch out, or mouse wheel) eases the camera up to the estate; **Village**
+  (button, or pinch all the way in) eases back to the jars. The camera frames what you own plus the
+  plots you can buy next, so the view widens as the island grows. Drag to look around; ± and pinch zoom
+  between the whole estate and a close look at one building.
+- **People at work:** fishers stand at the dock with rods and a fish leaps up when they catch one; salt
+  makers rake back and forth across the pans; brewers walk round the barrels and stop to stir;
+  shopkeepers wave; customers walk from the village to the shop (more with a bigger shop). Each piece
+  of real staff output floats up from the worker who made it (+1 fish, +1 salt, +1 jar, +coins).
+- **Plots:** owned land has palms, flowers, salt pans or a pier; plots you can buy show through thin
+  cloud with a price chip; the rest of the island is hidden under a sea of cloud.
+- Labels show each building and its staff (e.g. "Dock 1/1", orange when a slot is empty) and the
+  village's news ("2 jars ready!"). Tapping a plot opens it in Manage; tapping the village zooms in.
+- The screen remembers the last view. It opens on the island once something is built.
+- **Performance:** static land, buildings and each worker are merged per material and the clouds are
+  instanced: the whole overview is ~270 draw calls (it was ~720 unmerged); shadows switch off in the
+  overview.

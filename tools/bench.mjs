@@ -10,7 +10,7 @@ const p = await ctx.newPage();
 const cdp = await ctx.newCDPSession(p);
 await cdp.send('Emulation.setCPUThrottlingRate', { rate: slow });
 const results = {};
-for (const scene of ['', 'fishing', 'reef']) {
+for (const scene of ['', 'fishing', 'reef', 'estate']) {
   const q = `?reset=1&seed=4${scene ? `&scene=${scene}` : ''}${quality ? `&quality=${quality}` : ''}`;
   const t0 = Date.now();
   await p.goto(`http://localhost:5173/${q}`);

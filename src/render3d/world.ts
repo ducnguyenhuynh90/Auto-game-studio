@@ -11,7 +11,9 @@ import type { Game } from '../game';
 import type { FishingScene } from '../scenes/fishing';
 import type { RevealOverlay } from '../scenes/jar';
 import { PROFILES, type Quality, type QualityProfile } from './quality';
+import { Estate, plotCenter } from './estate';
 import {
+  discard,
   setOutlinesEnabled,
   makeBoat,
   makeBottle,
@@ -35,19 +37,6 @@ import {
   type FishModel,
   type JarModel,
 } from './models';
-
-/** Remove an object and free its geometries. Materials are shared/cached, so they are kept,
- * except one-off materials flagged with userData.disposeMat. */
-function discard(obj: THREE.Object3D | null | undefined): void {
-  if (!obj) return;
-  obj.parent?.remove(obj);
-  obj.traverse((o) => {
-    const m = o as THREE.Mesh;
-    // shared template geometry (fish clones) must survive; one-off geometry is freed
-    if (m.geometry && !m.userData.outline && !m.userData.sharedGeo) m.geometry.dispose();
-    if (m.userData.disposeMat) (m.material as THREE.Material).dispose();
-  });
-}
 
 const BUBBLE_GEO = new THREE.SphereGeometry(0.05, 8, 6);
 
@@ -578,7 +567,17 @@ class FishingRig {
 // =============== Village ===============
 class VillageRig {
   root = new THREE.Group();
-  camera = new THREE.PerspectiveCamera(36, W / H, 0.1, 200);
+  camera = new THREE.PerspectiveCamera(36, W / H, 0.1, 900);
+  /** The whole island business around the village (plots, buildings, staff). */
+  estate = new Estate();
+  /** 0 = village close-up, 1 = whole-island overview; `zoom` eases toward `zoomTarget`. */
+  zoom = 0;
+  zoomTarget = 0;
+  /** Overview pan offset (world units), set by dragging. */
+  pan = new THREE.Vector3();
+  /** Overview distance multiplier (pinch / wheel / +−): smaller = closer to the staff at work. */
+  overviewScale = 1;
+  private scaleNow = 1;
   readonly water = new Water(80, 40, '#2aa3b9', 1);
   private sky = skyTexture('#ffc58a', '#ffeccc');
   private dyn = new THREE.Group();
@@ -607,6 +606,7 @@ class VillageRig {
   constructor(private world: World) {
     this.camera.position.set(0, 14, 17.5);
     this.camera.lookAt(0, 0, -0.9);
+    this.root.add(this.estate.root);
     this.water.mesh.position.y = -0.25;
     this.root.add(this.water.mesh);
     // island: sand rim + grass top
@@ -764,11 +764,49 @@ class VillageRig {
     this.dyn.add(mat);
   }
 
+  /** Camera between the village close-up and the island overview; returns the zoom amount. */
+  private placeCamera(s: GameState, dt: number): number {
+    this.zoom += (this.zoomTarget - this.zoom) * Math.min(1, dt * 4);
+    if (Math.abs(this.zoom - this.zoomTarget) < 0.001) this.zoom = this.zoomTarget;
+    const k = this.zoom * this.zoom * (3 - 2 * this.zoom); // smoothstep
+    const closeTarget = new THREE.Vector3(0, 0, -0.9);
+    // frame what you own (it widens as the island grows); the HUD covers the top and bottom bands
+    const f = this.estate.focus(s);
+    this.scaleNow += (this.overviewScale - this.scaleNow) * Math.min(1, dt * 6);
+    const size = Math.max(f.width * 2.0, f.depth * 1.3, 46) * this.scaleNow;
+    // lean toward the village so home stays in view as the estate spreads out
+    const farTarget = f.center.clone().lerp(new THREE.Vector3(), 0.3).add(new THREE.Vector3(0, 0, -size * 0.06)).add(this.pan);
+    const target = closeTarget.lerp(farTarget, k);
+    const offset = new THREE.Vector3(0, 14, 18.4).lerp(new THREE.Vector3(0, size * 1.05, size * 0.95), k);
+    this.camera.position.copy(target).add(offset);
+    this.camera.lookAt(target);
+    return k;
+  }
+
+  /** Screen position of a plot's label anchor (for overview labels and taps). */
+  plotScreen(s: GameState, tile: number): ScreenPt {
+    return this.world.project(this.estate.plotTop(s, tile), this.camera);
+  }
+
+  /** Screen position of the middle of a plot. */
+  plotCenterScreen(tile: number): ScreenPt {
+    return this.world.project(plotCenter(tile), this.camera);
+  }
+
+  /** Screen position of a world point (used for floating staff output). */
+  screenOf(p: THREE.Vector3): ScreenPt {
+    return this.world.project(p, this.camera);
+  }
+
   sync(game: Game, dt: number): void {
     const s = game.state;
     const t = game.time;
+    const k = this.placeCamera(s, dt);
     this.world.scene.background = this.sky;
-    this.world.scene.fog = new THREE.Fog('#ffe3bb', 26, 60);
+    this.world.scene.fog = new THREE.Fog('#ffe3bb', 26 + k * 300, 60 + k * 500);
+    this.world.setOverviewShadows(k > 0.4);
+    this.estate.lite = this.world.quality === 'low';
+    this.estate.sync(s, t, dt);
     this.rebuild(s);
     this.water.update(t);
     const now = Date.now();
@@ -1176,6 +1214,12 @@ export class World {
 
   get particleScale(): number {
     return this.profile.particles;
+  }
+
+  /** The sun's shadow box covers the village; in the island overview shadows are switched off. */
+  setOverviewShadows(overview: boolean): void {
+    const want = this.profile.shadows && !overview;
+    if (this.sun.castShadow !== want) this.sun.castShadow = want;
   }
 
   project(p: THREE.Vector3, cam: THREE.Camera): ScreenPt {

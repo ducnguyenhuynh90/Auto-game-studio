@@ -1,4 +1,6 @@
 // The village hub: your jars, the market, the dock. It visibly grows with every upgrade.
+// Once the island business opens, the same screen zooms out to the whole estate (render3d/estate.ts).
+import { analytics } from '../core/analytics';
 import { BALANCE, SPECIES } from '../core/data';
 import { goalPair, progressLabel } from '../core/goals';
 import { levelForXp, levelProgress } from '../core/progression';
@@ -14,7 +16,27 @@ import { MissionsOverlay, RelicOverlay } from './missions';
 import { SettingsOverlay } from './settings';
 import { StoryOverlay } from './story';
 import { pendingScene } from '../core/story';
-import { islandUnlocked } from '../core/island';
+import { COLS, HOME, ROWS, bucketCap, canExpand, islandLevel, islandUnlocked, plotCost, saltCap, slots, staffAt, terrain } from '../core/island';
+
+const VIEW_KEY = 'mam_view';
+/** Short building names for the crowded overview labels. */
+const SHORT: Record<string, string> = { dock: 'Dock', saltfield: 'Salt', brewhouse: 'Brew', shop: 'Shop', warehouse: 'Store', tradepost: 'Trade', lantern: 'Lights', shrine: 'Shrine' };
+/** The main screen remembers whether you last looked at the village or the whole island. */
+function loadView(): 'village' | 'island' | null {
+  try {
+    const v = localStorage.getItem(VIEW_KEY);
+    return v === 'village' || v === 'island' ? v : null;
+  } catch {
+    return null;
+  }
+}
+function saveView(v: 'village' | 'island'): void {
+  try {
+    localStorage.setItem(VIEW_KEY, v);
+  } catch {
+    /* ignore */
+  }
+}
 
 const JAR_Y = 640;
 
@@ -32,10 +54,97 @@ export class VillageScene implements Scene {
   private tipIdx = 0;
   private goalFlash = 0;
 
-  constructor(private game: Game) {}
+  private drag: { x: number; y: number; px: number; pz: number; moved: number } | null = null;
+
+  constructor(private game: Game) {
+    const v = game.world?.village;
+    if (!v) return;
+    // first visit after building something: show the whole island; otherwise keep the last choice
+    const pref = loadView();
+    const s = game.state;
+    const overview = islandUnlocked(s) && (pref === 'island' || (pref === null && s.island.buildings.length > 0));
+    v.zoomTarget = overview ? 1 : 0;
+  }
+
+  /** True while the camera shows the whole island (labels and taps switch to plots). */
+  get overview(): boolean {
+    return (this.game.world?.village.zoom ?? 0) > 0.5;
+  }
+
+  setView(v: 'village' | 'island'): void {
+    const rig = this.game.world?.village;
+    if (!rig) return;
+    if ((rig.zoomTarget === 1) !== (v === 'island')) analytics.track('view_toggle', { view: v, buildings: this.game.state.island.buildings.length });
+    rig.zoomTarget = v === 'island' ? 1 : 0;
+    if (v === 'village') rig.pan.set(0, 0, 0);
+    else rig.overviewScale = Math.max(rig.overviewScale, 0.6);
+    saveView(v);
+  }
+
+  zoomBy(factor: number): void {
+    const rig = this.game.world?.village;
+    if (!rig) return;
+    if (!this.overview) {
+      // pinching out of the village opens the island view
+      if (factor < 0.9 && islandUnlocked(this.game.state)) this.setView('island');
+      return;
+    }
+    rig.overviewScale = Math.max(0.35, Math.min(1.4, rig.overviewScale / factor));
+    // pinching all the way in lands back in the village
+    if (rig.overviewScale <= 0.35 && factor > 1.05 && rig.pan.length() < 8) this.setView('village');
+  }
+
+  cancel(): void {
+    this.drag = null;
+  }
+
+  down(x: number, y: number): void {
+    const rig = this.game.world?.village;
+    if (!rig || !this.overview) return;
+    this.drag = { x, y, px: rig.pan.x, pz: rig.pan.z, moved: 0 };
+  }
+
+  up(x: number, y: number): void {
+    const d = this.drag;
+    this.drag = null;
+    if (!d || d.moved > 10 || !this.overview) return;
+    // a tap: open the plot under the finger
+    const rig = this.game.world!.village;
+    let best = -1;
+    let bestD = 34;
+    for (let tile = 0; tile < COLS * ROWS; tile++) {
+      if (terrain(tile) === '~') continue;
+      const p = rig.plotCenterScreen(tile);
+      const dist = Math.hypot(p.x - x, p.y - y);
+      if (dist < bestD) {
+        bestD = dist;
+        best = tile;
+      }
+    }
+    if (best < 0) return;
+    if (best === HOME) this.setView('village');
+    else this.game.goIsland(best);
+  }
 
   update(dt: number): void {
     this.t += dt;
+    const rig = this.game.world?.village;
+    if (rig && this.drag && this.game.pointer.down) {
+      const dx = this.game.pointer.x - this.drag.x;
+      const dy = this.game.pointer.y - this.drag.y;
+      this.drag.moved = Math.max(this.drag.moved, Math.hypot(dx, dy));
+      rig.pan.x = Math.max(-45, Math.min(45, this.drag.px - dx * 0.32));
+      rig.pan.z = Math.max(-55, Math.min(55, this.drag.pz - dy * 0.42));
+    }
+    // staff output floats up from the worker who made it (only when you can see them)
+    if (rig) {
+      const evs = rig.estate.events.splice(0);
+      if (this.overview && this.game.overlays.length === 0)
+        for (const e of evs) {
+          const p = rig.screenOf(e.pos);
+          if (p.y > 170 && p.y < 715) this.game.float(p.x, p.y, e.text, e.color, 15);
+        }
+    }
     const g = goalPair(this.game.state).current;
     const id = g?.id ?? '';
     // Relics earned anywhere get their big moment back in the village.
@@ -128,14 +237,85 @@ export class VillageScene implements Scene {
 
   draw(ctx: Ctx): void {
     // The village itself is 3D (render3d/world.ts). This layer adds labels, hit areas and HUD.
-    this.drawJarLabels(ctx);
-    this.drawMarketLabel(ctx);
-    this.drawVillager(ctx);
+    const overview = this.overview;
+    if (overview) this.drawPlotLabels(ctx);
+    else {
+      this.drawJarLabels(ctx);
+      this.drawMarketLabel(ctx);
+      this.drawVillager(ctx);
+    }
     this.drawTopBar(ctx);
     this.drawGoal(ctx);
+    this.drawViewBar(ctx);
     this.drawBottom(ctx);
-    const p = this.pointTarget();
+    const p = overview ? null : this.pointTarget();
     if (p && this.game.overlays.length === 0) this.drawHand(ctx, p.x, p.y);
+  }
+
+  /** Village / Island toggle and, in the overview, a one-line business summary. */
+  private drawViewBar(ctx: Ctx): void {
+    const s = this.game.state;
+    if (!islandUnlocked(s) || !this.game.world) return;
+    const overview = this.overview;
+    this.game.button(ctx, 'view', W - 118, 174, 108, 38, overview ? 'Village' : 'Island view', () => this.setView(overview ? 'village' : 'island'), {
+      color: overview ? '#c9a36a' : '#5cb85c',
+      dark: overview ? '#8f6f40' : '#2f7a3b',
+      size: 14,
+      pulse: !overview && s.island.buildings.length > 0 && loadView() === null,
+    });
+    if (!overview) return;
+    panel(ctx, 10, 174, W - 136, 38, 'rgba(255,248,236,0.93)', 12);
+    const working = s.island.staff.length;
+    text(ctx, `Island Lv ${islandLevel(s)} · ${working} staff · Fish ${s.bucket.length}/${bucketCap(s)} · Salt ${s.island.salt}/${saltCap(s)}`, 10 + (W - 136) / 2, 193, 10.5, COLORS.ink, 'center', 900);
+    text(ctx, 'Drag to look · pinch or ± to zoom · tap a plot', W / 2, 228, 11, '#fff', 'center', 900);
+    const rig = this.game.world!.village;
+    this.game.button(ctx, 'zin', W - 52, 252, 42, 40, '+', () => (rig.overviewScale = Math.max(0.35, rig.overviewScale * 0.7)), { color: '#8a7a66', dark: '#5f5244', size: 22 });
+    this.game.button(ctx, 'zout', W - 52, 298, 42, 40, '−', () => (rig.overviewScale = Math.min(1.4, rig.overviewScale / 0.7)), { color: '#8a7a66', dark: '#5f5244', size: 22 });
+  }
+
+  /** Overview labels: every building with its staff, plots for sale, and the village's news. */
+  private drawPlotLabels(ctx: Ctx): void {
+    const s = this.game.state;
+    const rig = this.game.world!.village;
+    const visible = (p: { x: number; y: number }) => p.x > -20 && p.x < W + 20 && p.y > 236 && p.y < 712;
+    for (const b of s.island.buildings) {
+      const p = rig.plotScreen(s, b.tile);
+      if (!visible(p)) continue;
+      const n = slots(b);
+      const label = n ? `${SHORT[b.id]} ${staffAt(s, b.tile).length}/${n}` : SHORT[b.id];
+      this.chip(ctx, p.x, p.y, label, n && staffAt(s, b.tile).length < n ? '#e67e22' : 'rgba(255,248,236,0.92)', n && staffAt(s, b.tile).length < n ? '#fff' : COLORS.ink);
+    }
+    const cost = plotCost(s);
+    for (let tile = 0; tile < COLS * ROWS; tile++) {
+      if (!canExpand(s, tile)) continue;
+      const p = rig.plotScreen(s, tile);
+      if (!visible(p)) continue;
+      this.chip(ctx, p.x, p.y, `+ ${cost}`, s.coins >= cost ? COLORS.good : 'rgba(43,33,24,0.55)', '#fff');
+    }
+    // the village: jars that need you, bottles to sell
+    const h = rig.plotScreen(s, HOME);
+    const ready = s.jars.filter((j) => j.sealed && agingLevel(s, j, Date.now()) >= 1).length;
+    const news = ready ? `${ready} jar${ready > 1 ? 's' : ''} ready!` : s.shelf.length ? `${s.shelf.length} to sell` : 'Mắm Village';
+    if (visible(h)) {
+      const b = ready ? 1 + Math.sin(this.t * 5) * 0.06 : 1;
+      ctx.save();
+      ctx.translate(h.x, h.y - 24);
+      ctx.scale(b, b);
+      this.chip(ctx, 0, 0, news, ready ? COLORS.gold : COLORS.paper, COLORS.ink);
+      ctx.restore();
+    }
+  }
+
+  private chip(ctx: Ctx, x: number, y: number, label: string, bg: string, fg: string): void {
+    ctx.font = font(11, 900);
+    const w = ctx.measureText(label).width + 16;
+    ctx.fillStyle = 'rgba(0,0,0,0.18)';
+    rr(ctx, x - w / 2, y - 9, w, 22, 11);
+    ctx.fill();
+    ctx.fillStyle = bg;
+    rr(ctx, x - w / 2, y - 11, w, 22, 11);
+    ctx.fill();
+    text(ctx, label, x, y, 11, fg, 'center', 900);
   }
 
   /** Context-aware advice from the villager: what matters now first, then general craft tips. */
@@ -364,7 +544,7 @@ export class VillageScene implements Scene {
     if (islandUnlocked(s)) {
       // the island business sits above the sea chart once the first bottle is sold
       const fresh = s.island.buildings.length === 0;
-      this.game.button(ctx, 'island', 296, 722, 84, 42, 'Island', () => this.game.goIsland(), { color: '#5cb85c', dark: '#2f7a3b', size: 16, pulse: fresh });
+      this.game.button(ctx, 'island', 296, 722, 84, 42, 'Manage', () => this.game.goIsland(), { color: '#5cb85c', dark: '#2f7a3b', size: 16, pulse: fresh });
       this.game.button(ctx, 'map', 296, 768, 84, 40, 'Sea Chart', () => this.game.goMap(), { color: '#c9a36a', dark: '#8f6f40', size: 13, pulse: mapNew });
       if (fresh) outlinedText(ctx, 'NEW', 368, 722, 12, COLORS.gold, COLORS.ink, 3);
     } else this.game.button(ctx, 'map', 296, 722, 84, 86, 'Map', () => this.game.goMap(), { color: '#c9a36a', dark: '#8f6f40', size: 20, sub: 'Sea Chart', pulse: mapNew });

@@ -24,6 +24,10 @@ export interface Scene {
   draw(ctx: Ctx): void;
   down?(x: number, y: number): void;
   up?(x: number, y: number): void;
+  /** Two-finger pinch or mouse wheel: factor > 1 means zoom in. */
+  zoomBy?(factor: number): void;
+  /** The current press was abandoned (became a pinch). */
+  cancel?(): void;
 }
 
 interface Hit {
@@ -85,7 +89,8 @@ export class Game {
   goVillage: () => void = () => {};
   goFishing: (sea: SeaId) => void = () => {};
   goMap: () => void = () => {};
-  goIsland: () => void = () => {};
+  /** The island management map, optionally with a plot selected. */
+  goIsland: (tile?: number) => void = () => {};
   /** Starts fishing puzzle `index` (a fixed school of fish, see core/puzzles.ts). */
   goFishingPuzzle: (index: number) => void = () => {};
   /** The island map with the puzzle hub open. */
@@ -185,6 +190,18 @@ export class Game {
       return;
     }
     if (!pressed) this.top.up?.(x, y);
+  }
+
+  /** Pinch / wheel zoom goes to the top scene. */
+  zoomBy(factor: number): void {
+    this.top.zoomBy?.(factor);
+  }
+
+  /** Abandons the current press without firing it (a second finger turned it into a pinch). */
+  pointerCancel(): void {
+    this.pointer.down = false;
+    this.pressedId = null;
+    this.top.cancel?.();
   }
 
   pointerMove(x: number, y: number): void {

@@ -49,6 +49,19 @@ export function mesh(geo: THREE.BufferGeometry, mat: THREE.Material, cast = true
   return m;
 }
 
+/** Remove an object and free its geometries. Materials are shared/cached, so they are kept,
+ * except one-off materials flagged with userData.disposeMat. */
+export function discard(obj: THREE.Object3D | null | undefined): void {
+  if (!obj) return;
+  obj.parent?.remove(obj);
+  obj.traverse((o) => {
+    const m = o as THREE.Mesh;
+    // shared template geometry (fish clones) must survive; one-off geometry is freed
+    if (m.geometry && !m.userData.outline && !m.userData.sharedGeo) m.geometry.dispose();
+    if (m.userData.disposeMat) (m.material as THREE.Material).dispose();
+  });
+}
+
 // ---------- Fish ----------
 export interface FishModel {
   group: THREE.Group;
@@ -1113,8 +1126,8 @@ export function makeBuilding(id: string, level = 1): THREE.Group {
 }
 
 /** Island staff as chunky toy figures: one prop per role so jobs read at a glance. */
-export function makeWorker(role: string): THREE.Group {
-  const shirt = { fisher: '#2f8fbf', salter: '#f2f2ea', brewer: '#8a4a3a', seller: '#e67e22' }[role] ?? '#888888';
+export function makeWorker(role: string, shirtColor?: string): THREE.Group {
+  const shirt = shirtColor ?? { fisher: '#2f8fbf', salter: '#f2f2ea', brewer: '#8a4a3a', seller: '#e67e22' }[role] ?? '#888888';
   const g = new THREE.Group();
   const body = mesh(new THREE.CapsuleGeometry(0.22, 0.32, 6, 14), toon(shirt));
   outline(body, 1.06);
