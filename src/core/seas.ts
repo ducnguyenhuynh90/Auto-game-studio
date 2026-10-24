@@ -45,7 +45,7 @@ export const SEAS: Sea[] = [
     relic: 'turtle',
     look: { water: '#2aa3b9', skyTop: '#ffc98f', skyBottom: '#ffeccc', fog: '#ffe3bb' },
     missions: [
-      { id: 'l_good', text: 'Land 3 fresh catches (★★ or better)', progress: (s) => cap(seaStat(s, 'lagoon', 'goods'), 3), reward: { coins: 15, xp: 40 } },
+      { id: 'l_good', text: 'Land 3 fresh catches (★★+)', progress: (s) => cap(seaStat(s, 'lagoon', 'goods'), 3), reward: { coins: 15, xp: 40 } },
       { id: 'l_sardine', text: 'Catch 5 Sardines', progress: (s) => cap(caught(s, 'sardine'), 5), reward: { coins: 20, xp: 40, gadget: 'sonar' } },
       { id: 'l_fine', text: 'Brew a Fine sauce (22°N+)', progress: (s) => cap(bestDegrees(s) >= 22 ? 1 : 0, 1), reward: { coins: 30, xp: 60 } },
       { id: 'l_mackerel', text: 'Catch a deep-water Mackerel', progress: (s) => cap(caught(s, 'mackerel'), 1), reward: { coins: 40, xp: 80, gadget: 'salt' } },

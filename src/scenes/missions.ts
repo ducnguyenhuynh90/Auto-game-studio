@@ -1,5 +1,5 @@
 // Captain's Log (all missions, relics and gadgets at a glance) and the relic-unlock celebration.
-import { GOALS } from '../core/goals';
+import { GOALS, progressLabel } from '../core/goals';
 import { GADGETS, RELICS, type GadgetId, type RelicId } from '../core/items';
 import { levelForXp, levelProgress, xpForLevel } from '../core/progression';
 import { SEAS, SEAS_BY_ID, seaLock } from '../core/seas';
@@ -117,7 +117,7 @@ export class MissionsOverlay implements Scene {
         ctx.fillStyle = COLORS.good;
         rr(ctx, 60, y + 10, 120 * Math.min(1, c / t), 6, 3);
         ctx.fill();
-        text(ctx, `${c}/${t}`, 186, y + 13, 10, COLORS.ink, 'left');
+        text(ctx, progressLabel({ text: m.text, progress: [c, t] }), 186, y + 13, 11, COLORS.ink, 'left', 800);
       }
       drawCoin(ctx, W - 92, y + 4, 8);
       text(ctx, String(m.reward.coins), W - 80, y + 5, 12, COLORS.ink, 'left');

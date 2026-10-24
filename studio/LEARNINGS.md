@@ -46,3 +46,5 @@ Only [PLAYER] entries count as product evidence.
   summary (the summary was per device, but the doc was per player). Fixed in 2.2.1 with per-device docs;
   the lost doc was restored from an earlier export. On that second visit the first cast came at 7 s
   (vs 99 s on the first visit), but the first visit likely included exploring.
+- [FOUNDER] 2026-10-24: goal text was too small, and bare "2/3" counters didn't read as progress. The banner is
+  now 18 px with a "Caught 2/3" verb label and a 14 px Next line; the fishing HUD shows the live counter.

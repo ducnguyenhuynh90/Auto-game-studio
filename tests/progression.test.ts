@@ -153,3 +153,13 @@ describe('goal banner', () => {
     }
   });
 });
+
+describe('progress labels', () => {
+  it('reads like what the player did', async () => {
+    const { progressLabel } = await import('../src/core/goals');
+    expect(progressLabel({ text: 'Catch 3 fish', progress: [2, 3] })).toBe('Caught 2/3');
+    expect(progressLabel({ text: 'Land 3 fresh catches (★★+)', progress: [1, 3] })).toBe('Landed 1/3');
+    expect(progressLabel({ text: 'Brew a Fine sauce (22°N+)', progress: [0, 1] })).toBe('Brewed 0/1');
+    expect(progressLabel({ text: 'Sail somewhere new', progress: [0, 1] })).toBe('Done 0/1');
+  });
+});

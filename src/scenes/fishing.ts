@@ -4,10 +4,11 @@ import { BALANCE, RARITY_COLOR, RARITY_LABEL, SPECIES_BY_ID, type SeaId } from '
 import { Reel, castDistance, castPower, rollShadow, type ShadowSpec } from '../core/fishing';
 import { GADGETS, hasRelic, type GadgetId } from '../core/items';
 import { SEAS_BY_ID } from '../core/seas';
+import { goalPair, progressLabel } from '../core/goals';
 import { range } from '../core/rng';
 import { addCatch, agingLevel, castsPerTrip, duplicateCatch, finishTrip, useGadget, type CaughtFish } from '../core/state';
 import { sfx, vibrate } from '../render/audio';
-import { COLORS, H, W, clamp01, drawFish, ease, outlinedText, panel, rr, star, text, type Ctx } from '../render/draw';
+import { COLORS, H, W, clamp01, drawFish, ease, font, outlinedText, panel, rr, star, text, type Ctx } from '../render/draw';
 import type { Game, Scene } from '../game';
 
 const NEAR_Y = 600;
@@ -41,6 +42,8 @@ export class FishingScene implements Scene {
   effects = new Set<GadgetId>();
   tripGadgets: GadgetId[] = [];
   tripXp = 0;
+  private lastGoalLabel = '';
+  private goalPop = 0;
   holdTime = 0;
   power = 0;
   bobber = { x: W / 2, y: NEAR_Y, t: 0, dip: 0 };
@@ -298,6 +301,13 @@ export class FishingScene implements Scene {
     this.shadows = this.shadows.filter((sh) => !(sh.state === 'flee' && (sh.x < -100 || sh.x > W + 100)));
     while (this.shadows.filter((s) => s.state === 'swim' || s.state === 'approach').length < 5) this.spawnShadow();
     if (this.card) this.card.t += dt;
+    const g = goalPair(this.game.state).current;
+    const label = g ? progressLabel(g) : '';
+    if (label !== this.lastGoalLabel) {
+      if (this.lastGoalLabel) this.goalPop = 1;
+      this.lastGoalLabel = label;
+    }
+    this.goalPop = Math.max(0, this.goalPop - dt * 2.5);
 
     switch (this.phase) {
       case 'charging':
@@ -468,15 +478,43 @@ export class FishingScene implements Scene {
     [...this.effects].forEach((id, i) => {
       const gd = GADGETS[id];
       ctx.fillStyle = gd.color;
-      rr(ctx, W - 130, 64 + i * 26, 120, 22, 11);
+      rr(ctx, W - 130, 140 + i * 26, 120, 22, 11);
       ctx.fill();
-      text(ctx, gd.name, W - 70, 75 + i * 26, 12, '#fff');
+      text(ctx, gd.name, W - 70, 151 + i * 26, 12, '#fff');
     });
+    this.drawGoalPill(ctx);
     if (this.phase === 'aim') {
       this.game.button(ctx, 'leave', 10, 66, 92, 34, 'Dock', () => this.endTrip(), { color: '#8a7a66', dark: '#5f5244', size: 15 });
       this.drawItemBar(ctx);
     }
     this.drawShadowLabels(ctx);
+  }
+
+  /** The current goal with a live counter ("Caught 2/3"), so progress is visible while fishing. */
+  private drawGoalPill(ctx: Ctx): void {
+    if (this.phase === 'reel' || this.phase === 'card' || this.phase === 'summary') return;
+    const g = goalPair(this.game.state).current;
+    if (!g || !g.progress) return;
+    const [c, t] = g.progress;
+    const label = progressLabel(g);
+    const x = 110;
+    const w = W - 122;
+    const y = 86;
+    panel(ctx, x, y, w, 46, 'rgba(255,248,236,0.95)', 14);
+    ctx.font = font(11, 800);
+    let goal = g.text;
+    while (goal.length > 4 && ctx.measureText(goal).width > w - 16) goal = goal.slice(0, -2);
+    if (goal !== g.text) goal = goal.trimEnd() + '…';
+    text(ctx, goal, x + w / 2, y + 11, 11, 'rgba(43,33,24,0.7)', 'center', 800);
+    // a small pop when the counter changes
+    const pop = 1 + this.goalPop * 0.25;
+    text(ctx, label, x + w / 2, y + 26, 14 * pop, c >= t ? COLORS.good : COLORS.ink, 'center', 900);
+    ctx.fillStyle = 'rgba(43,33,24,0.12)';
+    rr(ctx, x + 10, y + 36, w - 20, 5, 3);
+    ctx.fill();
+    ctx.fillStyle = COLORS.good;
+    rr(ctx, x + 10, y + 36, (w - 20) * Math.min(1, c / t), 5, 3);
+    ctx.fill();
   }
 
   /** Gadgets usable on a trip, as buttons along the bottom-left. */

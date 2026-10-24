@@ -1,11 +1,11 @@
 // The village hub: your jars, the market, the dock. It visibly grows with every upgrade.
 import { BALANCE, SPECIES } from '../core/data';
-import { goalPair } from '../core/goals';
+import { goalPair, progressLabel } from '../core/goals';
 import { levelForXp, levelProgress } from '../core/progression';
 import { SEAS, SEAS_BY_ID, seaComplete, seaLock } from '../core/seas';
 import { agingLevel, canFerment, upgradeCost, type Jar } from '../core/state';
 import type { UpgradeId } from '../core/data';
-import { COLORS, W, clamp01, drawCoin, ease, outlinedText, panel, rr, star, text, type Ctx } from '../render/draw';
+import { COLORS, W, clamp01, drawCoin, ease, font, outlinedText, panel, rr, star, text, type Ctx } from '../render/draw';
 import type { Game, Scene } from '../game';
 import { JarFillOverlay, RevealOverlay } from './jar';
 import { MarketOverlay } from './market';
@@ -295,39 +295,42 @@ export class VillageScene implements Scene {
     if (!current) return;
     const k = this.goalFlash;
     ctx.save();
-    ctx.translate(W / 2, 98);
+    ctx.translate(W / 2, 112);
     ctx.scale(1 + k * 0.05, 1 + k * 0.05);
-    panel(ctx, -182, -32, 364, 70, k > 0.5 ? '#fff1b8' : COLORS.paper, 16);
+    panel(ctx, -184, -46, 368, 100, k > 0.5 ? '#fff1b8' : COLORS.paper, 16);
+    // row 1: GOAL chip + goal text (sized to fit)
     ctx.fillStyle = current.chapter === 'Tutorial' ? COLORS.accent : '#3a8fd9';
-    rr(ctx, -174, -24, 54, 30, 10);
+    rr(ctx, -176, -38, 58, 30, 10);
     ctx.fill();
-    text(ctx, 'GOAL', -147, -9, 13, '#fff', 'center', 900);
-    const label = current.text;
-    text(ctx, label, -112, -14, label.length > 30 ? 13 : 15, COLORS.ink, 'left');
+    text(ctx, 'GOAL', -147, -23, 14, '#fff', 'center', 900);
+    text(ctx, current.text, -110, -23, fitSize(ctx, current.text, 280, 18, 13), COLORS.ink, 'left', 900);
+    // row 2: progress bar + "Caught 2/3" + reward
     if (current.progress) {
       const [c, t] = current.progress;
       ctx.fillStyle = 'rgba(43,33,24,0.12)';
-      rr(ctx, -112, 0, 150, 8, 4);
+      rr(ctx, -176, 2, 170, 12, 6);
       ctx.fill();
       ctx.fillStyle = COLORS.good;
-      rr(ctx, -112, 0, 150 * Math.min(1, c / t), 8, 4);
+      rr(ctx, -176, 2, Math.max(c > 0 ? 12 : 0, 170 * Math.min(1, c / t)), 12, 6);
       ctx.fill();
-      text(ctx, `${c}/${t}`, 46, 4, 11, COLORS.ink, 'left', 900);
-    } else text(ctx, current.chapter, -112, 4, 11, 'rgba(43,33,24,0.55)', 'left', 700);
+      text(ctx, progressLabel(current), 2, 8, 15, COLORS.ink, 'left', 900);
+    } else text(ctx, current.chapter, -176, 8, 14, 'rgba(43,33,24,0.6)', 'left', 800);
     if (current.reward > 0) {
-      drawCoin(ctx, 140, -10, 9);
-      text(ctx, String(current.reward), 154, -9, 13, COLORS.ink, 'left');
+      drawCoin(ctx, 142, 8, 10);
+      text(ctx, String(current.reward), 157, 9, 15, COLORS.ink, 'left', 900);
     }
     ctx.strokeStyle = 'rgba(43,33,24,0.15)';
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(-170, 14);
-    ctx.lineTo(170, 14);
+    ctx.moveTo(-174, 24);
+    ctx.lineTo(174, 24);
     ctx.stroke();
-    text(ctx, next ? `Next: ${next.text}` : 'Next: you have done it all, captain!', -170, 26, 12, 'rgba(43,33,24,0.65)', 'left', 700);
-    text(ctx, 'Missions ›', 172, 26, 11, '#3a8fd9', 'right', 900);
+    // row 3: what comes next
+    const nextText = next ? `Next: ${next.text}` : 'Next: you have done it all, captain!';
+    text(ctx, nextText, -174, 39, fitSize(ctx, nextText, 262, 14, 11), 'rgba(43,33,24,0.75)', 'left', 800);
+    text(ctx, 'Missions ›', 176, 39, 13, '#3a8fd9', 'right', 900);
     ctx.restore();
-    this.game.hitArea('goal', 8, 64, W - 16, 72, () => this.game.push(new MissionsOverlay(this.game)));
+    this.game.hitArea('goal', 8, 64, W - 16, 102, () => this.game.push(new MissionsOverlay(this.game)));
   }
 
   private drawBottom(ctx: Ctx): void {
@@ -385,4 +388,13 @@ function wrap(ctx: Ctx, s: string, maxW: number): string[] {
   }
   if (cur) lines.push(cur);
   return lines;
+}
+
+/** Largest font size (down to min) at which the text fits maxW. */
+function fitSize(ctx: Ctx, s: string, maxW: number, max: number, min: number): number {
+  for (let size = max; size > min; size--) {
+    ctx.font = font(size, 900);
+    if (ctx.measureText(s).width <= maxW) return size;
+  }
+  return min;
 }
