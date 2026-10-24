@@ -2,6 +2,8 @@
 let ctx: AudioContext | null = null;
 let muted = false;
 
+let ambientGain: GainNode | null = null;
+
 export function unlockAudio(): void {
   if (ctx) {
     if (ctx.state === 'suspended') void ctx.resume();
@@ -9,13 +11,55 @@ export function unlockAudio(): void {
   }
   try {
     ctx = new AudioContext();
+    startAmbient();
   } catch {
     ctx = null;
   }
 }
 
+/** Soft looping surf (filtered noise with a slow swell) plus an occasional gull. */
+function startAmbient(): void {
+  if (!ctx) return;
+  const len = ctx.sampleRate * 4;
+  const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+  const d = buf.getChannelData(0);
+  let last = 0;
+  for (let i = 0; i < len; i++) {
+    last = last * 0.97 + (Math.random() * 2 - 1) * 0.03; // brown-ish noise
+    d[i] = last * 6;
+  }
+  const src = ctx.createBufferSource();
+  src.buffer = buf;
+  src.loop = true;
+  const filter = ctx.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.value = 700;
+  ambientGain = ctx.createGain();
+  ambientGain.gain.value = muted ? 0 : 0.05;
+  // the swell modulates its own stage so muting (ambientGain → 0) silences it completely
+  const swellStage = ctx.createGain();
+  swellStage.gain.value = 1;
+  const swell = ctx.createOscillator();
+  swell.frequency.value = 0.12;
+  const swellDepth = ctx.createGain();
+  swellDepth.gain.value = 0.5;
+  swell.connect(swellDepth).connect(swellStage.gain);
+  src.connect(filter).connect(swellStage).connect(ambientGain).connect(ctx.destination);
+  src.start();
+  swell.start();
+  const gull = () => {
+    if (!muted && ctx && ctx.state === 'running') {
+      tone(1400, 0.18, 'sine', 0.025, 900);
+      tone(1500, 0.22, 'sine', 0.02, 1000, 0.22);
+    }
+    setTimeout(gull, 9000 + Math.random() * 14000);
+  };
+  setTimeout(gull, 6000);
+}
+
 export function setMuted(m: boolean): void {
   muted = m;
+  if (ambientGain && ctx) ambientGain.gain.setTargetAtTime(m ? 0 : 0.05, ctx.currentTime, 0.2);
 }
 export function isMuted(): boolean {
   return muted;

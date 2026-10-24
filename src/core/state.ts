@@ -15,7 +15,7 @@ export interface Jar {
   sealed: boolean;
   recipe: string;
   variance: number;
-  /** Trip count when sealed; aging counts trips completed since. */
+  /** fullTrips count when sealed; aging counts full trips completed since. */
   sealedTrip: number;
   sealedAt: number; // epoch ms
 }
@@ -37,7 +37,7 @@ export interface GameState {
   upgrades: Record<UpgradeId, number>;
   dex: Record<string, { count: number; best: number }>;
   cellar: Record<string, number>; // recipe id -> best °N ever made
-  stats: { trips: number; casts: number; catches: number; perfects: number; jarsOpened: number; sold: number; earned: number };
+  stats: { trips: number; fullTrips: number; casts: number; catches: number; perfects: number; jarsOpened: number; sold: number; earned: number };
   zone: ZoneId;
   goalsDone: string[];
 }
@@ -53,7 +53,7 @@ export function newState(): GameState {
     upgrades: { jars: 0, rod: 0, salt: 0, boat: 0, stall: 0 },
     dex: {},
     cellar: {},
-    stats: { trips: 0, casts: 0, catches: 0, perfects: 0, jarsOpened: 0, sold: 0, earned: 0 },
+    stats: { trips: 0, fullTrips: 0, casts: 0, catches: 0, perfects: 0, jarsOpened: 0, sold: 0, earned: 0 },
     zone: 'lagoon',
     goalsDone: [],
   };
@@ -118,7 +118,7 @@ export function sealJar(s: GameState, jarIndex: number, fishUids: number[], rng:
   jar.sealed = true;
   jar.recipe = recipeFor(jar.fish);
   jar.variance = range(rng, -BALANCE.variance, BALANCE.variance);
-  jar.sealedTrip = s.stats.trips;
+  jar.sealedTrip = s.stats.fullTrips;
   jar.sealedAt = now;
   return true;
 }
@@ -126,7 +126,7 @@ export function sealJar(s: GameState, jarIndex: number, fishUids: number[], rng:
 /** 0 = still fermenting, 1 = ready, up to maxAging = well aged. */
 export function agingLevel(s: GameState, jar: Jar, now: number): number {
   if (!jar.sealed) return 0;
-  const byTrips = s.stats.trips - jar.sealedTrip;
+  const byTrips = s.stats.fullTrips - jar.sealedTrip;
   const byTime = Math.floor((now - jar.sealedAt) / 1000 / BALANCE.agingSecondsPerLevel);
   return Math.min(BALANCE.maxAging, Math.max(byTrips, byTime));
 }
@@ -202,8 +202,10 @@ export function villageLevel(s: GameState): number {
 
 // ---------- Trips ----------
 
-export function finishTrip(s: GameState): void {
+/** Every trip counts for stats; only a full trip (all casts used) ages jars, so docking early is no shortcut. */
+export function finishTrip(s: GameState, full: boolean): void {
   s.stats.trips++;
+  if (full) s.stats.fullTrips++;
 }
 
 /** Pick the 3 best fermentable fish for the casual "auto fill" button. */

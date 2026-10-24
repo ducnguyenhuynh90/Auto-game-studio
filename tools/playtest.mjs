@@ -107,7 +107,7 @@ await page.evaluate(({ skill }) => {
         const spacing = n <= 2 ? 110 : 84;
         const start = 195 - ((n - 1) * spacing) / 2;
         const now = Date.now();
-        const ready = jars.findIndex((j) => j.sealed && (s.stats.trips - j.sealedTrip >= 1 || now - j.sealedAt > 90000));
+        const ready = jars.findIndex((j) => j.sealed && (s.stats.fullTrips - j.sealedTrip >= 1 || now - j.sealedAt > 90000));
         const ferm = s.bucket.filter((f) => !['crab'].includes(f.species)).length;
         const empty = jars.findIndex((j) => !j.sealed);
         const costs = { jars: [40, 140, 320], rod: [70, 260], salt: [110, 300], boat: [180], stall: [90, 280] };
@@ -213,6 +213,7 @@ const report = await page.evaluate(() => {
   const count = (e) => ev.filter((x) => x.e === e).length;
   return {
     gameSeconds: Math.round(g.time),
+    gpu: g.world ? { geometries: g.world.renderer.info.memory.geometries, textures: g.world.renderer.info.memory.textures, calls: g.world.renderer.info.render.calls, tris: g.world.renderer.info.render.triangles } : null,
     state: { coins: g.state.coins, upgrades: g.state.upgrades, stats: g.state.stats, dex: Object.keys(g.state.dex), cellar: g.state.cellar, goalsDone: g.state.goalsDone },
     funnel: window.__mam.analytics.funnelState(),
     counts: { cast: count('cast'), catch: count('catch'), lost: count('fish_lost'), jar_open: count('jar_open'), upgrade: count('upgrade') },

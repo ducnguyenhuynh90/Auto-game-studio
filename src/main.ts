@@ -39,6 +39,7 @@ if (import.meta.env.DEV && params.has('scene')) {
     for (let i = 0; i < 3; i++) addCatch(st, 'anchovy', 10, 0.9);
     sealJar(st, 0, st.bucket.map((f) => f.uid), game.rng, Date.now());
     st.stats.trips++;
+    st.stats.fullTrips++;
     game.push(new RevealOverlay(game, 0));
   }
 }

@@ -14,7 +14,7 @@ export interface Goal {
 export const GOALS: Goal[] = [
   { id: 'catch3', text: 'Catch 3 fish', reward: 5, done: (s) => s.stats.catches >= 3, progress: (s) => [Math.min(3, s.stats.catches), 3] },
   { id: 'seal1', text: 'Fill a jar with 3 fish', reward: 0, done: (s) => s.jars.some((j) => j.sealed) || s.stats.jarsOpened > 0 },
-  { id: 'trip2', text: 'Go fishing while it ferments', reward: 5, done: (s) => s.stats.jarsOpened > 0 || s.jars.some((j) => j.sealed && s.stats.trips > j.sealedTrip) },
+  { id: 'trip2', text: 'Go fishing while it ferments', reward: 5, done: (s) => s.stats.jarsOpened > 0 || s.jars.some((j) => j.sealed && s.stats.fullTrips > j.sealedTrip) },
   { id: 'open1', text: 'Open your jar!', reward: 0, done: (s) => s.stats.jarsOpened >= 1 },
   { id: 'sell1', text: 'Sell your fish sauce', reward: 0, done: (s) => s.stats.sold >= 1 },
   { id: 'jar2', text: 'Buy a second jar', reward: 10, done: (s) => s.upgrades.jars >= 1 },

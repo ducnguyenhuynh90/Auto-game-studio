@@ -3,7 +3,7 @@ import { BALANCE, saucePrice, tierFor } from '../src/core/data';
 import { Reel, castPower, rollShadow } from '../src/core/fishing';
 import { checkGoals, currentGoal } from '../src/core/goals';
 import { makeRng } from '../src/core/rng';
-import { addCatch, agingLevel, baseDegrees, bestJarFill, buyUpgrade, jarDegrees, newState, openJar, recipeFor, sealJar, sellProduct } from '../src/core/state';
+import { addCatch, agingLevel, finishTrip, baseDegrees, bestJarFill, buyUpgrade, jarDegrees, newState, openJar, recipeFor, sealJar, sellProduct } from '../src/core/state';
 
 const rng = () => makeRng(42);
 
@@ -79,7 +79,9 @@ describe('crafting', () => {
     expect(s.bucket).toHaveLength(0);
     expect(agingLevel(s, s.jars[0], 0)).toBe(0);
     expect(openJar(s, 0, 0)).toBeNull(); // not ready yet
-    s.stats.trips++;
+    finishTrip(s, false); // docking early does not age the jar
+    expect(agingLevel(s, s.jars[0], 0)).toBe(0);
+    finishTrip(s, true);
     expect(agingLevel(s, s.jars[0], 0)).toBe(1);
     const predicted = jarDegrees(s, s.jars[0], 0);
     const res = openJar(s, 0, 0)!;
@@ -98,7 +100,7 @@ describe('crafting', () => {
     for (let i = 0; i < 3; i++) addCatch(s, 'anchovy', 10, 0.9);
     sealJar(s, 0, s.bucket.map((f) => f.uid), rng(), 0);
     expect(agingLevel(s, s.jars[0], BALANCE.agingSecondsPerLevel * 1000)).toBe(1);
-    s.stats.trips += 10;
+    s.stats.fullTrips += 10;
     expect(agingLevel(s, s.jars[0], 0)).toBe(BALANCE.maxAging);
   });
 

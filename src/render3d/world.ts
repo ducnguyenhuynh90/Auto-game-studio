@@ -27,6 +27,20 @@ import {
   type JarModel,
 } from './models';
 
+/** Remove an object and free its geometries. Materials are shared/cached, so they are kept,
+ * except one-off materials flagged with userData.disposeMat. */
+function discard(obj: THREE.Object3D | null | undefined): void {
+  if (!obj) return;
+  obj.parent?.remove(obj);
+  obj.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (m.geometry && !m.userData.outline) m.geometry.dispose();
+    if (m.userData.disposeMat) (m.material as THREE.Material).dispose();
+  });
+}
+
+const BUBBLE_GEO = new THREE.SphereGeometry(0.05, 8, 6);
+
 export interface ScreenPt {
   x: number;
   y: number;
@@ -92,6 +106,7 @@ class Ripples {
     for (const r of this.list.filter((r) => r.t >= r.life)) {
       this.parent.remove(r.m);
       r.m.geometry.dispose();
+      (r.m.material as THREE.Material).dispose();
     }
     this.list = this.list.filter((r) => r.t < r.life);
   }
@@ -149,6 +164,7 @@ class FishingRig {
       }
     }
     this.root.add(this.islands);
+    this.buildZoneProps();
     // boat + fisherman + rod
     this.boat.position.set(-0.35, 0, 3.6);
     this.boat.scale.setScalar(0.8);
@@ -186,6 +202,53 @@ class FishingRig {
     this.camera.add(this.burst);
   }
 
+  private lagoonProps = new THREE.Group();
+  private reefProps = new THREE.Group();
+
+  /** Edge scenery that tells the two fishing spots apart at a glance, kept out of the casting lane. */
+  private buildZoneProps(): void {
+    // x at ~90% of the visible half-width for that depth (portrait camera sees a narrow strip)
+    const edge = (side: number, z: number): [number, number] => [side * 0.9 * 0.178 * (9.6 - z), z];
+    const sides: [number, number][] = [edge(-1, 1.2), edge(1, -0.5), edge(-1, -5), edge(1, -7.5), edge(-1, -12), edge(1, -15)];
+    // Lagoon: reeds and floating leaves
+    sides.forEach(([x, z], i) => {
+      const clump = new THREE.Group();
+      for (let k = 0; k < 5; k++) {
+        const reed = mesh(new THREE.CylinderGeometry(0.03, 0.05, 1 + (k % 3) * 0.35, 5), toon(k % 2 ? '#6aa84f' : '#7dbb5a'), false);
+        reed.position.set((k - 2) * 0.14, 0.4, (k % 2) * 0.12);
+        reed.rotation.z = (k - 2) * 0.12;
+        clump.add(reed);
+      }
+      clump.position.set(x, 0, z);
+      this.lagoonProps.add(clump);
+      const pad = mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.03, 12, 1, false, 0.4, Math.PI * 1.8), toon('#5fae52'), false);
+      pad.position.set(x * 0.85, 0.05, z - 1.4);
+      pad.rotation.y = i;
+      this.lagoonProps.add(pad);
+    });
+    // Reef: coral heads breaking the surface, plus rocks
+    const coral = ['#ff7a8a', '#ffb347', '#c77dff', '#ff6f61'];
+    sides.forEach(([x, z], i) => {
+      const g = new THREE.Group();
+      for (let k = 0; k < 4; k++) {
+        const c = mesh(new THREE.ConeGeometry(0.12 + (k % 2) * 0.06, 0.6 + k * 0.15, 6), toon(coral[(i + k) % coral.length]), false);
+        c.position.set((k - 1.5) * 0.22, 0.15, (k % 2) * 0.2);
+        c.rotation.z = (k - 1.5) * 0.2;
+        g.add(c);
+      }
+      const ball = mesh(new THREE.SphereGeometry(0.28, 10, 8), toon(coral[(i + 2) % coral.length]), false);
+      ball.position.set(0.3, 0.05, -0.2);
+      g.add(ball);
+      g.position.set(x, 0, z);
+      this.reefProps.add(g);
+      const rock = mesh(new THREE.DodecahedronGeometry(0.5, 0), toon('#7d8b8f'), false);
+      rock.position.set(Math.sign(x) * 0.95 * 0.178 * (9.6 - (z - 2.2)), 0, z - 2.2);
+      rock.scale.set(0.9, 0.5, 0.8);
+      this.reefProps.add(rock);
+    });
+    this.root.add(this.lagoonProps, this.reefProps);
+  }
+
   screenToWater(x: number, y: number, out = new THREE.Vector3()): THREE.Vector3 {
     const ndc = new THREE.Vector2((x / W) * 2 - 1, -(y / H) * 2 + 1);
     this.raycaster.setFromCamera(ndc, this.camera);
@@ -214,6 +277,8 @@ class FishingRig {
       this.world.scene.background = f.zone === 'reef' ? this.sky.reef : this.sky.lagoon;
       (this.water.mesh.material as THREE.MeshPhongMaterial).color.set(f.zone === 'reef' ? '#167f9e' : '#2aa3b9');
       this.world.scene.fog = new THREE.Fog(f.zone === 'reef' ? '#ffcf9e' : '#ffe3bb', 22, 55);
+      this.reefProps.visible = f.zone === 'reef';
+      this.lagoonProps.visible = f.zone !== 'reef';
     }
     this.setBoat(game.state.upgrades.boat);
     this.water.update(t);
@@ -248,7 +313,7 @@ class FishingRig {
     }
     for (const [k, m] of this.fish) {
       if (!alive.has(k)) {
-        this.root.remove(m.group);
+        discard(m.group);
         this.fish.delete(k);
       }
     }
@@ -333,7 +398,7 @@ class FishingRig {
 
   private startTrophy(f: FishingScene): void {
     if (!f.card) return;
-    if (this.trophy) this.camera.remove(this.trophy.group);
+    if (this.trophy) discard(this.trophy.group);
     const sp = SPECIES_BY_ID[f.card.fish.species];
     this.trophy = makeFish(sp.id);
     this.trophyFor = f.card;
@@ -351,7 +416,7 @@ class FishingRig {
     this.burst.visible = !!active;
     if (!active) {
       if (this.trophy && f.phase !== 'card') {
-        this.camera.remove(this.trophy.group);
+        discard(this.trophy.group);
         this.trophy = null;
       }
       return;
@@ -389,6 +454,16 @@ class VillageRig {
   private bubbles: THREE.Mesh[] = [];
   private shelfBottles = new THREE.Group();
   marketPos = new THREE.Vector3(1.9, 0, -0.9);
+  private hopT = 0;
+
+  /** Make the villager hop (when tapped). */
+  hop(): void {
+    this.hopT = 0.5;
+  }
+
+  fisherScreen(): ScreenPt {
+    return this.world.project(this.fisher.position.clone().setY(1.0), this.camera);
+  }
 
   constructor(private world: World) {
     this.camera.position.set(0, 14, 17.5);
@@ -442,7 +517,7 @@ class VillageRig {
     const key = [s.jars.length, s.upgrades.boat, s.upgrades.salt, s.upgrades.stall, lvl >= 6, lvl >= 3 ? lvl : 0].join(',');
     if (key === this.key) return;
     this.key = key;
-    this.dyn.clear();
+    for (const c of [...this.dyn.children]) discard(c);
     const house = makeHouse(lvl);
     house.position.set(-1.7, 0.15, -2.9);
     house.rotation.y = 0.25;
@@ -490,7 +565,7 @@ class VillageRig {
       }
     }
     // jars
-    for (const j of this.jars) this.root.remove(j.group);
+    for (const j of this.jars) discard(j.group);
     this.jars = [];
     this.jarPos = [];
     const n = s.jars.length;
@@ -549,13 +624,14 @@ class VillageRig {
       (b.material as THREE.MeshBasicMaterial).opacity -= dt * 0.6;
       if ((b.material as THREE.MeshBasicMaterial).opacity <= 0) {
         this.root.remove(b);
+        (b.material as THREE.Material).dispose();
         return false;
       }
       return true;
     });
     s.jars.forEach((j, i) => {
       if (j.sealed && this.jars[i] && Math.random() < dt * 1.5) {
-        const b = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8 }));
+        const b = new THREE.Mesh(BUBBLE_GEO, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8 }));
         const p = this.jarPos[i];
         b.position.set(p.x + (Math.random() - 0.5) * 0.3, p.y + 1.1, p.z);
         this.root.add(b);
@@ -571,8 +647,9 @@ class VillageRig {
       this.boat.position.y = -0.2 + Math.sin(t * 1.5) * 0.05;
       this.boat.rotation.z = Math.sin(t * 1.2) * 0.04;
     }
-    this.fisher.position.y = 0.2 + Math.abs(Math.sin(t * 2.2)) * 0.05;
-    this.fisher.rotation.y = Math.sin(t * 0.5) * 0.6;
+    this.hopT = Math.max(0, this.hopT - dt);
+    this.fisher.position.y = 0.2 + Math.abs(Math.sin(t * 2.2)) * 0.05 + Math.sin((this.hopT / 0.5) * Math.PI) * 0.6;
+    this.fisher.rotation.y = this.hopT > 0 ? 0 : Math.sin(t * 0.5) * 0.6;
     this.lanterns.forEach((l, i) => (l.rotation.z = Math.sin(t * 2 + i) * 0.15));
     const star = this.market?.getObjectByName('star');
     if (star) star.rotation.y = t * 2;
@@ -584,7 +661,7 @@ class VillageRig {
     const shelfKey = String(Math.min(4, s.shelf.length));
     if (this.shelfBottles.userData.key !== shelfKey) {
       this.shelfBottles.userData.key = shelfKey;
-      this.shelfBottles.clear();
+      for (const c of [...this.shelfBottles.children]) discard(c);
       s.shelf.slice(0, 4).forEach((p, i) => {
         const b = makeBottle(RECIPES_BY_ID[p.recipe].color, tierFor(p.degrees).color);
         b.scale.setScalar(0.38);
@@ -596,7 +673,7 @@ class VillageRig {
     const rack = this.dyn.getObjectByName('rack');
     if (rack && rack.userData.n !== Math.min(5, s.bucket.length)) {
       rack.userData.n = Math.min(5, s.bucket.length);
-      for (const c of rack.children.filter((c) => c.userData.fish)) rack.remove(c);
+      for (const c of rack.children.filter((c) => c.userData.fish)) discard(c);
       s.bucket.slice(0, 5).forEach((f, i) => {
         const fm = makeFish(f.species);
         fm.group.scale.setScalar(0.32);
@@ -674,7 +751,7 @@ class Showcase {
     const key = r.recipeId + '|' + (r.phase === 'done' ? tier.id : 'x');
     if (key !== this.bottleKey) {
       this.bottleKey = key;
-      if (this.bottle) this.scene.remove(this.bottle);
+      discard(this.bottle);
       this.bottle = makeBottle(RECIPES_BY_ID[r.recipeId].color, r.phase === 'done' ? tier.color : '#fff8ec');
       this.bottle.scale.setScalar(1.55);
       this.scene.add(this.bottle);

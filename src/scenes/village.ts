@@ -21,6 +21,8 @@ export class VillageScene implements Scene {
   name = 'village';
   t = 0;
   private lastGoal = '';
+  private tip: { text: string; t: number } | null = null;
+  private tipIdx = 0;
   private goalFlash = 0;
 
   constructor(private game: Game) {}
@@ -34,6 +36,10 @@ export class VillageScene implements Scene {
       this.goalFlash = 1;
     }
     this.goalFlash = Math.max(0, this.goalFlash - dt * 0.8);
+    if (this.tip) {
+      this.tip.t += dt;
+      if (this.tip.t > 4) this.tip = null;
+    }
   }
 
   private fermentableCount(): number {
@@ -109,11 +115,54 @@ export class VillageScene implements Scene {
     // The village itself is 3D (render3d/world.ts). This layer adds labels, hit areas and HUD.
     this.drawJarLabels(ctx);
     this.drawMarketLabel(ctx);
+    this.drawVillager(ctx);
     this.drawTopBar(ctx);
     this.drawGoal(ctx);
     this.drawBottom(ctx);
     const p = this.pointTarget();
     if (p && this.game.overlays.length === 0) this.drawHand(ctx, p.x, p.y);
+  }
+
+  /** Context-aware advice from the villager: what matters now first, then general craft tips. */
+  private villagerTips(): string[] {
+    const s = this.game.state;
+    const tips: string[] = [];
+    if (s.stats.catches === 0) tips.push('Big shadows far out are bigger fish!');
+    if (s.bucket.filter(canFerment).length >= BALANCE.jarSlots && s.jars.some((j) => !j.sealed)) tips.push('You have enough fish. Fill a jar!');
+    if (s.jars.some((j) => j.sealed)) tips.push('Jars age on full fishing trips. Patience makes stronger sauce!');
+    tips.push(
+      'Keep the line in the green for fresh, perfect fish.',
+      'Three anchovies make the Classic: the village way.',
+      'Good fish sauce is measured in độ đạm, °N. Higher is better!',
+      'Golden shadows... I have only heard stories.',
+      'The Salt House adds strength to every batch.',
+    );
+    return tips;
+  }
+
+  private drawVillager(ctx: Ctx): void {
+    const w = this.game.world;
+    if (!w) return;
+    const p = w.village.fisherScreen();
+    this.game.hitArea('villager', p.x - 30, p.y - 30, 60, 80, () => {
+      const tips = this.villagerTips();
+      this.tip = { text: tips[this.tipIdx % tips.length], t: 0 };
+      this.tipIdx++;
+      w.village.hop();
+    });
+    if (!this.tip) return;
+    const k = ease.outBack(clamp01(this.tip.t / 0.25));
+    const fade = clamp01((4 - this.tip.t) / 0.4);
+    ctx.save();
+    ctx.globalAlpha = fade;
+    ctx.translate(Math.max(110, Math.min(W - 110, p.x + 60)), p.y - 70);
+    ctx.scale(k, k);
+    ctx.font = '700 13px sans-serif';
+    const lines = wrap(ctx, this.tip.text, 190);
+    const h = lines.length * 17 + 16;
+    panel(ctx, -105, -h, 210, h, COLORS.paper, 14);
+    lines.forEach((l, i) => text(ctx, l, 0, -h + 16 + i * 17, 13, COLORS.ink));
+    ctx.restore();
   }
 
   private drawMarketLabel(ctx: Ctx): void {
@@ -280,4 +329,19 @@ export class VillageScene implements Scene {
     ctx.stroke();
     ctx.restore();
   }
+}
+
+function wrap(ctx: Ctx, s: string, maxW: number): string[] {
+  const words = s.split(' ');
+  const lines: string[] = [];
+  let cur = '';
+  for (const w of words) {
+    const next = cur ? `${cur} ${w}` : w;
+    if (ctx.measureText(next).width > maxW && cur) {
+      lines.push(cur);
+      cur = w;
+    } else cur = next;
+  }
+  if (cur) lines.push(cur);
+  return lines;
 }

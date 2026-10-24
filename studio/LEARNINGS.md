@@ -17,3 +17,8 @@ Only [PLAYER] entries count as product evidence.
   fish; freshness drops (4/20 perfect vs 14/15 for a skilled bot). Open question for real players: does
   catching need more failure risk to feel like skill, or is quality-as-skill the right casual tuning?
 - [SIM] Playtests on the Vite dev server die on any file edit (HMR full reload). Run them against `vite preview`.
+- [DESIGN] Persona pass (optimizer): "Go Fishing → Dock" spam aged jars instantly, an exploit that would
+  have trivialized the aging decision. Fixed: only full trips (all casts) age jars; docking early says so.
+- [DESIGN] Persona pass (new gamer): inside the market nothing pointed at the goal's upgrade. That button now pulses.
+- [DESIGN] Persona pass (explorer): tapping the villager did nothing. He now hops and gives context tips.
+- [SIM] Memory: geometries stay bounded across trips once removed models are disposed.

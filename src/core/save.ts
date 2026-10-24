@@ -7,7 +7,10 @@ export function loadState(): GameState {
     const raw = localStorage.getItem(KEY);
     if (raw) {
       const s = JSON.parse(raw) as GameState;
-      if (s.version === 1) return { ...newState(), ...s };
+      if (s.version === 1) {
+        const base = newState();
+        return { ...base, ...s, stats: { ...base.stats, ...s.stats } };
+      }
     }
   } catch {
     /* corrupted or unavailable save: start fresh */

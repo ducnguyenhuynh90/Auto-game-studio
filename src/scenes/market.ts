@@ -1,6 +1,7 @@
 // Market: turn products into coins, and coins into visible village upgrades.
 import { analytics } from '../core/analytics';
 import { SPECIES_BY_ID, UPGRADES, tierFor } from '../core/data';
+import { currentGoal } from '../core/goals';
 import { buyUpgrade, productPrice, sellFish, sellProduct, upgradeCost } from '../core/state';
 import { sfx } from '../render/audio';
 import { COLORS, H, W, clamp01, drawBottle, drawCoin, ease, outlinedText, panel, rr, text, type Ctx } from '../render/draw';
@@ -88,6 +89,8 @@ export class MarketOverlay implements Scene {
 
     // --- Upgrades ---
     text(ctx, 'UPGRADE YOUR VILLAGE', 30, 364, 13, 'rgba(43,33,24,0.6)', 'left', 900);
+    // the upgrade the current goal asks for pulses, so new players know where to tap
+    const goalUpgrade = ({ jar2: 'jars', rod1: 'rod', salt1: 'salt', boat1: 'boat' } as Record<string, string>)[currentGoal(s)?.id ?? ''];
     UPGRADES.forEach((u, i) => {
       const y = 378 + i * 84;
       const lvl = s.upgrades[u.id];
@@ -119,7 +122,7 @@ export class MarketOverlay implements Scene {
             this.game.toast(`${u.levels[s.upgrades[u.id]].name}!`, COLORS.good, u.id === 'boat' ? 'The Reef is now open' : u.id === 'jars' ? 'A new jar is in your yard' : undefined);
             this.game.commit();
           }
-        }, { coin: true, disabled: !afford, color: COLORS.accent, size: 20 });
+        }, { coin: true, disabled: !afford, color: COLORS.accent, size: 20, pulse: u.id === goalUpgrade });
       }
     });
   }

@@ -48,6 +48,7 @@ export class FishingScene implements Scene {
   tripCatches: CaughtFish[] = [];
   tripTreasure = 0;
   hintT = 0;
+  fullTrip = false;
   earlyTapT = 0;
   t = 0;
   reelTick = 0;
@@ -225,7 +226,8 @@ export class FishingScene implements Scene {
 
   endTrip(): void {
     const s = this.game.state;
-    finishTrip(s);
+    this.fullTrip = this.castsLeft <= 0;
+    finishTrip(s, this.fullTrip);
     analytics.track('trip_end', { zone: this.zone, catches: this.tripCatches.length, casts: BALANCE.castsPerTrip - this.castsLeft, trip: s.stats.trips });
     this.game.commit();
     this.phase = 'summary';
@@ -570,6 +572,8 @@ export class FishingScene implements Scene {
     if (ready > 0) {
       const p = 1 + Math.sin(this.t * 5) * 0.05;
       outlinedText(ctx, ready === 1 ? 'Your jar is ready to open!' : `${ready} jars are ready!`, 0, 130, 20 * p, COLORS.gold, COLORS.ink, 5);
+    } else if (!this.fullTrip && s.jars.some((j) => j.sealed)) {
+      text(ctx, 'Docked early: jars only age on full trips', 0, 130, 15, COLORS.bad);
     } else if (s.bucket.length >= BALANCE.jarSlots && s.jars.some((j) => !j.sealed)) {
       text(ctx, 'You have enough fish to fill a jar!', 0, 130, 16, COLORS.good);
     }

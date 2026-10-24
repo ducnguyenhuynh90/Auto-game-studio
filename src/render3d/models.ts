@@ -167,6 +167,7 @@ export function makeFish(speciesId: string): FishModel {
         const halo = new THREE.Mesh(new THREE.CircleGeometry(0.9, 24), new THREE.MeshBasicMaterial({ color: glow, transparent: true, opacity: 0.35, depthWrite: false, blending: THREE.AdditiveBlending }));
         halo.rotation.x = -Math.PI / 2;
         halo.name = 'glow';
+        halo.userData.disposeMat = true;
         g.add(halo);
       }
     },
