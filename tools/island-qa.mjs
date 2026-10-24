@@ -28,11 +28,11 @@ const fail = (m) => {
 // tile centre in screen space
 const tileXY = (t) => ({ x: 20 + (t % 7) * 50 + 25, y: 112 + Math.floor(t / 7) * 50 + 25 });
 const cardXY = (i) => ({ x: 20 + (i % 4) * 87.5 + 44, y: 572 + 34 + Math.floor(i / 4) * 110 + 50 });
-// 1) dock on (0,2), salt field on (0,3)... wait (0,3) is beach next to home; brewhouse on grass (2,2)
+// 1) dock and salt field on the two beach plots beside the village (2,0) and (4,0); brew house on grass (2,1)
 const builds = [
-  [14, 0],
-  [28, 1],
-  [16, 2],
+  [2, 0],
+  [4, 1],
+  [9, 2],
 ];
 for (const [tile, card] of builds) {
   const t = tileXY(tile);
@@ -103,7 +103,7 @@ const trained = await ev(() => {
   g.overlays = [];
   return salter.level;
 });
-await tap(...Object.values(tileXY(28)));
+await tap(...Object.values(tileXY(4)));
 await tap(390 - 62, 572 + 76 + 23);
 const lvl = await ev(() => window.__mam.game.state.island.staff.find((x) => x.role === 'salter').level);
 if (lvl !== trained + 1) fail(`salter level ${trained} → ${lvl}`);

@@ -61,3 +61,7 @@ Only [PLAYER] entries count as product evidence.
   where buildings and staff are visible at work. Built 3.1 (living island main screen).
 - [SIM] Rendering: the estate overview cost ~720 draw calls until static geometry was merged per material
   and clouds instanced (~270). Merge static scenery by default in new 3D scenes.
+- [FOUNDER] 2026-10-24 (with reference images): wants one continuous low-poly island you expand, not
+  separate plots. Built 3.2. Lesson: for a tycoon map, show territory as regions on one landmass.
+- [SIM] Two coplanar surfaces (cliff cap and painted top) z-fought into stripes in the far view; draw
+  only the cliff walls and raise the camera's near plane as it zooms out.

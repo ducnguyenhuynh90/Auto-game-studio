@@ -149,3 +149,20 @@ and every island plot, building and staff member is built around it (`src/render
 - **Performance:** static land, buildings and each worker are merged per material and the clouds are
   instanced: the whole overview is ~270 draw calls (it was ~720 unmerged); shadows switch off in the
   overview.
+
+## One big island (build 3.2, founder feedback with reference images)
+**Feedback:** the estate looked like separate plots with water between them; the founder wants one big
+low-poly island (like a diorama) that you open up by buying land.
+**Change:**
+- The main screen is now **one continuous island** (`src/render3d/landmass.ts`): the coastline is traced
+  around every land plot of the map, roughened and rounded (Chaikin smoothing), then built as a painted
+  grass top, a grass cliff edge, a wide sand beach, lagoon shallows and shore rocks. The sea sits lower,
+  so the island reads as a thick diorama.
+- **Expansion without walls of fog:** land you own is bright; land for sale is a little wild (darker
+  grass, palms, rocks) with a small "for sale" sign; far land is wilder still. Colours blend softly
+  between plots. A low wooden fence marks the edge of your property. Special finds (cove, salt flat,
+  pier, treasure, cousin) stay disguised as ordinary land until bought.
+- The village moved to the **north coast** (map v2): its dock and boat face the open sea and the island
+  spreads south of it. Shore buildings (dock, salt field, trading post) sit at the water's edge and face it.
+- **Save migration:** v1 islands are moved onto the new map: every plot bought is refunded, buildings
+  and their staff move to fitting plots (given free), nothing built or hired is lost (tested).

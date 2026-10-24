@@ -16,18 +16,21 @@ export const ROWS = 9;
  * Terrain per tile. ~ sea · b beach · g grass · f palm grove · H the village (home) · c fishing cove ·
  * s salt flat · p old pier · t buried treasure · w a villager looking for work.
  * The layout is fixed, so what a plot hides is decided up front (no hidden rolls when you buy it).
+ * The village sits on the north coast (its dock faces the open sea); the island spreads south of it.
  */
 const LAYOUT = [
-  '~bbcb~~',
-  'bgfwgb~',
-  'bggfgtb',
-  'bHgggfc',
+  '~bbHbc~',
+  'bggggfb',
+  'sgfgwgc',
   'bggfggb',
-  '~bgggfb',
-  '~sgggbp',
-  '~bfgbb~',
-  '~~bbc~~',
+  'bgtgggb',
+  '~bggfgb',
+  '~bgfggp',
+  '~~bggb~',
+  '~~~bc~~',
 ];
+/** Bumped when LAYOUT changes; older saves are migrated by migrateIsland(). */
+export const LAYOUT_VERSION = 2;
 
 export type Terrain = '~' | 'b' | 'g' | 'f' | 'H' | 'c' | 's' | 'p' | 't' | 'w';
 
@@ -55,7 +58,8 @@ const START_OWNED = (() => {
   const out: number[] = [];
   const hc = HOME % COLS;
   const hr = Math.floor(HOME / COLS);
-  for (let r = hr - 1; r <= hr + 1; r++) for (let c = hc - 1; c <= hc + 1; c++) out.push(tileOf(c, r));
+  for (let r = hr - 1; r <= hr + 1; r++)
+    for (let c = hc - 1; c <= hc + 1; c++) if (r >= 0 && c >= 0 && r < ROWS && c < COLS && LAYOUT[r][c] !== '~') out.push(tileOf(c, r));
   return out;
 })();
 
@@ -143,10 +147,54 @@ export interface IslandState {
   freeHires: number;
   /** Lifetime staff output, for the island panel and analytics. */
   made: { fish: number; salt: number; jars: number; bottles: number; coins: number };
+  /** LAYOUT_VERSION the tile numbers refer to. */
+  layout?: number;
 }
 
 export function newIsland(): IslandState {
-  return { owned: [...START_OWNED], buildings: [], staff: [], salt: 0, timers: {}, lastTick: 0, freeHires: 0, made: { fish: 0, salt: 0, jars: 0, bottles: 0, coins: 0 } };
+  return { owned: [...START_OWNED], buildings: [], staff: [], salt: 0, timers: {}, lastTick: 0, freeHires: 0, made: { fish: 0, salt: 0, jars: 0, bottles: 0, coins: 0 }, layout: LAYOUT_VERSION };
+}
+
+/** Old map (v1): plot purchases started from 9 owned plots. */
+const V1_START = 9;
+
+/**
+ * Moves a save made on an older map onto the current one: every plot bought is refunded, the start
+ * plots are owned again, and each building (with its staff) moves to a fitting plot, which the
+ * player gets for free. Nothing built or hired is lost.
+ */
+export function migrateIsland(isl: IslandState): void {
+  if (isl.layout === LAYOUT_VERSION) return;
+  const bought = Math.max(0, isl.owned.length - V1_START);
+  let refund = 0;
+  for (let k = 0; k < bought; k++) refund += Math.round((40 * Math.pow(1.3, k)) / 5) * 5;
+  isl.owned = [...START_OWNED];
+  const moved = new Map<number, number>();
+  const taken = new Set<number>();
+  const fits = (tile: number, id: BuildingId) => {
+    const t = terrain(tile);
+    const def = BUILDINGS_BY_ID[id];
+    if (t === '~' || t === 'H' || taken.has(tile)) return false;
+    if (def.needs === 'pier') return t === 'p';
+    if (def.needs === 'shore') return isShore(t);
+    return !isShore(t) || t === 'b';
+  };
+  for (const b of isl.buildings) {
+    const all = [...Array(COLS * ROWS).keys()];
+    // prefer land already owned, then the nearest fitting plot to the village
+    const dist = (t: number) => Math.abs((t % COLS) - (HOME % COLS)) + Math.abs(Math.floor(t / COLS) - Math.floor(HOME / COLS));
+    const tile = all.filter((t) => fits(t, b.id)).sort((a, c) => Number(!isl.owned.includes(a)) - Number(!isl.owned.includes(c)) || dist(a) - dist(c))[0];
+    if (tile === undefined) continue;
+    moved.set(b.tile, tile);
+    taken.add(tile);
+    b.tile = tile;
+    if (!isl.owned.includes(tile)) isl.owned.push(tile);
+  }
+  isl.buildings = isl.buildings.filter((b) => taken.has(b.tile));
+  for (const st of isl.staff) st.tile = moved.get(st.tile) ?? st.tile;
+  isl.staff = isl.staff.filter((st) => taken.has(st.tile));
+  isl.layout = LAYOUT_VERSION;
+  (isl as IslandState & { refund?: number }).refund = refund;
 }
 
 /** The island opens after the first sale (the player has seen the whole catch → brew → sell loop). */

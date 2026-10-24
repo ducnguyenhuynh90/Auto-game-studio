@@ -1,31 +1,41 @@
-// The island estate around the village, in 3D: every plot of the island map (core/island.ts), the
-// buildings on them, and the staff doing their jobs. The village diorama sits on the home plot, so the
-// main screen can zoom from the village out to the whole business.
+// The island estate around the village, in 3D: one continuous island (render3d/landmass.ts) with every
+// plot of the map (core/island.ts), the buildings on them and the staff doing their jobs. The village
+// diorama sits on the home plot, so the main screen can zoom from the village out to the whole business.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { BUILDINGS_BY_ID, COLS, HOME, ROWS, buildingAt, canExpand, staffAt, terrain, type Staff, type Terrain } from '../core/island';
+import { BUILDINGS_BY_ID, COLS, HOME, ROWS, buildingAt, canExpand, isLand, staffAt, terrain, type Staff, type Terrain } from '../core/island';
 import type { GameState } from '../core/state';
+import { COAST, PLOT, TOP, Terrain3D, disguise, flatShape, hash, offset, plotCenter, slab } from './landmass';
 import { discard, makeBuilding, makeFish, makePalm, makeSaltPile, makeWorker, mesh, outline, toon } from './models';
 
-/** World units per plot. The village diorama (about 9 × 14 units) fills the home plot. */
-export const PLOT = 14;
-const BLOCK = PLOT - 3; // leaves canals of water between plots
-const homeCol = HOME % COLS;
-const homeRow = Math.floor(HOME / COLS);
+export { PLOT, plotCenter };
 
-export function plotCenter(tile: number, out = new THREE.Vector3()): THREE.Vector3 {
-  return out.set(((tile % COLS) - homeCol) * PLOT, 0, (Math.floor(tile / COLS) - homeRow) * PLOT);
+/** Sea level on the main screen: below the beach, so the island reads as a thick diorama. */
+export const SEA_Y = -0.9;
+
+/** Plot colours when owned; unowned land is the same ground, wilder and darker. */
+const GROUND: Record<Terrain, string> = { '~': '#2aa3b9', b: '#f2dca4', c: '#f2dca4', s: '#eef0e6', p: '#e8cf94', g: '#8cc265', f: '#79b358', H: '#93c86a', t: '#8cc265', w: '#8cc265' };
+const WILD = new THREE.Color('#7d9a5c');
+const SAND_WILD = new THREE.Color('#cdbf98');
+
+/** Unit vector from a plot toward the open sea (zero for inland plots). */
+export function seaDir(tile: number): THREE.Vector3 {
+  const c = tile % COLS;
+  const r = Math.floor(tile / COLS);
+  const v = new THREE.Vector3();
+  for (const [dc, dr] of [
+    [0, -1],
+    [1, 0],
+    [0, 1],
+    [-1, 0],
+  ]) {
+    const nc = c + dc;
+    const nr = r + dr;
+    const land = nc >= 0 && nr >= 0 && nc < COLS && nr < ROWS && isLand(terrain(nr * COLS + nc));
+    if (!land) v.add(new THREE.Vector3(dc, 0, dr));
+  }
+  return v.lengthSq() ? v.normalize() : v;
 }
-
-/** The middle of the whole island, for the overview camera. */
-export const ISLAND_CENTER = new THREE.Vector3(((COLS - 1) / 2 - homeCol) * PLOT, 0, ((ROWS - 1) / 2 - homeRow) * PLOT);
-
-const GROUND: Record<Terrain, string> = { '~': '#2aa3b9', b: '#f0d9a6', c: '#f0d9a6', s: '#f4f1e6', p: '#e8cf94', g: '#8cc265', f: '#79b358', H: '#8cc265', t: '#8cc265', w: '#8cc265' };
-const FOG: Record<Terrain, string> = { '~': '#2aa3b9', b: '#d9cfb6', c: '#d9cfb6', s: '#d9cfb6', p: '#d9cfb6', g: '#a3b59a', f: '#97ad8f', H: '#a3b59a', t: '#a3b59a', w: '#a3b59a' };
-
-const CLOUD_GEO = new THREE.SphereGeometry(1, 12, 8);
-const CLOUD_MAT = new THREE.MeshLambertMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 });
-const FOG_CLOUD_MAT = new THREE.MeshLambertMaterial({ color: 0xe6edf0, transparent: true, opacity: 0.95 });
 
 /**
  * Bakes a static group into one mesh per material: the whole island costs a handful of draw calls
@@ -45,7 +55,7 @@ function mergeStatic(src: THREE.Object3D): THREE.Group {
       g = ni;
     }
     for (const name of Object.keys(g.attributes)) if (name !== 'position' && name !== 'normal' && name !== 'uv') g.deleteAttribute(name);
-    if (!g.attributes.uv) g.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array((g.attributes.position.count) * 2), 2));
+    if (!g.attributes.uv) g.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2));
     const list = byMat.get(m.material) ?? [];
     list.push(g);
     byMat.set(m.material, list);
@@ -64,17 +74,14 @@ function mergeStatic(src: THREE.Object3D): THREE.Group {
   return out;
 }
 
-interface CloudPuff {
-  base: THREE.Vector3;
-  scale: THREE.Vector3;
-}
-
 interface WorkerView {
   uid: number;
   role: Staff['role'];
   group: THREE.Group;
   base: THREE.Vector3;
   phase: number;
+  /** Facing (radians) when standing still. */
+  face: number;
   rod?: THREE.Object3D;
 }
 
@@ -96,9 +103,10 @@ export interface EstateEvent {
 export class Estate {
   root = new THREE.Group();
   private ground = new THREE.Group();
+  private props = new THREE.Group();
   private builds = new THREE.Group();
   private people = new THREE.Group();
-  private clouds: { mesh: THREE.InstancedMesh; puffs: CloudPuff[] }[] = [];
+  private terrain3d = new Terrain3D();
   private workers: WorkerView[] = [];
   private walkers: Walker[] = [];
   private leaps: { fish: THREE.Group; from: THREE.Vector3; t: number }[] = [];
@@ -107,15 +115,35 @@ export class Estate {
   private staffKey = '';
   private made = { fish: -1, salt: -1, jars: -1, bottles: -1, coins: -1 };
   events: EstateEvent[] = [];
-  /** Lower-cost mode for weak devices: fewer clouds and walkers. */
+  /** Lower-cost mode for weak devices: fewer props and walkers. */
   lite = false;
 
   constructor() {
-    // open sea under everything (the village keeps its own animated water near the camera)
+    // open sea, lagoon shallows, beach ring, grass cliff and the painted top: one island
     const sea = new THREE.Mesh(new THREE.PlaneGeometry(900, 900), toon('#2a9fb6'));
     sea.rotation.x = -Math.PI / 2;
-    sea.position.set(ISLAND_CENTER.x, -0.32, ISLAND_CENTER.z);
-    this.root.add(sea, this.ground, this.builds, this.people);
+    sea.position.set(0, SEA_Y - 0.06, 40);
+    const shallows = new THREE.Mesh(flatShape(offset(COAST, 10), SEA_Y + 0.04), new THREE.MeshBasicMaterial({ color: '#7fdbe0', transparent: true, opacity: 0.45, depthWrite: false }));
+    const beach = mesh(slab(offset(COAST, 4), -0.15, 1.6), toon('#f0d9a6'), false);
+    // only the cliff walls: its top cap would z-fight with the painted top
+    const cliff = new THREE.Mesh(slab(COAST, TOP, 1.2), [new THREE.MeshBasicMaterial({ visible: false }), toon('#5f8f3c')]);
+    const top = new THREE.Mesh(this.terrain3d.geometry, new THREE.MeshLambertMaterial({ vertexColors: true }));
+    top.receiveShadow = true;
+    this.ground.add(sea, shallows, beach, cliff, top);
+    // rocks along the shore (kept clear of the village dock)
+    const rocks = new THREE.Group();
+    const ring = offset(COAST, 3.2);
+    ring.forEach((p, i) => {
+      if (i % 9 !== 0 || hash(i) < 0.35) return;
+      if (Math.abs(p.x) < 10 && p.y < 2) return; // keep the village's own shore clear
+      const r = mesh(new THREE.DodecahedronGeometry(0.5 + hash(i + 1) * 0.9, 0), toon(hash(i + 2) < 0.5 ? '#9a958a' : '#b3ada1'), false);
+      r.position.set(p.x, -0.1, p.y);
+      r.rotation.set(hash(i + 3) * 3, hash(i + 4) * 3, 0);
+      r.scale.y = 0.7;
+      rocks.add(r);
+    });
+    this.ground.add(mergeStatic(rocks));
+    this.root.add(this.ground, this.props, this.builds, this.people);
   }
 
   sync(s: GameState, t: number, dt: number): void {
@@ -131,88 +159,114 @@ export class Estate {
     const key = `${s.island.owned.join(',')}|${s.island.buildings.map((b) => b.tile).join(',')}|${this.lite}`;
     if (key === this.landKey) return;
     this.landKey = key;
-    for (const c of [...this.ground.children]) discard(c);
-    this.clouds = [];
+    const owned = new Set([...s.island.owned, HOME]);
+    // paint: your land is bright; land for sale is a little wild; far land is wilder still
+    this.terrain3d.paint((tile) => {
+      const t = owned.has(tile) ? terrain(tile) : disguise(terrain(tile));
+      const c = new THREE.Color(GROUND[t]);
+      if (owned.has(tile)) return c;
+      const sandy = t === 'b';
+      return c.lerp(sandy ? SAND_WILD : WILD, canExpand(s, tile) ? 0.35 : 0.6);
+    });
+    for (const c of [...this.props.children]) discard(c);
     const raw = new THREE.Group();
-    const nearPuffs: CloudPuff[] = [];
-    const farPuffs: CloudPuff[] = [];
-    const owned = new Set(s.island.owned);
     const p = new THREE.Vector3();
     for (let tile = 0; tile < COLS * ROWS; tile++) {
       const t = terrain(tile);
       if (t === '~' || tile === HOME) continue;
       plotCenter(tile, p);
-      const mine = owned.has(tile);
-      const near = !mine && canExpand(s, tile);
-      if (mine || near) {
-        const block = mesh(new THREE.BoxGeometry(BLOCK, 0.7, BLOCK), toon(mine ? GROUND[t] : FOG[t]), false);
-        block.position.set(p.x, -0.2, p.z);
-        raw.add(block);
-      }
-      // a sandy rim on shore plots
-      if ((mine || near) && (t === 'b' || t === 'c' || t === 's' || t === 'p')) {
-        const rim = mesh(new THREE.BoxGeometry(BLOCK + 1, 0.4, BLOCK + 1), toon(mine ? '#e9cf8f' : '#cfc6ae'), false);
-        rim.position.set(p.x, -0.3, p.z);
-        raw.add(rim);
-      }
-      if (!mine) {
-        // unexplored plots sit under cloud: buying one clears it
-        // plots next to yours show their land through thin cloud; farther ones are a sea of cloud
-        const n = this.lite ? 2 : near ? 3 : 5;
-        for (let k = 0; k < n; k++) {
-          const a = (k / n) * Math.PI * 2 + tile;
-          const r = near ? 2.8 : 3.4;
-          (near ? nearPuffs : farPuffs).push({
-            base: new THREE.Vector3(p.x + Math.cos(a) * r, (near ? 1.6 : 2.4) + (k % 2) * 0.9, p.z + Math.sin(a) * r),
-            scale: new THREE.Vector3(near ? 3 : 4.4, near ? 1.4 : 2.2, near ? 2.4 : 3.8),
-          });
-        }
-        continue;
-      }
-      if (!buildingAt(s, tile)) this.decorate(s, tile, t, p, raw);
+      if (owned.has(tile)) {
+        if (!buildingAt(s, tile)) this.decorate(tile, t, p, raw);
+      } else this.wild(s, tile, disguise(t), p, raw);
     }
-    // clouds are instanced: two draw calls for the whole sky of undiscovered plots
-    for (const [puffs, mat] of [
-      [nearPuffs, CLOUD_MAT],
-      [farPuffs, FOG_CLOUD_MAT],
-    ] as const) {
-      if (!puffs.length) continue;
-      const im = new THREE.InstancedMesh(CLOUD_GEO, mat, puffs.length);
-      im.userData.sharedGeo = true;
-      this.ground.add(im);
-      this.clouds.push({ mesh: im, puffs });
-    }
-    // little bridges join the plots you own (and the village)
-    const ownedAll = [...owned];
-    for (const a of ownedAll)
-      for (const [dc, dr] of [
-        [1, 0],
-        [0, 1],
-      ]) {
-        const c = (a % COLS) + dc;
-        const r = Math.floor(a / COLS) + dr;
-        if (c >= COLS || r >= ROWS) continue;
-        const b = r * COLS + c;
-        if (!ownedAll.includes(b) || a === HOME || b === HOME) continue;
-        const pa = plotCenter(a);
-        const pb = plotCenter(b);
-        const bridge = mesh(new THREE.BoxGeometry(dc ? 4.2 : 1.6, 0.18, dc ? 1.6 : 4.2), toon('#a57a48'), false);
-        outline(bridge, 1.04);
-        bridge.position.set((pa.x + pb.x) / 2, 0.12, (pa.z + pb.z) / 2);
-        raw.add(bridge);
-      }
-    this.ground.add(mergeStatic(raw));
+    this.fence(owned, raw);
+    this.props.add(mergeStatic(raw));
   }
 
-  /** Scenery on owned plots without a building: palms, salt pans, a pier. */
-  private decorate(s: GameState, tile: number, t: Terrain, p: THREE.Vector3, into: THREE.Group): void {
+  /** Untamed land: palms, rocks and tall grass; plots you can buy get a little "for sale" sign. */
+  private wild(s: GameState, tile: number, t: Terrain, p: THREE.Vector3, into: THREE.Group): void {
+    const n = this.lite ? 2 : t === 'f' ? 5 : 3;
+    for (let k = 0; k < n; k++) {
+      const a = hash(tile * 9.1 + k) * Math.PI * 2;
+      const r = 1.5 + hash(tile * 3.3 + k) * 4.5;
+      const x = p.x + Math.cos(a) * r;
+      const z = p.z + Math.sin(a) * r;
+      const pick = hash(tile + k * 17);
+      if (t !== 'b' && pick < 0.55) {
+        const palm = makePalm(2 + hash(k + tile) * 0.8);
+        palm.scale.setScalar(1.5);
+        palm.position.set(x, TOP, z);
+        palm.rotation.y = a;
+        into.add(palm);
+      } else if (pick < 0.8) {
+        const rock = mesh(new THREE.DodecahedronGeometry(0.6 + hash(k) * 0.5, 0), toon('#a19b8f'), false);
+        rock.position.set(x, TOP + 0.2, z);
+        rock.scale.y = 0.6;
+        into.add(rock);
+      } else {
+        const tuft = mesh(new THREE.ConeGeometry(0.5, 1.2, 5), toon(t === 'b' ? '#b5b06a' : '#4f7f3a'), false);
+        tuft.position.set(x, TOP + 0.6, z);
+        into.add(tuft);
+      }
+    }
+    if (canExpand(s, tile)) {
+      const post = mesh(new THREE.CylinderGeometry(0.12, 0.12, 2.2, 6), toon('#8f6638'), false);
+      post.position.set(p.x, TOP + 1.1, p.z + 2);
+      const board = mesh(new THREE.BoxGeometry(2.4, 1.3, 0.16), toon('#f2dca4'));
+      outline(board, 1.05);
+      board.position.set(p.x, TOP + 2.2, p.z + 2.1);
+      const coin = mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.08, 12), toon('#f2c14e', { emissive: '#5a4000' }), false);
+      coin.rotation.x = Math.PI / 2;
+      coin.position.set(p.x, TOP + 2.2, p.z + 2.22);
+      into.add(post, board, coin);
+    }
+  }
+
+  /** A low wooden fence along the edge of your land (where it meets land you don't own). */
+  private fence(owned: Set<number>, into: THREE.Group): void {
+    const half = PLOT / 2;
+    const p = new THREE.Vector3();
+    for (const tile of owned) {
+      const c = tile % COLS;
+      const r = Math.floor(tile / COLS);
+      plotCenter(tile, p);
+      for (const [dc, dr] of [
+        [0, -1],
+        [1, 0],
+        [0, 1],
+        [-1, 0],
+      ]) {
+        const nc = c + dc;
+        const nr = r + dr;
+        if (nc < 0 || nr < 0 || nc >= COLS || nr >= ROWS) continue;
+        const nt = nr * COLS + nc;
+        if (!isLand(terrain(nt)) || owned.has(nt)) continue;
+        // the edge between the two plots
+        const ex = p.x + dc * half;
+        const ez = p.z + dr * half;
+        const along = new THREE.Vector3(dr !== 0 ? 1 : 0, 0, dc !== 0 ? 1 : 0);
+        for (let k = -3; k <= 3; k++) {
+          const post = mesh(new THREE.BoxGeometry(0.22, 1, 0.22), toon('#a57a48'), false);
+          post.position.set(ex + along.x * k * 2.1, TOP + 0.5, ez + along.z * k * 2.1);
+          into.add(post);
+        }
+        for (const h of [0.45, 0.85]) {
+          const rail = mesh(new THREE.BoxGeometry(along.x ? PLOT - 1 : 0.12, 0.12, along.z ? PLOT - 1 : 0.12), toon('#c49a62'), false);
+          rail.position.set(ex, TOP + h, ez);
+          into.add(rail);
+        }
+      }
+    }
+  }
+
+  /** Scenery on owned plots without a building: palms, flowers, salt pans, a pier. */
+  private decorate(tile: number, t: Terrain, p: THREE.Vector3, into: THREE.Group): void {
     if (t === 'f' || (t === 'g' && tile % 3 === 0)) {
       const n = t === 'f' ? 3 : 1;
       for (let k = 0; k < n; k++) {
         const palm = makePalm(2.2 + (k % 2) * 0.5);
         palm.scale.setScalar(1.6);
-        palm.position.set(p.x - 3.5 + k * 3.4, 0.15, p.z - 3 + (k % 2) * 2.5);
-        palm.userData.deco = tile;
+        palm.position.set(p.x - 3.5 + k * 3.4, TOP, p.z - 3 + (k % 2) * 2.5);
         into.add(palm);
       }
     }
@@ -222,28 +276,26 @@ export class Estate {
       for (let k = 0; k < 5; k++) {
         const a = tile * 2.3 + k * 1.9;
         const bush = mesh(new THREE.SphereGeometry(k % 2 ? 0.45 : 0.3, 8, 6), toon(k % 2 ? '#5fae52' : colors[(tile + k) % colors.length]), false);
-        bush.position.set(p.x + Math.cos(a) * 4, 0.3, p.z + Math.sin(a) * 4);
-        bush.userData.deco = tile;
+        bush.position.set(p.x + Math.cos(a) * 4, TOP + 0.1, p.z + Math.sin(a) * 4);
         into.add(bush);
       }
     }
     if (t === 's') {
       for (let k = 0; k < 4; k++) {
         const pan = mesh(new THREE.BoxGeometry(3.6, 0.06, 3.6), toon(k % 3 ? '#bfe4ee' : '#e8f4f8'), false);
-        pan.position.set(p.x - 2.1 + (k % 2) * 4.2, 0.17, p.z - 2.1 + Math.floor(k / 2) * 4.2);
-        pan.userData.deco = tile;
+        pan.position.set(p.x - 2.1 + (k % 2) * 4.2, TOP + 0.02, p.z - 2.1 + Math.floor(k / 2) * 4.2);
         into.add(pan);
       }
     }
     if (t === 'p') {
-      for (let k = 0; k < 5; k++) {
-        const plank = mesh(new THREE.BoxGeometry(1.1, 0.16, 6), toon(k % 2 ? '#a57a48' : '#8f6638'));
-        plank.position.set(p.x - 2.4 + k * 1.2, 0.2, p.z + 4);
-        plank.userData.deco = tile;
+      // the old pier runs out over the water
+      const d = seaDir(tile);
+      for (let k = 0; k < 6; k++) {
+        const plank = mesh(new THREE.BoxGeometry(d.x ? 1.2 : 3, 0.16, d.z ? 1.2 : 3), toon(k % 2 ? '#a57a48' : '#8f6638'));
+        plank.position.set(p.x + d.x * (4 + k * 1.25), TOP + 0.05, p.z + d.z * (4 + k * 1.25));
         into.add(plank);
       }
     }
-    void s;
   }
 
   // ---------- Buildings ----------
@@ -257,8 +309,13 @@ export class Estate {
     for (const b of s.island.buildings) {
       plotCenter(b.tile, p);
       const g = makeBuilding(b.id, b.level);
+      // the icon's little hex plinth isn't needed: buildings stand on the island itself
+      g.remove(g.children[0]);
       g.scale.setScalar(BUILDINGS_BY_ID[b.id].charm ? 4 : 5.2);
-      g.position.set(p.x, 0.2, p.z - 0.8);
+      // docks, salt fields and the trading post sit on the shore, facing the water
+      const shore = BUILDINGS_BY_ID[b.id].needs !== 'land' ? seaDir(b.tile) : new THREE.Vector3();
+      g.position.set(p.x + shore.x * 3, TOP, p.z - 0.8 + shore.z * 3);
+      if (shore.lengthSq()) g.rotation.y = Math.atan2(shore.x, shore.z);
       g.userData.tile = b.tile;
       raw.add(g);
     }
@@ -282,10 +339,16 @@ export class Estate {
         const g = mergeStatic(makeWorker(st.role));
         g.scale.setScalar(2.3);
         const base = new THREE.Vector3(p.x - 2.5 + i * 2.5, 0.2, p.z + 3.4);
-        if (st.role === 'fisher') base.set(p.x - 2 + i * 2, 0.45, p.z + 4.6); // on the edge of the dock, facing the sea
+        if (st.role === 'fisher') {
+          // on the end of the dock, facing the sea
+          const d = seaDir(b.tile);
+          const side = new THREE.Vector3(-d.z, 0, d.x);
+          base.set(p.x + d.x * 7 + side.x * (i - 1) * 2, 0.45, p.z + d.z * 7 + side.z * (i - 1) * 2);
+          g.rotation.y = Math.atan2(d.x, d.z);
+        }
         g.position.copy(base);
         this.people.add(g);
-        const view: WorkerView = { uid: st.uid, role: st.role, group: g, base, phase: i * 1.7 + b.tile };
+        const view: WorkerView = { uid: st.uid, role: st.role, group: g, base, phase: i * 1.7 + b.tile, face: g.rotation.y };
         if (st.role === 'fisher') {
           // a long rod and line out over the water
           const rod = mesh(new THREE.CylinderGeometry(0.03, 0.05, 2.6, 6), toon('#c9a66b'), false);
@@ -313,21 +376,11 @@ export class Estate {
   }
 
   private animate(s: GameState, t: number, dt: number): void {
-    const mtx = new THREE.Matrix4();
-    const pos = new THREE.Vector3();
-    const q = new THREE.Quaternion();
-    for (const c of this.clouds) {
-      c.puffs.forEach((pf, i) => {
-        pos.set(pf.base.x + Math.sin(t * 0.2 + pf.base.z) * 0.6, pf.base.y + Math.sin(t * 0.6 + pf.base.x) * 0.25, pf.base.z);
-        c.mesh.setMatrixAt(i, mtx.compose(pos, q, pf.scale));
-      });
-      c.mesh.instanceMatrix.needsUpdate = true;
-    }
     for (const w of this.workers) {
       const ph = t + w.phase;
       const g = w.group;
       if (w.role === 'fisher') {
-        g.rotation.y = Math.PI * 0.05;
+        g.rotation.y = w.face;
         if (w.rod) w.rod.rotation.x = 1.0 + Math.sin(ph * 1.3) * 0.12;
         g.position.y = w.base.y + Math.abs(Math.sin(ph * 0.9)) * 0.05;
       } else if (w.role === 'salter') {

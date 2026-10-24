@@ -28,10 +28,11 @@ const getShore = (s: ReturnType<typeof newState>, taken: number[] = []) => {
 };
 
 describe('island', () => {
-  it('starts with the 3x3 around the village and expands only to touching land', () => {
+  it('starts with the plots around the village and expands only to touching land', () => {
     const s = rich();
     expect(s.island.owned).toContain(HOME);
-    expect(s.island.owned.length).toBe(9);
+    expect(s.island.owned.length).toBe(6);
+    expect(s.island.owned.some((i) => terrain(i) === 'b')).toBe(true); // a dock fits on day one
     const far = findTile((t, i) => t !== '~' && !canExpand(s, i) && !s.island.owned.includes(i));
     expect(far).toBeGreaterThanOrEqual(0);
     const next = findTile((_, i) => canExpand(s, i));
@@ -114,8 +115,31 @@ describe('island', () => {
     delete old.island;
     delete old.puzzles;
     const s = loadFromBlob(old as never);
-    expect(s.island.owned.length).toBe(9);
+    expect(s.island.owned.length).toBe(6);
     expect(s.puzzles.salt).toEqual([]);
+  });
+
+  it('moves a v1 island onto the new map: land refunded, buildings and staff kept', () => {
+    const old = newState();
+    const isl = old.island as unknown as Record<string, unknown>;
+    delete isl.layout;
+    // v1: 9 start plots + 3 bought, a dock (with a fisher) and a brew house on old tile numbers
+    old.island.owned = [7, 8, 9, 14, 15, 16, 21, 22, 23, 0, 1, 2];
+    old.island.buildings = [
+      { tile: 14, id: 'dock', level: 1 },
+      { tile: 16, id: 'brewhouse', level: 2 },
+    ];
+    old.island.staff = [{ uid: 5, role: 'fisher', name: 'Anh Ba', level: 2, tile: 14 }];
+    old.coins = 10;
+    const s = loadFromBlob(JSON.parse(JSON.stringify(old)));
+    expect(s.island.layout).toBe(2);
+    expect(s.coins).toBe(10 + 40 + 50 + 70);
+    expect(s.island.buildings.length).toBe(2);
+    const dock = s.island.buildings.find((b) => b.id === 'dock')!;
+    expect(['b', 'c', 's', 'p']).toContain(terrain(dock.tile));
+    expect(s.island.staff[0].tile).toBe(dock.tile);
+    expect(s.island.staff[0].level).toBe(2);
+    for (const b of s.island.buildings) expect(s.island.owned).toContain(b.tile);
     expect(BALANCE.jarSlots).toBe(3);
   });
 });

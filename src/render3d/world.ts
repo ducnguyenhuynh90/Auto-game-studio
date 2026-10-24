@@ -11,7 +11,7 @@ import type { Game } from '../game';
 import type { FishingScene } from '../scenes/fishing';
 import type { RevealOverlay } from '../scenes/jar';
 import { PROFILES, type Quality, type QualityProfile } from './quality';
-import { Estate, plotCenter } from './estate';
+import { Estate, SEA_Y, plotCenter } from './estate';
 import {
   discard,
   setOutlinesEnabled,
@@ -607,17 +607,10 @@ class VillageRig {
     this.camera.position.set(0, 14, 17.5);
     this.camera.lookAt(0, 0, -0.9);
     this.root.add(this.estate.root);
-    this.water.mesh.position.y = -0.25;
+    // sea level sits below the island's beach so its sides show (render3d/estate.ts)
+    this.water.mesh.position.y = SEA_Y;
     this.root.add(this.water.mesh);
-    // island: sand rim + grass top
-    const sand = mesh(new THREE.CylinderGeometry(6.4, 7, 0.6, 28), toon('#f0d9a6'), false);
-    sand.position.y = -0.15;
-    sand.scale.set(0.66, 1, 1);
-    this.root.add(sand);
-    const grass = mesh(new THREE.CylinderGeometry(5.6, 5.9, 0.3, 28), toon('#8cc265'), false);
-    grass.position.set(0, 0.05, 0.2);
-    grass.scale.set(0.64, 1, 0.98);
-    this.root.add(grass);
+    // the ground is the big island itself (estate.ts): the village stands on its home plot
     // dock
     const dock = new THREE.Group();
     const deck = mesh(new THREE.BoxGeometry(1, 0.12, 3.2), toon('#a06a3d'));
@@ -626,8 +619,8 @@ class VillageRig {
     dock.add(deck);
     for (const z of [-1.4, -0.4, 0.6])
       for (const x of [-0.45, 0.45]) {
-        const post = mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.9), toon('#6e4423'));
-        post.position.set(x, -0.15, z);
+        const post = mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.7), toon('#6e4423'));
+        post.position.set(x, -0.55, z);
         dock.add(post);
       }
     dock.position.set(2.6, 0, -6.6);
@@ -648,7 +641,7 @@ class VillageRig {
     this.root.add(this.fisher);
     // Phú Quốc landmarks: the shrine rock by the dock, wooden mắm barrels beside the house
     const shrine = makeShrine();
-    shrine.position.set(-2.3, -0.2, -6.6);
+    shrine.position.set(-2.3, SEA_Y + 0.15, -6.6);
     shrine.scale.setScalar(0.9);
     this.root.add(shrine);
     for (const [x, z] of [
@@ -697,7 +690,7 @@ class VillageRig {
     this.dyn.add(rack);
     // boat at dock
     this.boat = makeBoat(s.upgrades.boat);
-    this.boat.position.set(0.6, -0.2, -7.6);
+    this.boat.position.set(0.6, SEA_Y + 0.05, -7.6);
     this.boat.scale.setScalar(s.upgrades.boat >= 1 ? 0.8 : 0.75);
     this.boat.rotation.y = s.upgrades.boat >= 1 ? Math.PI / 2 : 0;
     this.dyn.add(this.boat);
@@ -730,7 +723,7 @@ class VillageRig {
       const extra = makeBoat(1);
       extra.scale.setScalar(0.6);
       extra.rotation.y = Math.PI / 2;
-      extra.position.set(3.6, -0.2, -5.4);
+      extra.position.set(3.6, SEA_Y + 0.05, -5.4);
       this.dyn.add(extra);
     }
     if (stage >= 1) {
@@ -777,9 +770,15 @@ class VillageRig {
     // lean toward the village so home stays in view as the estate spreads out
     const farTarget = f.center.clone().lerp(new THREE.Vector3(), 0.3).add(new THREE.Vector3(0, 0, -size * 0.06)).add(this.pan);
     const target = closeTarget.lerp(farTarget, k);
-    const offset = new THREE.Vector3(0, 14, 18.4).lerp(new THREE.Vector3(0, size * 1.05, size * 0.95), k);
+    const offset = new THREE.Vector3(0, 14, 18.4).lerp(new THREE.Vector3(0, size * 0.92, size * 1.08), k);
     this.camera.position.copy(target).add(offset);
     this.camera.lookAt(target);
+    // a nearer far-away camera needs a deeper near plane, or distant surfaces flicker
+    const near = 0.1 + k * 3;
+    if (Math.abs(this.camera.near - near) > 0.01) {
+      this.camera.near = near;
+      this.camera.updateProjectionMatrix();
+    }
     return k;
   }
 
@@ -861,7 +860,7 @@ class VillageRig {
       if (top) top.rotation.z = Math.sin(t * 1.2 + p.position.x) * 0.06;
     }
     if (this.boat) {
-      this.boat.position.y = -0.2 + Math.sin(t * 1.5) * 0.05;
+      this.boat.position.y = SEA_Y + 0.05 + Math.sin(t * 1.5) * 0.05;
       this.boat.rotation.z = Math.sin(t * 1.2) * 0.04;
     }
     this.hopT = Math.max(0, this.hopT - dt);

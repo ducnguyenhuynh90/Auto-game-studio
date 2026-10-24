@@ -1,4 +1,5 @@
 import { newState, type GameState } from './state';
+import { LAYOUT_VERSION, migrateIsland } from './island';
 
 const KEY = 'mam_save_v1';
 
@@ -26,6 +27,14 @@ export function loadFromBlob(s: GameState): GameState {
     island: { ...base.island, ...s.island, made: { ...base.island.made, ...s.island?.made } },
     puzzles: { ...base.puzzles, ...s.puzzles },
   };
+  // the island map changed shape (v2): move plots and buildings over, refunding land
+  if (s.island && s.island.layout !== LAYOUT_VERSION) {
+    merged.island.layout = s.island.layout; // the default spread above would claim the new layout
+    migrateIsland(merged.island);
+    const refund = (merged.island as { refund?: number }).refund ?? 0;
+    merged.coins += refund;
+    delete (merged.island as { refund?: number }).refund;
+  }
   if (!s.sea) merged.sea = legacy.zone === 'reef' ? 'reef' : 'lagoon';
   delete (merged as GameState & { zone?: string }).zone;
   return merged;

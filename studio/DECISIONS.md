@@ -110,3 +110,10 @@ built, but as ONE connected system rather than separate features:
 - The island map is fixed, not random, so discoveries are honest and can be hinted before buying.
 - No staff wages yet (simpler first version). If the sim's 2× income shows up in real play as boredom
   with upgrades, wages are the first lever.
+
+## D-013 · 2026-10-24 · Founder feedback: one big island, not separate plots
+- The founder sent low-poly island/diorama references and asked for one continuous island you expand.
+- The plot grid stays as the rules model (buying, placement, discoveries); only the presentation became
+  one landmass. Plots are shown as painted regions plus a property fence instead of separate blocks.
+- Changing the map (village on the north coast) breaks old tile numbers, so saves migrate with a full
+  refund of bought land and buildings relocated for free: no player loses anything.
