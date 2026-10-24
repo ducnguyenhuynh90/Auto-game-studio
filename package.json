@@ -1,0 +1,21 @@
+{
+  "name": "mam-village",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --port 4173",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "playtest": "node tools/playtest.mjs",
+    "sim": "vite-node tools/sim.ts"
+  },
+  "devDependencies": {
+    "typescript": "~5.8",
+    "vite": "^6.4.5",
+    "vite-node": "^3.2.4",
+    "vitest": "^3.2.7"
+  }
+}
