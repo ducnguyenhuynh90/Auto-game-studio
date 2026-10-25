@@ -22,12 +22,14 @@ function serviceWorker(): Plugin {
 // ARTIFACT=1: one self-contained JS file for the claude.ai playtest page (no service worker there).
 const artifact = process.env.ARTIFACT === '1';
 
-// Social login ships only in self-hosted builds that have Firebase config (never in the artifact).
-const firebase = !artifact && !!process.env.VITE_FIREBASE_API_KEY;
+// Accounts ship only in self-hosted builds with config (never in the artifact, which uses claude.ai).
+// Supabase is preferred; Firebase is only used when Supabase isn't configured.
+const supabase = !artifact && !!process.env.VITE_SUPABASE_URL && !!process.env.VITE_SUPABASE_ANON_KEY;
+const firebase = !artifact && !supabase && !!process.env.VITE_FIREBASE_API_KEY;
 
 export default defineConfig({
   base: './',
-  define: { __FIREBASE__: JSON.stringify(firebase) },
+  define: { __FIREBASE__: JSON.stringify(firebase), __SUPABASE__: JSON.stringify(supabase) },
   plugins: artifact ? [] : [serviceWorker()],
   build: {
     outDir: artifact ? 'dist-artifact/build' : 'dist',

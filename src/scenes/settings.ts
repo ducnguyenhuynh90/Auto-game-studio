@@ -42,7 +42,7 @@ export class SettingsOverlay implements Scene {
     let y = 120;
     text(ctx, 'ACCOUNT', 30, y, 12, 'rgba(43,33,24,0.6)', 'left', 900);
     y += 14;
-    const cardH = !acc ? 110 : acc.conflict ? 250 : acc.signedIn ? 146 : acc.socialProviders.length ? 222 : 104;
+    const cardH = !acc ? 110 : acc.conflict ? 250 : acc.canLink ? 236 : acc.signedIn ? 146 : acc.socialProviders.length ? 222 : 104;
     ctx.fillStyle = '#fff';
     rr(ctx, 26, y, W - 52, cardH, 14);
     ctx.fill();
@@ -52,6 +52,18 @@ export class SettingsOverlay implements Scene {
     if (!acc) return;
     if (acc.conflict) {
       this.drawConflict(ctx, acc, y);
+      y += cardH + 30;
+    } else if (acc.canLink) {
+      // a backed-up guest (Supabase): progress is already safe; a social login carries it to other devices
+      text(ctx, 'Guest · backed up to the cloud', 44, y + 24, 16, COLORS.ink, 'left', 900);
+      const ago = acc.lastSynced ? Math.max(0, Math.round((Date.now() - acc.lastSynced) / 1000)) : -1;
+      text(ctx, ago < 0 ? 'Not synced yet' : `Last saved ${ago < 60 ? `${ago}s` : `${Math.round(ago / 60)} min`} ago`, 44, y + 44, 11, 'rgba(43,33,24,0.6)', 'left', 600);
+      text(ctx, 'Link an account to keep this village on any phone:', 44, y + 64, 11, COLORS.ink, 'left', 700);
+      acc.socialProviders.forEach((p, i) => {
+        const st = PROVIDER_STYLE[p];
+        this.game.button(ctx, `link_${p}`, 44, y + 78 + i * 46, W - 88, 40, st.label, () => void acc.signIn(p), { color: st.color, dark: st.dark, textColor: st.text, size: 15, disabled: acc.busy });
+      });
+      if (acc.status) text(ctx, acc.status, W / 2, y + cardH - 10, 11, COLORS.bad, 'center', 700);
       y += cardH + 30;
     } else if (acc.signedIn) {
       text(ctx, `Signed in as ${acc.info.name}`, 44, y + 26, 16, COLORS.ink, 'left', 900);
@@ -117,8 +129,8 @@ export class SettingsOverlay implements Scene {
     const lines = [
       'We keep your game save and anonymous play statistics',
       '(which screens, how far you got) to improve the game.',
-      'Signing in stores only a player id and your first name.',
-      'No ads, no email, no selling data.',
+      'Accounts store a player id, your first name and how you sign in.',
+      'No ads. We never use or sell your email (the login keeps it).',
     ];
     lines.forEach((l, i) => text(ctx, l, 30, y + 20 + i * 15, 11, COLORS.ink, 'left', 600));
   }

@@ -133,3 +133,14 @@ built, but as ONE connected system rather than separate features:
   missing brewer) before suggesting storage.
 - Wage growth lowered to +15% per level (speed +25%) so training is the main way to cut cost per unit.
 - Export orders are seeded by a 2-hour time slot (deterministic, not a paid random reward).
+
+## D-016 · 2026-10-25 · Founder request: Supabase for user info and progress
+- Supabase becomes the account + cloud-save backend for self-hosted builds (Firebase stays as a fallback
+  only when Supabase isn't configured). The claude.ai playtest page keeps the claude.ai store (artifacts
+  can't reach outside services).
+- Anonymous-first: every player is backed up from minute one without a sign-up wall; linking a social
+  login keeps the same user id. This avoids the classic "lost my village when I changed phones" churn.
+- Data minimisation unchanged in spirit: our tables hold a first name, sign-in method and the save plus a
+  progress summary. Email lives only inside Supabase Auth for social logins and is never read by the game.
+- Founder actions (free plan, no money): create the project, run the migration, enable providers, add
+  two GitHub secrets. Apple login needs a paid Apple Developer account: founder decision.

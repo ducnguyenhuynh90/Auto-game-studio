@@ -43,7 +43,44 @@
   `saveId` → higher `rev` wins; two different journeys → the player chooses in Settings.
 - **Data minimisation:** we store the save and a first name only. No email is requested.
 
-### Founder setup for social login (about 30 min, free tier)
+### Supabase: player accounts + progress (build 3.6, recommended backend)
+- `src/auth/supabase.ts`, compiled in when `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` are set at build
+  time (`__SUPABASE__`; Firebase is then ignored). Lazy-loaded chunk ≈ 60 KB gz; guest builds unchanged.
+- **Every player is backed up from the first launch:** an anonymous Supabase user is created silently.
+  Settings shows "Guest · backed up to the cloud" with **Link Google / Apple / Facebook**: linking keeps
+  the same user id (`linkIdentity`), so the save follows the player to any device. If that social account
+  already exists, it signs in to it instead and the normal merge rules decide (or ask).
+- **Tables** (`supabase/migrations/20261025000000_players.sql`):
+  - `profiles`: `id` (= auth user), `display_name` (first name or "Guest"), `provider`, `created_at`, `last_seen`.
+  - `saves`: `user_id`, `state` (the whole GameState as jsonb, ≤ 500 KB), `save_id`, `rev`, `saved_at`, and a
+    progress summary for support/dashboards: `captain_level`, `coins`, `catches`, `sea`, `relics`,
+    `island_level`, `brand_level`, `updated_at` (trigger).
+  - **Row-level security:** players read/insert/update only their own rows; no delete policy (deleting the
+    auth user cascades). Verified in `tests/supabase.test.ts` by running the migration in PGlite (real
+    Postgres) as two different users.
+- **Sync:** the same AccountManager as before: upload at most every 15 s and when the app goes to the
+  background; merge rules in `src/auth/merge.ts`. If Supabase can't be reached the game plays on the
+  device and says so in Settings.
+- **E2E without a project:** `tools/supabase-e2e.mjs` fakes Supabase at the network level in Chromium:
+  anonymous sign-in → profile + save + summary uploaded → local save wiped → cloud save restored;
+  and Supabase down → the game still starts. (Build with the fake URL first; see the file header.)
+- **Privacy:** our tables hold a first name and the sign-in method, never email. For social logins the
+  Supabase auth service itself keeps the email to sign the player in; we never read or use it.
+
+### Founder setup for Supabase (about 20 min, free plan)
+1. supabase.com → New project (Free plan; pick a region near players, e.g. Singapore).
+2. SQL editor → paste and run `supabase/migrations/20261025000000_players.sql`.
+3. Authentication → Sign In / Providers: turn on **Allow anonymous sign-ins**; enable **Google** (Google
+   Cloud OAuth client), optionally **Facebook** (Meta app) and **Apple** (Apple Developer, $99/yr: a real
+   cost, founder decision). Allow manual linking (Auth settings) so guests can link a login.
+4. Authentication → URL Configuration: Site URL = the game URL (e.g. `https://<user>.github.io/Auto-game-studio/`),
+   and add it to Redirect URLs.
+5. Project Settings → API: copy the Project URL and the anon public key into `.env` locally, and into GitHub
+   → Settings → Secrets and variables → Actions as `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`
+   (the Pages workflow passes them to the build). The anon key is public by design; RLS protects the data.
+6. Optional: Auth → Rate limits / CAPTCHA for anonymous sign-ups if bots appear.
+
+### Founder setup for Firebase social login (older alternative, about 30 min, free tier)
 1. console.firebase.google.com → new project (Spark plan, no billing) → add a Web app → copy the config
    into `.env` (see `.env.example`).
 2. Authentication → Sign-in method: enable Google. Facebook needs a Meta developer app (App ID/secret).

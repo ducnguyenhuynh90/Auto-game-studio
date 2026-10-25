@@ -13,6 +13,7 @@
     "sim": "vite-node tools/sim.ts"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.11",
     "@types/three": "^0.170.0",
     "typescript": "~5.8",
     "vite": "^6.4.5",
@@ -20,6 +21,7 @@
     "vitest": "^3.2.7"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.118.0",
     "firebase": "^11.10.0",
     "three": "^0.170.0"
   }

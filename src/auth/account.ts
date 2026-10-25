@@ -1,8 +1,10 @@
 // Accounts and cloud save. Guest play is always the default; signing in only adds cloud backup
-// and cross-device play. Two backends:
+// and cross-device play. Backends:
 //  - claude.ai account: automatic inside the claude.ai playtest page (artifact store, private per player)
-//  - Google / Apple / Facebook via Firebase: self-hosted builds with VITE_FIREBASE_* config
-// We store the game save and a display name. Never email or contacts.
+//  - Supabase: self-hosted builds with VITE_SUPABASE_*; every player is backed up from the first launch
+//    (anonymous account), and Google / Apple / Facebook can be linked to the same account later
+//  - Firebase (older alternative): self-hosted builds with VITE_FIREBASE_* and no Supabase config
+// We store the game save, a display name and the sign-in method. Never contacts or location.
 import { analytics } from '../core/analytics';
 import { setOnSaved } from '../core/save';
 import type { GameState } from '../core/state';
@@ -12,7 +14,8 @@ import { chooseSave, isFresh, type SaveBlob } from './merge';
 export type SocialProvider = 'google' | 'apple' | 'facebook';
 
 export interface AccountInfo {
-  kind: 'guest' | 'claude' | 'social';
+  /** 'cloud' = a backed-up guest (Supabase anonymous account) that can still link a social login. */
+  kind: 'guest' | 'cloud' | 'claude' | 'social';
   provider?: SocialProvider;
   name: string;
 }
@@ -23,8 +26,9 @@ export interface CloudBackend {
   signOut?(): Promise<void>;
 }
 
-/** Injected at build time: true only for self-hosted builds that have Firebase config. */
+/** Injected at build time: true only for self-hosted builds that have Firebase / Supabase config. */
 declare const __FIREBASE__: boolean;
+declare const __SUPABASE__: boolean;
 
 interface Host {
   use(name: string): Promise<unknown>;
@@ -60,13 +64,19 @@ export class AccountManager {
 
   /** Social sign-in buttons to show (empty when this build has no Firebase config). */
   get socialProviders(): SocialProvider[] {
-    return __FIREBASE__ ? ['google', 'apple', 'facebook'] : [];
+    return __SUPABASE__ || __FIREBASE__ ? ['google', 'apple', 'facebook'] : [];
+  }
+
+  /** True when progress is already backed up but no social login is linked yet. */
+  get canLink(): boolean {
+    return this.info.kind === 'cloud';
   }
 
   /** Warm the Firebase chunk when Settings opens, so a sign-in tap opens its popup instantly
    * (browsers block popups opened too long after the tap). */
   prepareSocial(): void {
-    if (__FIREBASE__) void import('./firebase');
+    if (__SUPABASE__) void import('./supabase');
+    else if (__FIREBASE__) void import('./firebase');
   }
 
   get signedIn(): boolean {
@@ -79,6 +89,18 @@ export class AccountManager {
     if (host?.use) {
       const ok = await this.tryClaude(host).catch(() => false);
       if (ok) return;
+    }
+    if (__SUPABASE__) {
+      // every player gets a backed-up account (anonymous until they link a social login)
+      const sb = await import('./supabase');
+      const session = await sb.startSession().catch(() => null);
+      if (!session) {
+        this.status = 'Cloud save unavailable right now. Playing on this device.';
+        return;
+      }
+      await this.connect(session.backend, session.provider ? { kind: 'social', provider: session.provider, name: session.name } : { kind: 'cloud', name: 'Guest' });
+      if (session.provider) setSocialSession(true);
+      return;
     }
     // Only returning social players pay for loading the Firebase SDK at boot.
     if (__FIREBASE__ && hasSocialSession()) {
@@ -113,6 +135,23 @@ export class AccountManager {
   }
 
   async signIn(provider: SocialProvider): Promise<void> {
+    if (__SUPABASE__) {
+      if (this.busy) return;
+      this.busy = true;
+      this.status = 'Opening sign-in…';
+      await this.flush(); // the page leaves for the provider: save first
+      try {
+        const sb = await import('./supabase');
+        analytics.track('login_start', { provider, link: this.canLink });
+        await sb.signIn(provider); // redirects; startSession() finishes it when the page comes back
+      } catch (e) {
+        this.status = 'Sign-in did not finish. Please try again.';
+        analytics.track('login_failed', { provider, code: String((e as { message?: string })?.message ?? 'unknown').slice(0, 60) });
+      } finally {
+        this.busy = false;
+      }
+      return;
+    }
     if (!__FIREBASE__ || this.busy) return;
     this.busy = true;
     this.status = 'Signing in…';
