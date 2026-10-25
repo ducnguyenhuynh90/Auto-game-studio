@@ -120,29 +120,24 @@ export class PuzzleHubOverlay implements Scene {
     text(ctx, info.blurb, W / 2, y + 62, 12, COLORS.ink, 'center', 600);
     const cleared = s.puzzles[sec].filter((x) => x > 0).length;
     text(ctx, `Trains: ${info.trains} (up to Lv ${staffLevelCap(s, SECTION_ROLES[sec][0])})`, W / 2, y + 82, 12, '#7a5aa8', 'center', 900);
+    // levels in rows of five, then a note for the rest of the 100-level track
     const n = levelCount(sec);
-    const gap = (W - 60) / (n + 1);
-    for (let i = 0; i <= n; i++) {
-      const cx = 30 + gap * (i + 0.5);
-      const cy = y + 134;
-      if (i === n) {
-        // the rest of the 100-level track
-        ctx.fillStyle = 'rgba(43,33,24,0.08)';
-        ctx.beginPath();
-        ctx.arc(cx, cy, 24, 0, Math.PI * 2);
-        ctx.fill();
-        text(ctx, `${n + 1}–${LEVELS_PER_SECTION}`, cx, cy - 2, 10, 'rgba(43,33,24,0.55)', 'center', 900);
-        text(ctx, 'soon', cx, cy + 34, 10, 'rgba(43,33,24,0.55)', 'center', 900);
-        continue;
-      }
+    const perRow = 5;
+    const gap = (W - 60) / perRow;
+    const r = 17;
+    for (let i = 0; i < n; i++) {
+      const row = Math.floor(i / perRow);
+      const col = i % perRow;
+      const cx = 30 + gap * (col + 0.5);
+      const cy = y + 112 + row * 50;
       const open = levelOpen(s, sec, i);
       const st = stars(s, sec, i);
-      if (i > 0) {
+      if (col > 0) {
         ctx.strokeStyle = st > 0 || open ? info.color : 'rgba(43,33,24,0.2)';
         ctx.lineWidth = 4;
         ctx.beginPath();
-        ctx.moveTo(cx - gap + 25, cy);
-        ctx.lineTo(cx - 25, cy);
+        ctx.moveTo(cx - gap + r + 2, cy);
+        ctx.lineTo(cx - r - 2, cy);
         ctx.stroke();
       }
       const isNext = open && st === 0;
@@ -152,19 +147,20 @@ export class PuzzleHubOverlay implements Scene {
       ctx.scale(pulse, pulse);
       ctx.fillStyle = open ? (st > 0 ? info.color : '#fff') : '#d8cfbf';
       ctx.beginPath();
-      ctx.arc(0, 0, 24, 0, Math.PI * 2);
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
       ctx.fill();
       ctx.strokeStyle = COLORS.ink;
-      ctx.lineWidth = 3;
+      ctx.lineWidth = 2.5;
       ctx.stroke();
-      text(ctx, open ? String(i + 1) : '🔒', 0, 1, open ? 20 : 16, open ? (st > 0 ? '#fff' : COLORS.ink) : COLORS.ink, 'center', 900);
+      text(ctx, open ? String(i + 1) : '🔒', 0, 1, open ? 15 : 12, open ? (st > 0 ? '#fff' : COLORS.ink) : COLORS.ink, 'center', 900);
       ctx.restore();
-      drawStars(ctx, cx, cy + 36, st, 6);
-      if (open) this.game.hitArea(`lvl_${sec}_${i}`, cx - 28, cy - 28, 56, 70, () => startPuzzle(this.game, sec, i));
+      drawStars(ctx, cx, cy + 26, st, 5);
+      if (open) this.game.hitArea(`lvl_${sec}_${i}`, cx - gap / 2, cy - r - 4, gap, 50, () => startPuzzle(this.game, sec, i));
     }
     const titles = sec === 'fishing' ? FISHING_LEVELS : sec === 'salt' ? SALT_LEVELS : SHOP_LEVELS;
     const nextIdx = Math.min(cleared, n - 1);
     text(ctx, cleared >= n ? 'All built levels cleared! More are on the way.' : `Next: ${nextIdx + 1}. ${titles[nextIdx].title}`, W / 2, y + 206, 13, COLORS.ink, 'center', 900);
+    text(ctx, `${cleared}/${LEVELS_PER_SECTION} · levels ${n + 1}–${LEVELS_PER_SECTION} coming`, W / 2, y + 224, 10, 'rgba(43,33,24,0.5)', 'center', 800);
   }
 }
 
@@ -482,7 +478,8 @@ export class ShopPuzzleOverlay implements Scene {
       drawBottle(ctx, x, shelfY + 96 + lift, 50, b.recipe, tierFor(b.degrees).color);
       ctx.restore();
       text(ctx, `${b.degrees}°N`, x, shelfY + 114, 13, '#fff', 'center', 900);
-      const name = RECIPES_BY_ID[b.recipe].name.replace(' Reserve', '').replace('Classic Anchovy', 'Classic');
+      let name = RECIPES_BY_ID[b.recipe].name.replace(' Reserve', '').replace('Classic Anchovy', 'Classic');
+      if (nb > 5) name = name.split(' ')[0]; // crowded shelf: one word per bottle
       text(ctx, name, x, shelfY + 132, 9.5, '#fff8e8', 'center', 900);
       if (!this.result && !used)
         this.game.hitArea(`bottle_${bi}`, x - bw / 2, shelfY + 20, bw, 126, () => {

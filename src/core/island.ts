@@ -128,8 +128,8 @@ export const ROLE: Record<Role, { title: string; verb: string; section: 'fishing
 const NAMES = ['Anh Ba', 'Chị Tư', 'Cô Sáu', 'Chú Bảy', 'Anh Tám', 'Bé Na', 'Chị Hai', 'Ông Chín', 'Cậu Mười', 'Cô Mai', 'Anh Lộc', 'Chị Thu'];
 
 /** Staff levels built so far (the level track has room for 100; content ships 5 at a time). */
-export const STAFF_MAX_LEVEL = 5;
-const STAFF_UPGRADE = [0, 80, 220, 500, 1100];
+export const STAFF_MAX_LEVEL = 10;
+const STAFF_UPGRADE = [0, 80, 220, 500, 1100, 2000, 3400, 5500, 8500, 12500];
 
 const speed = (lvl: number) => 1 + 0.25 * (lvl - 1);
 export const fishSeconds = (lvl: number) => 75 / speed(lvl);

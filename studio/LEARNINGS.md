@@ -74,3 +74,7 @@ Only [PLAYER] entries count as product evidence.
 - [FOUNDER] 2026-10-25: "brewing but no income". Traced: without a shop, staff bottles silently piled up;
   with one jar holding the player's own sauce, the brewer never started. Lesson: a production chain
   must show its stock between steps and say which step stops the money.
+- [SIM] 2026-10-25 · A pure depth-first salt maze put too few pans on leaves (3 of 5 asked). A growing-tree
+  maze (60% newest cell) plus deterministic seed retries hits the pan count every time; tests guard it.
+  This makes the 100-level salt track cheap to extend, but whether generated levels feel as good as
+  hand-made ones is unknown until players clear them.

@@ -5,10 +5,19 @@ import { foodLevel } from '../src/core/chain';
 import { newState } from '../src/core/state';
 
 describe('puzzles', () => {
-  it('ships 5 levels per section', () => {
-    expect(FISHING_LEVELS.length).toBe(5);
-    expect(SALT_LEVELS.length).toBe(5);
-    expect(SHOP_LEVELS.length).toBe(5);
+  it('ships 10 levels per section', () => {
+    expect(FISHING_LEVELS.length).toBe(10);
+    expect(SALT_LEVELS.length).toBe(10);
+    expect(SHOP_LEVELS.length).toBe(10);
+  });
+
+  it('generated salt fields have the pans they ask for, all reachable from the gate', () => {
+    SALT_LEVELS.forEach((l, li) => {
+      if (!l.gen) return;
+      const b = saltBoard(li);
+      expect(b.cells.filter((c) => c.kind === 'pan').length, l.title).toBe(l.gen.pans);
+      expect(b.cells.filter((c) => c.kind === 'gate').length).toBe(1);
+    });
   });
 
   it('every salt level starts unsolved and is solved by its authored layout', () => {
@@ -66,6 +75,6 @@ describe('puzzles', () => {
     expect(levelOpen(s, 'shop', 1)).toBe(true);
     expect(completeLevel(s, 'shop', 0, 3).first).toBe(false);
     expect(s.puzzles.shop[0]).toBe(3);
-    expect(levelOpen(s, 'shop', 5)).toBe(false); // level 6+ not built yet
+    expect(levelOpen(s, 'shop', 10)).toBe(false); // level 11+ not built yet
   });
 });

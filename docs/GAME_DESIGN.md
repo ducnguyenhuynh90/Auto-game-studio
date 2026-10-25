@@ -111,6 +111,11 @@ like Zoo Tycoon, to grow the fish-sauce business and trading.
    - **Salt field (ruộng muối):** turn channel tiles so sea water reaches every salt pan; ★★★ = par taps.
    - **Shop:** give every customer a bottle that fits their wish (min/max °N, recipe, no shrimp…);
      greedy choices fail; ★★★ = the best total.
+   **Build 3.6: 10 levels per section.** Fishing 6-10 use the Reef and the Delta (longer chains, links ×4,
+   a Barracuda target). Salt 6-10 are generated from a seed (5×5 up to 6×7 fields, 3-5 pans, decoy
+   channels): a growing-tree maze from the sea gate, pans on its deepest spread-out leaves, then every
+   pipe turned 1-3 times. Same seed, same field on every device; tests check pan count and solvability.
+   Shop 6-10 add 5-6 customers with conflicting wishes (Tết market: 6 customers, 7 bottles).
    Clearing level N in a section lets that section's staff train to level N+1 (fishing → Fishers;
    salt → Salt Makers and Brewers; shop → Shopkeepers). Rewards are paid on the first clear.
 
@@ -122,7 +127,7 @@ Brew House, Sauce Shop, Warehouse (storage), Trading Post (buys overflow fish, +
 Lantern Row and Banyan Shrine (charm → shop prices). Building level = staff slots. Island level rises
 with plots and buildings and unlocks bigger buildings.
 
-**Staff:** hire cost grows with each hire of a role; training costs 80/220/500/1100 to Lv 2-5;
+**Staff:** hire cost grows with each hire of a role; training costs 80/220/500/1100 to Lv 2-5 (build 3.6: up to Lv 10, 2000/3400/5500/8500/12500);
 Fisher speed +25%/level and better odds of rare fish (same weights as bait); Salt Maker +25%/level;
 Brewer +1°N per level and waits for ★★ aging from Lv 3; Shopkeeper +25% speed and +5% price per level.
 

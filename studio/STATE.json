@@ -1,5 +1,5 @@
 {
-  "updated": "2026-10-24",
+  "updated": "2026-10-25",
   "product_state": "INTERNAL_ALPHA",
   "real_player_evidence": "1 player (2026-10-24): stalled at the first sale after choosing Keep; 1/9 perfect catches. Too small to conclude anything; see LEARNINGS.",
   "build": "Vite + TypeScript. three.js 3D world (src/render3d) under a 2D canvas UI layer (src/scenes). Pure rules in src/core (unit-tested).",
@@ -23,14 +23,14 @@
     "Build 3.3 (founder feedback): Market reachable from the island view, Manage and the Sauce Shop; staff wages and building upkeep with a ledger (income/wages/upkeep/net per hour), unpaid staff pause; Brand ladder (6 stages, ×1.0 to ×1.85, reputation from sales); Mực the Phú Quốc Ridgeback: 3 tutorial goals after the first sale, 4 scenes, rides the boat and barks at real rare fish. Bot completed the dog chain in 8 trips with no errors.",
     "Build 3.4 (founder request): Business Report (Earn / Costs / Boost) with a linked fix on every line, idle-worker detection that names the real bottleneck, how-to-spend-less tips; tourism (Tour Office, Tour Guides, attraction from what you built, tourists walking in 3D, souvenirs); festival and radio ad; export orders at the Trading Post. Wage growth cut to +15%/level.",
     "Build 3.5 (founder feedback 'brewing but no income'): traced the staff chain (no shop = bottles pile up; your own jar blocks the brewer); production line screen with live steps, jar fermentation progress, AUTO/YOU switch per step (manual steps' staff rest unpaid), income estimate with per-step capacity and bottleneck fix; hand-sold staff bottles count as income.",
-    "Build 3.6 (founder request): Supabase accounts + cloud saves for self-hosted builds: anonymous-first (every player backed up), link Google/Apple/Facebook to the same account, profiles + saves tables with row-level security (verified in PGlite), progress summary columns, offline-safe. tools/supabase-e2e.mjs passes against a network-faked Supabase."
+    "Build 3.6 (founder request): Supabase accounts + cloud saves for self-hosted builds: anonymous-first (every player backed up), link Google/Apple/Facebook to the same account, profiles + saves tables with row-level security (verified in PGlite), progress summary columns, offline-safe. tools/supabase-e2e.mjs passes against a network-faked Supabase. Puzzle levels 6-10 in every section (generated, seed-stable salt fields; harder fishing chains; 6-customer shop orders); staff can train to Lv 10. All 30 levels are verified solvable by tests; bot regression clean."
   ],
   "constraints": [
     "No real-money gambling, no randomized paid rewards (needs founder/legal approval).",
     "No sensitive personal data. Analytics uses an anonymous random install id only.",
     "Founder approval is needed before spending money (hosting beyond free tiers, paid UA)."
   ],
-  "next_recommended_action": "1) FOUNDER: create the Supabase project (docs/TECHNICAL.md 'Founder setup for Supabase'), run the migration, add VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY as GitHub secrets, and merge to main so Pages builds with accounts. 2) Share the playtest link. 3) Pull plays/ data (EXP-005 to 008). 4) Puzzle levels 6-10.",
+  "next_recommended_action": "1) FOUNDER: create the Supabase project (docs/TECHNICAL.md 'Founder setup for Supabase'), run the migration, add VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY as GitHub secrets, and merge to main so Pages builds with accounts. 2) Share the playtest link. 3) Pull plays/ data (EXP-005 to 008). 4) Use real level-completion data before authoring levels 11+ (the salt generator can extend the track cheaply).",
   "playtest_link": "https://claude.ai/artifact/Vmwfyv5LjKtVFc31t6mdwG (private claude.ai Artifact; the founder shares it from the page's Share menu)",
   "analytics": "Each signed-in player at Contributor level or above (or an org member) writes one summary doc to plays/<viewer id> in the artifact store; only the owner can read it. Pull: ArtifactData list collection=plays out_dir=<dir>, then node tools/analyze-plays.mjs <dir>. Viewers without write access still play; their data stays local only.",
   "how_to_publish": "node tools/build-artifact.mjs, then Artifact publish of dist-artifact/mam-village.html to the URL above (pass url from a new session after an Artifact read)."
