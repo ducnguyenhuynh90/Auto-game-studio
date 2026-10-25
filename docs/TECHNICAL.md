@@ -70,19 +70,8 @@ See docs/NATIVE.md (Capacitor 8 wrapper, CI builds, store steps).
 - **Privacy:** our tables hold a first name and the sign-in method, never email. For social logins the
   Supabase auth service itself keeps the email to sign the player in; we never read or use it.
 
-### Founder setup for Supabase (about 20 min, free plan)
-1. supabase.com → New project (Free plan; pick a region near players, e.g. Singapore).
-2. SQL editor → paste and run `supabase/migrations/20261025000000_players.sql`.
-3. Authentication → Sign In / Providers: turn on **Allow anonymous sign-ins**; enable **Google** (Google
-   Cloud OAuth client), optionally **Facebook** (Meta app) and **Apple** (Apple Developer, $99/yr: a real
-   cost, founder decision). Allow manual linking (Auth settings) so guests can link a login.
-4. Authentication → URL Configuration: Site URL = the game URL (e.g. `https://<user>.github.io/Auto-game-studio/`),
-   and add it to Redirect URLs, plus `com.mamvillage.app://auth/callback` for the iOS / Android apps.
-   Run every file in `supabase/migrations/` in order (the second adds in-app account deletion).
-5. Project Settings → API: copy the Project URL and the anon public key into `.env` locally, and into GitHub
-   → Settings → Secrets and variables → Actions as `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`
-   (the Pages workflow passes them to the build). The anon key is public by design; RLS protects the data.
-6. Optional: Auth → Rate limits / CAPTCHA for anonymous sign-ups if bots appear.
+### Founder setup for Supabase
+Step-by-step guide: **docs/SUPABASE.md**.
 
 ### Founder setup for Firebase social login (older alternative, about 30 min, free tier)
 1. console.firebase.google.com → new project (Spark plan, no billing) → add a Web app → copy the config
