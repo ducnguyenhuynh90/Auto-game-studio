@@ -39,6 +39,8 @@ export interface AccountHooks {
   /** Replace the running game state (after picking the cloud save). */
   replaceState(s: GameState): void;
   toast(msg: string, sub?: string): void;
+  /** Wipe this device's save and start a new game (after account deletion). */
+  resetLocal?(): void;
 }
 
 export class AccountManager {
@@ -91,15 +93,7 @@ export class AccountManager {
       if (ok) return;
     }
     if (__SUPABASE__) {
-      // every player gets a backed-up account (anonymous until they link a social login)
-      const sb = await import('./supabase');
-      const session = await sb.startSession().catch(() => null);
-      if (!session) {
-        this.status = 'Cloud save unavailable right now. Playing on this device.';
-        return;
-      }
-      await this.connect(session.backend, session.provider ? { kind: 'social', provider: session.provider, name: session.name } : { kind: 'cloud', name: 'Guest' });
-      if (session.provider) setSocialSession(true);
+      await this.connectSupabase();
       return;
     }
     // Only returning social players pay for loading the Firebase SDK at boot.
@@ -107,6 +101,63 @@ export class AccountManager {
       const fb = await import('./firebase');
       const restored = await fb.restoreSession();
       if (restored) await this.connect(restored.backend, { kind: 'social', provider: restored.provider, name: restored.name });
+    }
+  }
+
+  /** Every player gets a backed-up account (anonymous until they link a social login). */
+  private async connectSupabase(): Promise<void> {
+    const sb = await import('./supabase');
+    const session = await sb.startSession().catch(() => null);
+    if (!session) {
+      this.status = 'Cloud save unavailable right now. Playing on this device.';
+      return;
+    }
+    await this.connect(session.backend, session.provider ? { kind: 'social', provider: session.provider, name: session.name } : { kind: 'cloud', name: 'Guest' });
+    if (session.provider) setSocialSession(true);
+  }
+
+  /** iOS / Android: the sign-in deep link reopened the app (src/native/index.ts). */
+  async finishNativeSignIn(link: string): Promise<void> {
+    if (!__SUPABASE__) return;
+    const sb = await import('./supabase');
+    const ok = await sb.finishNativeSignIn(link).catch(() => false);
+    if (!ok) {
+      this.status = 'Sign-in did not finish. Please try again.';
+      analytics.track('login_failed', { provider: 'native', code: 'no_code' });
+      return;
+    }
+    await this.connectSupabase();
+    if (this.info.kind === 'social') {
+      analytics.track('login', { provider: this.info.provider ?? 'unknown' });
+      this.hooks.toast('Account linked', `Your village now follows you, ${this.info.name}.`);
+    }
+  }
+
+  /** Accounts that can be deleted from inside the game (App Store / Google Play rule). */
+  get canDelete(): boolean {
+    return __SUPABASE__ && !!this.backend;
+  }
+
+  /** Deletes the account, its cloud save and this device's save; the game starts fresh. */
+  async deleteAccount(): Promise<boolean> {
+    if (!this.canDelete || this.busy) return false;
+    this.busy = true;
+    try {
+      const sb = await import('./supabase');
+      await sb.deleteAccount();
+      setSocialSession(false);
+      this.backend = null;
+      this.dirty = false;
+      this.info = { kind: 'guest', name: 'Guest' };
+      this.status = 'Account and cloud save deleted.';
+      analytics.track('account_deleted');
+      this.hooks.resetLocal?.();
+      return true;
+    } catch {
+      this.status = 'Could not delete right now. Check your connection and try again.';
+      return false;
+    } finally {
+      this.busy = false;
     }
   }
 

@@ -1,6 +1,6 @@
 // End-to-end check of the Supabase account flow in a real browser, with Supabase faked at the network
 // level (no project needed): anonymous sign-in → profile + save uploaded → reload with a wiped local
-// save → the cloud save comes back. Build first with fake config, then serve it:
+// save → the cloud save comes back → Settings deletes the account and its cloud save. Build first with fake config, then serve it:
 //   VITE_SUPABASE_URL=https://demo-project.supabase.co VITE_SUPABASE_ANON_KEY=demo npx vite build --outDir /tmp/sb-build
 //   npx vite preview --outDir /tmp/sb-build --port 4174 &   then:   node tools/supabase-e2e.mjs
 import { createRequire } from 'node:module';
@@ -31,6 +31,13 @@ await ctx.route('https://demo-project.supabase.co/**', async (route) => {
   if (url.pathname === '/auth/v1/signup') return json(session);
   if (url.pathname === '/auth/v1/user') return json(session.user);
   if (url.pathname === '/auth/v1/token') return json(session);
+  if (url.pathname === '/rest/v1/rpc/delete_my_account') {
+    // the SQL function deletes the auth user; the tables follow by cascade
+    db.saves.delete(userId);
+    db.profiles.delete(userId);
+    return route.fulfill({ status: 204, headers: { 'access-control-allow-origin': '*' }, body: '' });
+  }
+  if (url.pathname === '/auth/v1/logout') return route.fulfill({ status: 204, headers: { 'access-control-allow-origin': '*' }, body: '' });
   const table = url.pathname.replace('/rest/v1/', '');
   if (!(table in db)) return json({ message: 'unknown table' }, 404);
   if (req.method() === 'GET') {
@@ -75,6 +82,27 @@ await p.goto(`${base}?reset=1`);
 await p.waitForTimeout(5000);
 const coins = await p.evaluate(() => window.__mam.game.state.coins);
 if (coins !== want) fail.push(`cloud save not restored (coins ${coins})`);
+// Settings → Delete my account and progress (two taps): cloud rows and the device save are gone
+const tapHit = (id) =>
+  p.evaluate((id) => {
+    const h = window.__mam.game.hits.find((x) => x.id === id);
+    if (h) h.fn();
+    return !!h;
+  }, id);
+for (let i = 0; i < 6 && !(await p.evaluate(() => window.__mam.game.hits.some((h) => h.id === 'settings'))); i++) {
+  await tapHit('story_skip'); // the opening story scenes come first
+  await p.waitForTimeout(400);
+}
+if (!(await tapHit('settings'))) fail.push('settings button not found');
+await p.waitForTimeout(300);
+if (!(await tapHit('delete_account'))) fail.push('delete account button not shown');
+await p.waitForTimeout(300);
+if (!db.saves.has(userId)) fail.push(`one tap must not delete (${JSON.stringify(await p.evaluate(() => ({ ov: window.__mam.game.overlays.map((o) => o.name + ':' + o.confirmDeleteUntil + ':' + o.t), st: window.__mam.game.account.status })))})`);
+await tapHit('delete_account');
+await p.waitForTimeout(1500);
+const after = await p.evaluate(() => ({ kind: window.__mam.game.account.info.kind, coins: window.__mam.game.state.coins, catches: window.__mam.game.state.stats.catches }));
+if (db.saves.has(userId) || db.profiles.has(userId)) fail.push('cloud rows not deleted');
+if (after.kind !== 'guest' || after.catches !== 0) fail.push(`device not reset after deletion: ${JSON.stringify(after)}`);
 // Supabase down: the game must still start and play, saving on the device
 const ctx2 = await b.newContext({ viewport: { width: 390, height: 844 } });
 await ctx2.route('https://demo-project.supabase.co/**', (r) => r.abort('connectionrefused'));
@@ -84,7 +112,7 @@ await p2.goto(`${base}?reset=1`);
 await p2.waitForTimeout(5000);
 const offline = await p2.evaluate(() => ({ scene: window.__mam.game.scene.name, kind: window.__mam.game.account?.info.kind, status: window.__mam.game.account?.status }));
 if (offline.scene !== 'village' || offline.kind !== 'guest') fail.push(`offline start broken: ${JSON.stringify(offline)}`);
-console.log(JSON.stringify({ calls: [...new Set(calls)], kind: info1.kind, restoredCoins: coins, offline }, null, 1));
+console.log(JSON.stringify({ calls: [...new Set(calls)], kind: info1.kind, restoredCoins: coins, afterDelete: after, offline }, null, 1));
 console.log(fail.length ? 'FAIL\n' + fail.join('\n') : 'supabase e2e passed');
 await b.close();
 process.exit(fail.length ? 1 : 0);

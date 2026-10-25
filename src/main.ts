@@ -1,6 +1,6 @@
 import { analytics } from './core/analytics';
 import { startPlaySummary } from './remote';
-import { loadFromBlob, resetSave, saveState } from './core/save';
+import { loadFromBlob, loadState, resetSave, saveState } from './core/save';
 import { AccountManager } from './auth/account';
 import { Game } from './game';
 import { H, W } from './render/draw';
@@ -71,8 +71,8 @@ game.goPuzzles = () => {
   game.push(new PuzzleHubOverlay(game));
 };
 game.goFishingPuzzle = (i) => game.setScene(new FishingScene(game, FISHING_LEVELS[i].sea, i));
-// Island staff caught up for the time the game was closed (capped, see core/island.ts).
-{
+// Island staff caught up for the time the game was closed or in the background (capped, see core/island.ts).
+function welcomeBack(): void {
   const away = catchUp(game.state, game.rng, Date.now());
   if (away.fish + away.salt + away.jars + away.bottles + away.tourists > 0) {
     game.toast('While you were away…', '#3a8fd9', `Staff: +${away.fish} fish, +${away.salt} salt, ${away.jars} jars, ${away.tourists} tourists, +${away.coins} coins`);
@@ -80,6 +80,7 @@ game.goFishingPuzzle = (i) => game.setScene(new FishingScene(game, FISHING_LEVEL
     saveState(game.state);
   }
 }
+welcomeBack();
 game.goFishing = (sea) => {
   game.state.sea = sea;
   game.setScene(new FishingScene(game, sea));
@@ -97,6 +98,11 @@ game.account = new AccountManager({
     game.goVillage();
   },
   toast: (msg, sub) => game.toast(msg, '#3a8fd9', sub),
+  resetLocal: () => {
+    resetSave();
+    game.state = loadState();
+    game.goVillage();
+  },
 });
 void game.account.init().then(() => {
   if (game.account?.conflict) game.toast('Two saves found', '#a35bd6', 'Open Settings (≡) to choose one');
@@ -167,14 +173,26 @@ window.addEventListener('unhandledrejection', (e) => reportError(String((e as Pr
 analytics.funnelStep('first_launch');
 analytics.track('session_start', { trips: game.state.stats.trips, coins: game.state.coins, returning: game.state.stats.catches > 0 });
 
+// Notches, camera holes and the home bar: the game fits inside the safe area (the app runs edge to edge).
+const safeProbe = document.createElement('div');
+safeProbe.style.cssText =
+  'position:fixed;visibility:hidden;pointer-events:none;' +
+  'padding-top:max(env(safe-area-inset-top,0px),var(--safe-area-inset-top,0px));' +
+  'padding-bottom:max(env(safe-area-inset-bottom,0px),var(--safe-area-inset-bottom,0px))';
+document.body.appendChild(safeProbe);
+
 // Fit the 390x844 logical view into the window, crisp on high-DPI screens.
 let scale = 1;
 function resize(): void {
   const dpr = Math.min(3, window.devicePixelRatio || 1);
-  scale = Math.min(window.innerWidth / W, window.innerHeight / H);
+  const cs = getComputedStyle(safeProbe);
+  const top = parseFloat(cs.paddingTop) || 0;
+  const bottom = parseFloat(cs.paddingBottom) || 0;
+  scale = Math.min(window.innerWidth / W, (window.innerHeight - top - bottom) / H);
   for (const c of [canvas, worldCanvas]) {
     c.style.width = `${W * scale}px`;
     c.style.height = `${H * scale}px`;
+    c.style.top = `${top}px`;
   }
   game.world?.resize(W * scale, H * scale, dpr);
   // The UI layer redraws every frame too: cap its resolution (text stays crisp at 2x).
@@ -241,7 +259,13 @@ canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
 document.addEventListener('visibilitychange', () => {
   analytics.track(document.hidden ? 'app_hidden' : 'app_visible', { scene: game.scene.name });
+  // frames stop in the background; staff worked anyway
+  if (!document.hidden) welcomeBack();
 });
+
+// Inside the iOS / Android app (Capacitor injects window.Capacitor before the game loads).
+const isNativeApp = !!(window as unknown as { Capacitor?: { isNativePlatform?(): boolean } }).Capacitor?.isNativePlatform?.();
+if (isNativeApp) void import('./native').then((m) => m.initNative(game, { welcomeBack }));
 
 let last = performance.now();
 function frame(now: number): void {
@@ -261,7 +285,8 @@ requestAnimationFrame(frame);
 
 // Offline + instant repeat loads on self-hosted builds. Not inside the claude.ai artifact frame
 // (service workers aren't available there) and not in dev (it would cache stale modules).
-if (import.meta.env.PROD && 'serviceWorker' in navigator && window.top === window.self && location.protocol !== 'file:') {
+// The app ships its files inside the install, so it needs no service worker.
+if (import.meta.env.PROD && !isNativeApp && 'serviceWorker' in navigator && window.top === window.self && location.protocol !== 'file:') {
   navigator.serviceWorker.register('./sw.js').catch(() => {
     /* unsupported or blocked: the game works without it */
   });

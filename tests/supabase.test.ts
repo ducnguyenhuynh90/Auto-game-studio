@@ -54,6 +54,7 @@ describe('Supabase schema and row-level security (migration run in PGlite)', () 
       create table auth.users (id uuid primary key);
       create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
       create role authenticated;
+      create role anon;
       grant usage on schema public to authenticated;
       alter default privileges in schema public grant select, insert, update, delete on tables to authenticated;
     `);
@@ -85,9 +86,19 @@ describe('Supabase schema and row-level security (migration run in PGlite)', () 
     const row = (await as(a, 'select state, rev from public.saves')).rows[0] as { state: { coins: number }; rev: number };
     expect(row.rev).toBe(2);
     expect(row.state.coins).toBe(9);
-    // deleting the account removes everything
-    await db.exec(`delete from auth.users where id = '${a}'`);
-    expect((await db.query('select * from public.saves')).rows.length).toBe(0);
+    await as(b, `insert into public.saves (user_id, state) values ('${b}', '{}')`);
+    // a player deletes their own account from the app: their rows go, nobody else's
+    await as(a, 'select public.delete_my_account()');
+    expect((await db.query(`select * from auth.users where id = '${a}'`)).rows.length).toBe(0);
+    expect((await db.query('select user_id from public.saves')).rows).toEqual([{ user_id: b }]);
+    expect((await db.query('select * from public.profiles')).rows.length).toBe(0);
+    // signed-out callers can't run it (and it never deletes anyone else)
+    await db.exec(`select set_config('request.jwt.claim.sub', '', false);`);
+    await expect(db.query('select public.delete_my_account()')).rejects.toThrow(/not signed in/);
+    await db.exec('set role anon;');
+    await expect(db.query('select public.delete_my_account()')).rejects.toThrow(/permission denied/);
+    await db.exec('reset role;');
+    expect((await db.query('select user_id from public.saves')).rows).toEqual([{ user_id: b }]);
     await db.close();
   }, 30_000);
 });

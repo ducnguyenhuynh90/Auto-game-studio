@@ -15,6 +15,8 @@ export class SettingsOverlay implements Scene {
   name = 'settings';
   covers3d = true;
   t = 0;
+  /** Account deletion needs a second tap within a few seconds. */
+  private confirmDeleteUntil = 0;
 
   constructor(private game: Game) {
     game.account?.prepareSocial();
@@ -133,6 +135,19 @@ export class SettingsOverlay implements Scene {
       'No ads. We never use or sell your email (the login keeps it).',
     ];
     lines.forEach((l, i) => text(ctx, l, 30, y + 20 + i * 15, 11, COLORS.ink, 'left', 600));
+    if (acc?.canDelete) {
+      const armed = this.t < this.confirmDeleteUntil;
+      this.game.button(ctx, 'delete_account', 30, y + 88, W - 60, 40, armed ? 'Tap again: delete everything' : 'Delete my account and progress', () => {
+        if (!armed) {
+          this.confirmDeleteUntil = this.t + 4;
+          return;
+        }
+        this.confirmDeleteUntil = 0;
+        void acc.deleteAccount().then((ok) => {
+          if (ok) this.game.toast('Account deleted', COLORS.bad, 'Your cloud save is gone. A new village starts here.');
+        });
+      }, { color: armed ? COLORS.bad : '#e8dcc6', dark: armed ? '#8a2d22' : '#b8a98f', textColor: armed ? '#fff' : COLORS.bad, size: 14, disabled: acc.busy });
+    }
   }
 
   private drawConflict(ctx: Ctx, acc: AccountManager, y: number): void {

@@ -144,3 +144,14 @@ built, but as ONE connected system rather than separate features:
   progress summary. Email lives only inside Supabase Auth for social logins and is never read by the game.
 - Founder actions (free plan, no money): create the project, run the migration, enable providers, add
   two GitHub secrets. Apple login needs a paid Apple Developer account: founder decision.
+
+## D-017 · 2026-10-25 · Founder request: iOS and Android apps via Capacitor
+- Wrap the existing game with Capacitor 8 instead of rewriting it natively (Unity, React Native, Flutter).
+  The game is a three.js + canvas app with no DOM UI, so the web view runs it as-is; a rewrite would cost
+  months with zero real-player evidence yet. Web, iOS and Android share one codebase and every fix.
+- Revisit only if real devices show performance we can't fix with the quality tiers.
+- Store rules built in now: in-app account deletion (both stores), Sign in with Apple alongside Google
+  (Apple 4.8), system-browser OAuth (Google blocks embedded web views), portrait lock, safe areas.
+- App id `com.mamvillage.app` (permanent after the first upload): founder confirms.
+- Founder decisions and money: Google Play (US$25 once), Apple Developer (US$99/yr), privacy policy text,
+  store data-safety answers, encryption declaration. Nothing is submitted to a store without approval.

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Mắm Village</string>
+    <string name="title_activity_main">Mắm Village</string>
+    <string name="package_name">com.mamvillage.app</string>
+    <string name="custom_url_scheme">com.mamvillage.app</string>
+</resources>

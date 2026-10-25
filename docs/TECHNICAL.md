@@ -43,6 +43,9 @@
   `saveId` → higher `rev` wins; two different journeys → the player chooses in Settings.
 - **Data minimisation:** we store the save and a first name only. No email is requested.
 
+### Native apps
+See docs/NATIVE.md (Capacitor 8 wrapper, CI builds, store steps).
+
 ### Supabase: player accounts + progress (build 3.6, recommended backend)
 - `src/auth/supabase.ts`, compiled in when `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` are set at build
   time (`__SUPABASE__`; Firebase is then ignored). Lazy-loaded chunk ≈ 60 KB gz; guest builds unchanged.
@@ -74,7 +77,8 @@
    Cloud OAuth client), optionally **Facebook** (Meta app) and **Apple** (Apple Developer, $99/yr: a real
    cost, founder decision). Allow manual linking (Auth settings) so guests can link a login.
 4. Authentication → URL Configuration: Site URL = the game URL (e.g. `https://<user>.github.io/Auto-game-studio/`),
-   and add it to Redirect URLs.
+   and add it to Redirect URLs, plus `com.mamvillage.app://auth/callback` for the iOS / Android apps.
+   Run every file in `supabase/migrations/` in order (the second adds in-app account deletion).
 5. Project Settings → API: copy the Project URL and the anon public key into `.env` locally, and into GitHub
    → Settings → Secrets and variables → Actions as `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`
    (the Pages workflow passes them to the build). The anon key is public by design; RLS protects the data.

@@ -10,6 +10,7 @@
    summary match the world.
 
 ## Next
+- **Native app follow-ups:** CI signing for TestFlight (needs the Apple account), an analytics sink for app builds, store screenshots from `?scene=estate`, real-device fps check.
 4. Sound pass: ambient waves/gulls loop; reel ratchet loop.
 5. Performance pass: shadow map size, reuse geometries, pause the WebGL render under the opaque market/dex overlays.
 6. Reveal shareability: capture a 5 s clip or still of Legendary reveals (growth moment).

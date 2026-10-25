@@ -145,9 +145,16 @@ export const sfx = {
   upgrade: () => [392, 523, 659, 784, 1047].forEach((f, i) => tone(f, 0.22, 'triangle', 0.1, undefined, i * 0.06)),
 };
 
+/** The iOS / Android app swaps in real haptics (iOS has no navigator.vibrate). */
+let vibrator: ((ms: number | number[]) => void) | null = null;
+export function setVibrator(fn: (ms: number | number[]) => void): void {
+  vibrator = fn;
+}
+
 export function vibrate(ms: number | number[]): void {
   try {
-    navigator.vibrate?.(ms);
+    if (vibrator) vibrator(ms);
+    else navigator.vibrate?.(ms);
   } catch {
     /* unsupported */
   }

@@ -10,9 +10,12 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "playtest": "node tools/playtest.mjs",
-    "sim": "vite-node tools/sim.ts"
+    "sim": "vite-node tools/sim.ts",
+    "cap:sync": "npm run build && cap sync",
+    "icons": "node tools/make-icons.mjs && npx -y @capacitor/assets@3.0.5 generate --iconBackgroundColor '#1b6f8a' --splashBackgroundColor '#0e3d4f' --splashBackgroundColorDark '#0e3d4f' --android --ios"
   },
   "devDependencies": {
+    "@capacitor/cli": "8.5.3",
     "@electric-sql/pglite": "^0.5.11",
     "@types/three": "^0.170.0",
     "typescript": "~5.8",
@@ -21,6 +24,14 @@
     "vitest": "^3.2.7"
   },
   "dependencies": {
+    "@capacitor/android": "8.5.3",
+    "@capacitor/app": "8.1.2",
+    "@capacitor/browser": "8.0.5",
+    "@capacitor/core": "8.5.3",
+    "@capacitor/haptics": "8.0.2",
+    "@capacitor/ios": "8.5.3",
+    "@capacitor/splash-screen": "8.0.2",
+    "@capacitor/status-bar": "8.0.4",
     "@supabase/supabase-js": "^2.118.0",
     "firebase": "^11.10.0",
     "three": "^0.170.0"

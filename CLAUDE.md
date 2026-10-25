@@ -16,6 +16,8 @@ the biggest problem and the next action. Then read PRODUCT.md and SUCCESS.yaml.
 - `npx vite-node tools/sim.ts <skill> <trips>`: fast progression/economy simulation (pacing, not fun).
 - `node tools/bench.mjs <cpuSlowdown> [low|medium|high]`: fps benchmark on a simulated weak phone.
 - `node tools/build-artifact.mjs`: single-file build for the claude.ai playtest artifact (then publish it).
+- `npm run cap:sync`: build + copy the game into the native apps (`android/`, `ios/`); see docs/NATIVE.md.
+  CI (`.github/workflows/native.yml`) builds the Android APK/AAB and an iOS simulator build.
 - Player data: see docs/ANALYTICS.md ("Pull & analyse").
 
 ## Architecture
@@ -25,6 +27,7 @@ the biggest problem and the next action. Then read PRODUCT.md and SUCCESS.yaml.
   Gameplay positions are 390×844 screen space; the world raycasts them onto the water and ground.
 - `src/auth/`: accounts + cloud save (claude.ai identity; Firebase social login when configured).
 - `src/render3d/quality.ts`: quality tiers + FPS governor. `src/sw/`: service worker template.
+- `src/native/`: iOS/Android glue (Capacitor): back button, pause/resume, haptics, sign-in deep link.
 - `src/game.ts`: scene stack, immediate-mode buttons and hit areas, toasts. `src/main.ts`: bootstrap.
 
 ## Rules of the studio
