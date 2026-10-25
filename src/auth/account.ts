@@ -106,30 +106,35 @@ export class AccountManager {
 
   /** Every player gets a backed-up account (anonymous until they link a social login). */
   private async connectSupabase(): Promise<void> {
-    const sb = await import('./supabase');
-    const session = await sb.startSession().catch(() => null);
-    if (!session) {
-      this.status = 'Cloud save unavailable right now. Playing on this device.';
-      return;
+    if (!__SUPABASE__) return;
+    if (__SUPABASE__) {
+      const sb = await import('./supabase');
+      const session = await sb.startSession().catch(() => null);
+      if (!session) {
+        this.status = 'Cloud save unavailable right now. Playing on this device.';
+        return;
+      }
+      await this.connect(session.backend, session.provider ? { kind: 'social', provider: session.provider, name: session.name } : { kind: 'cloud', name: 'Guest' });
+      if (session.provider) setSocialSession(true);
     }
-    await this.connect(session.backend, session.provider ? { kind: 'social', provider: session.provider, name: session.name } : { kind: 'cloud', name: 'Guest' });
-    if (session.provider) setSocialSession(true);
   }
 
   /** iOS / Android: the sign-in deep link reopened the app (src/native/index.ts). */
   async finishNativeSignIn(link: string): Promise<void> {
-    if (!__SUPABASE__) return;
-    const sb = await import('./supabase');
-    const ok = await sb.finishNativeSignIn(link).catch(() => false);
-    if (!ok) {
-      this.status = 'Sign-in did not finish. Please try again.';
-      analytics.track('login_failed', { provider: 'native', code: 'no_code' });
-      return;
-    }
-    await this.connectSupabase();
-    if (this.info.kind === 'social') {
-      analytics.track('login', { provider: this.info.provider ?? 'unknown' });
-      this.hooks.toast('Account linked', `Your village now follows you, ${this.info.name}.`);
+    // the flag must guard the import itself, or builds without Supabase still bundle it
+    if (__SUPABASE__) {
+      const sb = await import('./supabase');
+      const ok = await sb.finishNativeSignIn(link).catch(() => false);
+      if (!ok) {
+        this.status = 'Sign-in did not finish. Please try again.';
+        analytics.track('login_failed', { provider: 'native', code: 'no_code' });
+        return;
+      }
+      await this.connectSupabase();
+      if (this.info.kind === 'social') {
+        analytics.track('login', { provider: this.info.provider ?? 'unknown' });
+        this.hooks.toast('Account linked', `Your village now follows you, ${this.info.name}.`);
+      }
     }
   }
 
@@ -140,11 +145,13 @@ export class AccountManager {
 
   /** Deletes the account, its cloud save and this device's save; the game starts fresh. */
   async deleteAccount(): Promise<boolean> {
-    if (!this.canDelete || this.busy) return false;
+    if (!__SUPABASE__ || !this.canDelete || this.busy) return false;
     this.busy = true;
     try {
-      const sb = await import('./supabase');
-      await sb.deleteAccount();
+      if (__SUPABASE__) {
+        const sb = await import('./supabase');
+        await sb.deleteAccount();
+      }
       setSocialSession(false);
       this.backend = null;
       this.dirty = false;
