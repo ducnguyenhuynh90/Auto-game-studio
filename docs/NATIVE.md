@@ -48,9 +48,9 @@ Every push that touches the game or native projects (and the manual "Run workflo
 - Supabase secrets, if set, are baked in the same way as the web build. Without them the app is
   guest-only (progress on the device).
 
-**Verification status:** the native projects were generated and configured in a container that can't
-reach Google's Android SDK host or run Xcode, so the first real compile happens on the first CI run. The
-web layer (back button rules, safe areas, account deletion, sign-in flow) is covered by `npm test` and
+**Verification status (2026-10-25):** CI run #3 builds both apps: the Android debug APK + release AAB
+(9.2 MB artifact) and the iOS simulator app (3.4 MB). Not yet run on a real phone. The web layer (back
+button rules, safe areas, account deletion, sign-in flow) is covered by `npm test` and
 `tools/supabase-e2e.mjs`.
 
 ## Founder steps (cost money or accounts: founder approval)

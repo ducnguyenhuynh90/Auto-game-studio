@@ -78,3 +78,5 @@ Only [PLAYER] entries count as product evidence.
   maze (60% newest cell) plus deterministic seed retries hits the pan count every time; tests guard it.
   This makes the 100-level salt track cheap to extend, but whether generated levels feel as good as
   hand-made ones is unknown until players clear them.
+- [SIM] 2026-10-25 · The Capacitor wrapper compiled for iOS on the first CI run; Android failed once on a Groovy
+  parsing trap (`versionCode (x).toInteger()` calls the setter first). Use `versionCode = ...` in Gradle files.
