@@ -7,7 +7,7 @@ import type { SeaId } from './core/data';
 import type { RelicId } from './core/items';
 import { levelForXp } from './core/progression';
 import { checkMissions, type GameState } from './core/state';
-import { tickIsland, type TickReport } from './core/island';
+import { emptyReport, tickIsland, type TickReport } from './core/island';
 import { CAST, MISSION_STORY } from './core/story';
 import { sfx, unlockAudio, vibrate } from './render/audio';
 import type { World } from './render3d/world';
@@ -96,7 +96,7 @@ export class Game {
   /** The island map with the puzzle hub open. */
   goPuzzles: () => void = () => {};
   /** Island staff output since the last call (the island scene shows it as floating text). */
-  islandOut: TickReport = { fish: 0, salt: 0, jars: 0, bottles: 0, coins: 0 };
+  islandOut: TickReport = emptyReport();
   private islandAcc = 0;
   private islandSaveT = 0;
   setQuality: (q: 'auto' | 'low' | 'medium' | 'high') => void = () => {};
@@ -276,7 +276,7 @@ export class Game {
     this.state.island.lastTick = Date.now();
     this.islandAcc = 0;
     let any = false;
-    for (const k of Object.keys(r) as (keyof TickReport)[]) {
+    for (const k of ['fish', 'salt', 'jars', 'bottles', 'coins', 'tourists'] as const) {
       this.islandOut[k] += r[k];
       if (r[k]) any = true;
     }

@@ -1092,6 +1092,27 @@ export function makeBuilding(id: string, level = 1): THREE.Group {
     case 'shop':
       add(makeMarket(level), 0, 0, 0, 0.75);
       break;
+    case 'touroffice': {
+      // a little kiosk with a sky-blue roof, a TOURS sign and bunting
+      const hut = mesh(new THREE.BoxGeometry(1.1, 0.75, 0.8), toon('#f3e2bf'));
+      outline(hut, 1.03);
+      add(hut, 0, 0.38, -0.2);
+      const roof = mesh(new THREE.ConeGeometry(0.9, 0.5, 4), toon('#2ab3a6'));
+      outline(roof, 1.03);
+      roof.rotation.y = Math.PI / 4;
+      add(roof, 0, 1.0, -0.2);
+      const sign = mesh(new THREE.BoxGeometry(0.8, 0.26, 0.05), toon('#f2c14e', { emissive: '#4a3300' }));
+      outline(sign, 1.06);
+      add(sign, 0, 0.6, 0.23);
+      add(mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.4, 6), toon('#6e4423'), false), 0.75, 0.7, 0.45);
+      const flag = mesh(new THREE.BoxGeometry(0.34, 0.2, 0.02), toon('#e8443a'), false);
+      add(flag, 0.93, 1.28, 0.45);
+      for (let i = 0; i < 1 + level; i++) {
+        // a bench for waiting tourists
+        add(mesh(new THREE.BoxGeometry(0.5, 0.06, 0.18), toon('#a57a48'), false), -0.6 + i * 0.6, 0.22, 0.75);
+      }
+      break;
+    }
     case 'warehouse': {
       const box = mesh(new THREE.BoxGeometry(1.5, 0.9, 1.1), toon('#b98a52'));
       outline(box, 1.02);
@@ -1128,7 +1149,7 @@ export function makeBuilding(id: string, level = 1): THREE.Group {
 
 /** Island staff as chunky toy figures: one prop per role so jobs read at a glance. */
 export function makeWorker(role: string, shirtColor?: string): THREE.Group {
-  const shirt = shirtColor ?? { fisher: '#2f8fbf', salter: '#f2f2ea', brewer: '#8a4a3a', seller: '#e67e22' }[role] ?? '#888888';
+  const shirt = shirtColor ?? { fisher: '#2f8fbf', salter: '#f2f2ea', brewer: '#8a4a3a', seller: '#e67e22', guide: '#2ab3a6' }[role] ?? '#888888';
   const g = new THREE.Group();
   const body = mesh(new THREE.CapsuleGeometry(0.22, 0.32, 6, 14), toon(shirt));
   outline(body, 1.06);
@@ -1185,6 +1206,14 @@ export function makeWorker(role: string, shirtColor?: string): THREE.Group {
     jar.scale.setScalar(0.3);
     jar.position.set(0.32, 0.2, 0.18);
     g.add(jar);
+  } else if (role === 'guide') {
+    // a tour guide's little flag, held high
+    const pole = mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.9, 6), toon('#6e4423'), false);
+    pole.position.set(0.3, 0.75, 0.1);
+    g.add(pole);
+    const flag = mesh(new THREE.BoxGeometry(0.2, 0.13, 0.02), toon('#e8443a'), false);
+    flag.position.set(0.4, 1.12, 0.1);
+    g.add(flag);
   } else if (role === 'seller') {
     const bottle = mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.24, 10), toon('#b5651d'), false);
     bottle.position.set(0.3, 0.5, 0.2);

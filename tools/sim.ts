@@ -29,7 +29,7 @@ const mark = (k: string, trip: number) => {
 const useIsland = process.argv.includes('--island');
 const SECONDS_PER_TRIP_REAL = 90; // a trip plus village time; staff work during it
 let clock = 1_000_000;
-const islandPlan: BuildingId[] = ['dock', 'saltfield', 'brewhouse', 'shop', 'dock', 'warehouse', 'brewhouse'];
+const islandPlan: BuildingId[] = ['dock', 'saltfield', 'brewhouse', 'shop', 'touroffice', 'dock', 'warehouse', 'lantern', 'brewhouse'];
 function runIsland(trip: number): void {
   if (!useIsland || s.stats.sold < 1) return;
   // staff work while the player fishes

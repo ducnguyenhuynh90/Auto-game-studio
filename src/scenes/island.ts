@@ -30,6 +30,11 @@ import {
   trainProblem,
   trainStaff,
   upgradeBuilding,
+  attraction,
+  attractions,
+  tourGroup,
+  ticketPrice,
+  emptyReport,
   dismiss,
   ledger,
   upkeepPerHour,
@@ -45,7 +50,9 @@ import type { Game, Scene } from '../game';
 import { PuzzleHubOverlay } from './puzzles';
 import { MarketOverlay } from './market';
 import { BrandOverlay } from './brand';
+import { BusinessOverlay } from './business';
 import { BRAND_STAGES } from '../core/brand';
+import { refreshContracts } from '../core/business';
 import { StoryOverlay } from './story';
 
 const TILE = 50;
@@ -67,7 +74,7 @@ export class IslandScene implements Scene {
     tile?: number,
   ) {
     if (tile !== undefined) this.selected = tile;
-    game.islandOut = { fish: 0, salt: 0, jars: 0, bottles: 0, coins: 0 };
+    game.islandOut = emptyReport();
     analytics.track('island_open', { level: islandLevel(game.state), staff: game.state.island.staff.length });
   }
 
@@ -91,7 +98,7 @@ export class IslandScene implements Scene {
     if (out.salt) pop('saltfield', `+${out.salt} salt`, '#ffffff');
     if (out.jars) pop('brewhouse', `+${out.jars} jar`, '#e8b07a');
     if (out.bottles) pop('shop', `+${out.coins} coins`, COLORS.gold);
-    this.game.islandOut = { fish: 0, salt: 0, jars: 0, bottles: 0, coins: 0 };
+    this.game.islandOut = emptyReport();
   }
 
   private tileXY(tile: number): { x: number; y: number } {
@@ -277,8 +284,10 @@ export class IslandScene implements Scene {
       else text(ctx, income === 0 && wages > 0 ? 'Income shows once your shop sells (a dock alone only costs).' : 'Staff keep working while you play or rest (up to 4 h).', W / 2, PANEL_Y + 102, 10.5, 'rgba(43,33,24,0.7)', 'center', 700);
     }
     const brand = BRAND_STAGES[s.brand.level];
-    this.game.button(ctx, 'ov_sell', 20, PANEL_Y + 118, (W - 52) / 2, 46, s.shelf.length ? `Sell (${s.shelf.length})` : 'Market', () => this.game.push(new MarketOverlay(this.game)), { color: '#e67e22', dark: '#a85a14', size: 15, pulse: s.shelf.length > 0 });
-    this.game.button(ctx, 'ov_brand', 32 + (W - 52) / 2, PANEL_Y + 118, (W - 52) / 2, 46, `Brand ×${brand.mult.toFixed(2)}`, () => this.game.push(new BrandOverlay(this.game)), { color: '#a35bd6', dark: '#6f3a96', size: 15, sub: `rep ${s.brand.rep}` });
+    const bw = (W - 56) / 3;
+    this.game.button(ctx, 'ov_report', 20, PANEL_Y + 118, bw, 46, 'Report', () => this.game.push(new BusinessOverlay(this.game)), { color: '#3a8fd9', dark: '#22609e', size: 15, sub: 'earn · costs', pulse: s.island.buildings.length > 0 && !s.island.ledger?.src });
+    this.game.button(ctx, 'ov_sell', 28 + bw, PANEL_Y + 118, bw, 46, s.shelf.length ? `Sell (${s.shelf.length})` : 'Market', () => this.game.push(new MarketOverlay(this.game)), { color: '#e67e22', dark: '#a85a14', size: 15, pulse: s.shelf.length > 0 });
+    this.game.button(ctx, 'ov_brand', 36 + bw * 2, PANEL_Y + 118, bw, 46, `Brand ×${brand.mult.toFixed(2)}`, () => this.game.push(new BrandOverlay(this.game)), { color: '#a35bd6', dark: '#6f3a96', size: 13, sub: `rep ${s.brand.rep}` });
     text(ctx, 'Tap land to build or buy · solve Puzzles to train staff', W / 2, PANEL_Y + 186, 11.5, '#7a5aa8', 'center', 900);
     if (s.island.freeHires > 0) text(ctx, `Cousin Út will work for free: ${s.island.freeHires} free hire`, W / 2, PANEL_Y + 206, 12, COLORS.good, 'center', 900);
   }
@@ -375,6 +384,29 @@ export class IslandScene implements Scene {
         analytics.track('building_upgrade', { id: b.id, level: before + 1 });
       }, { color: '#3a8fd9', dark: '#22609e', size: 12, disabled: s.coins < upCost });
     const role = def.role;
+    if (b.id === 'touroffice') {
+      // what tourists come to see, and how big the groups are
+      const list = attractions(s);
+      text(ctx, `Attraction ${attraction(s)} · groups of ${tourGroup(s)} · ticket ${ticketPrice(s)}`, W / 2, H - 80, 12, COLORS.ink, 'center', 900);
+      // the sights, a few per line, so the player sees what raised (or would raise) the score
+      ctx.font = font(9.5, 700);
+      const lines: string[] = [];
+      let cur = 'Sights:';
+      for (const it of list) {
+        const next = `${cur} ${it.name} +${it.points} ·`;
+        if (ctx.measureText(next).width > W - 40 && cur !== 'Sights:') {
+          lines.push(cur.replace(/ ·$/, ''));
+          cur = `${it.name} +${it.points} ·`;
+        } else cur = next;
+      }
+      lines.push(cur.replace(/ ·$/, ''));
+      lines.slice(0, 2).forEach((ln, i) => text(ctx, ln, W / 2, H - 112 + i * 13, 9.5, 'rgba(43,33,24,0.75)', 'center', 700));
+      this.game.button(ctx, 'tour_boost', 20, H - 64, W - 40, 44, 'Festival & radio ad ›', () => this.game.push(new BusinessOverlay(this.game, 'boost')), { color: '#e8443a', dark: '#9a2a22', size: 15 });
+    }
+    if (b.id === 'tradepost') {
+      const open = refreshContracts(s).filter((c) => !c.done).length;
+      this.game.button(ctx, 'trade_orders', 20, H - 64, W - 40, 44, `Export orders (${open} open) ›`, () => this.game.push(new BusinessOverlay(this.game, 'boost')), { color: COLORS.good, dark: '#2f7a3b', size: 15, pulse: open > 0 });
+    }
     if (b.id === 'shop') {
       // your own bottles are sold here too (staff only sell what staff brewed)
       const by = H - 66;

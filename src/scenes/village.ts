@@ -11,17 +11,18 @@ import { COLORS, W, clamp01, drawCoin, ease, font, outlinedText, panel, rr, star
 import type { Game, Scene } from '../game';
 import { JarFillOverlay, RevealOverlay } from './jar';
 import { MarketOverlay } from './market';
+import { BusinessOverlay } from './business';
 import { DogOverlay } from './dog';
 import { DexOverlay } from './dex';
 import { MissionsOverlay, RelicOverlay } from './missions';
 import { SettingsOverlay } from './settings';
 import { StoryOverlay } from './story';
 import { pendingScene } from '../core/story';
-import { COLS, HOME, ROWS, bucketCap, canExpand, islandLevel, islandUnlocked, plotCost, saltCap, slots, staffAt, terrain } from '../core/island';
+import { COLS, upkeepPerHour, wagesPerHour, HOME, ROWS, canExpand, islandUnlocked, plotCost, slots, staffAt, terrain } from '../core/island';
 
 const VIEW_KEY = 'mam_view';
 /** Short building names for the crowded overview labels. */
-const SHORT: Record<string, string> = { dock: 'Dock', saltfield: 'Salt', brewhouse: 'Brew', shop: 'Shop', warehouse: 'Store', tradepost: 'Trade', lantern: 'Lights', shrine: 'Shrine' };
+const SHORT: Record<string, string> = { dock: 'Dock', saltfield: 'Salt', brewhouse: 'Brew', shop: 'Shop', warehouse: 'Store', tradepost: 'Trade', touroffice: 'Tours', lantern: 'Lights', shrine: 'Shrine' };
 /** The main screen remembers whether you last looked at the village or the whole island. */
 function loadView(): 'village' | 'island' | null {
   try {
@@ -290,9 +291,17 @@ export class VillageScene implements Scene {
       pulse: !overview && s.island.buildings.length > 0 && loadView() === null,
     });
     if (!overview) return;
+    // the money line: tap it for the full business report
     panel(ctx, 10, 174, W - 136, 38, 'rgba(255,248,236,0.93)', 12);
-    const working = s.island.staff.length;
-    text(ctx, `Island Lv ${islandLevel(s)} · ${working} staff · Fish ${s.bucket.length}/${bucketCap(s)} · Salt ${s.island.salt}/${saltCap(s)}`, 10 + (W - 136) / 2, 193, 10.5, COLORS.ink, 'center', 900);
+    const income = Math.round(s.island.ledger?.incomeRate ?? 0);
+    const costs = wagesPerHour(s) + upkeepPerHour(s);
+    const net = income - costs;
+    const sum = `+${income} −${costs} = `;
+    text(ctx, sum, 22, 193, 11, COLORS.ink, 'left', 900);
+    ctx.font = font(11, 900);
+    text(ctx, `${net >= 0 ? '+' : '−'}${Math.abs(net)}/h`, 22 + ctx.measureText(sum).width, 193, 13, net >= 0 ? COLORS.good : COLORS.bad, 'left', 900);
+    text(ctx, 'Report ›', W - 136, 193, 11, '#3a8fd9', 'right', 900);
+    this.game.hitArea('ov_report', 10, 174, W - 136, 38, () => this.game.push(new BusinessOverlay(this.game)));
     text(ctx, 'Drag to look · pinch or ± to zoom · tap a plot', W / 2, 228, 11, '#fff', 'center', 900);
     const rig = this.game.world!.village;
     // selling works from the island view too (the village market label is hidden out here)

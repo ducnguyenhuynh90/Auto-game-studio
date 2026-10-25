@@ -194,3 +194,26 @@ best), **Build Mực a dog house** (60), **Take Mực fishing: catch 3 fish**. F
 (arrive, trust, boat, done) with Bà Năm, Lan and a jealous Mr. Tốc ("How much for the dog?" "Not for
 sale."). Once he has a home, Mực rides the boat and barks (twice a trip at most) at a **real** rare
 shadow: an honest hint, never a fake one. He trots around the village; tap him to feed and pet him.
+
+## Build 3.4: business report, tourism, and more ways to earn and spend (founder request)
+**Business Report** (tap the money line in the island view, or *Report* in Manage). Three tabs:
+- **Earn:** every income line with status (Earning / Idle / Not set up), its rate, one line on what it
+  needs or what blocks it, and a button that does it: *Build · cost* (opens Manage on a suitable plot),
+  *Hire ›* (opens that building), *More jars*, *Go fishing*. Lines: shop sales, tourists, traders &
+  export orders, auto fishing (fish/h), salt making (salt/h), auto fish sauce, and you.
+- **Costs:** wages by job (with how many are idle) and upkeep by building, the total, and **How to spend
+  less**: idle workers with the reason and the fix (a full bucket usually means *more jars* or a second
+  brewer, not storage), train staff (+25% work for +15% wage: wage growth was cut from 25% to 15%),
+  Salt Flat / Fishing Cove bonuses, and "nothing turns staff work into coins yet → Sauce Shop".
+- **Boost:** festival, radio ad, brand, export orders.
+**Tourism:** Tour Office (open land, island Lv 2, 300) + Tour Guides (wage 35/h). Every 3 minutes
+(faster when trained) a guide brings a group: tickets for everyone, a souvenir bottle (staff-made, ×1.2
+price) for every third tourist, and reputation by word of mouth. **Attraction** decides group size and
+ticket price, and is a list of what the player built: Brew House tasting +4, salt fields +2, docks +1
+each, Sauce Shop +2, old pier +2, décor charm, Mực +3, village level, brand level ×2. Tourists walk
+from the office to the sights in 3D.
+**New spends:** Festival (400: 15 min of double groups, +20% shop prices, +10 attraction); radio ad on
+Phú Quốc FM (150: 1 h of +50% groups, +5 attraction).
+**Export orders** at the Trading Post: 3 orders every 2 hours (same on every device: seeded by the time
+slot), e.g. "Hội An café: 3 bottles ≥ 22°N", paying ~1.6× market (1.9× for a recipe you have brewed),
++3 reputation per bottle. Weakest qualifying bottles are used, so the best stay for the market.

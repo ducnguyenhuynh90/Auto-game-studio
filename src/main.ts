@@ -74,9 +74,9 @@ game.goFishingPuzzle = (i) => game.setScene(new FishingScene(game, FISHING_LEVEL
 // Island staff caught up for the time the game was closed (capped, see core/island.ts).
 {
   const away = catchUp(game.state, game.rng, Date.now());
-  if (away.fish + away.salt + away.jars + away.bottles > 0) {
-    game.toast('While you were away…', '#3a8fd9', `Staff: +${away.fish} fish, +${away.salt} salt, ${away.jars} jars, +${away.coins} coins`);
-    analytics.track('island_offline', { ...away });
+  if (away.fish + away.salt + away.jars + away.bottles + away.tourists > 0) {
+    game.toast('While you were away…', '#3a8fd9', `Staff: +${away.fish} fish, +${away.salt} salt, ${away.jars} jars, ${away.tourists} tourists, +${away.coins} coins`);
+    analytics.track('island_offline', { fish: away.fish, salt: away.salt, jars: away.jars, bottles: away.bottles, coins: away.coins, tourists: away.tourists });
     saveState(game.state);
   }
 }
@@ -118,7 +118,7 @@ if (import.meta.env.DEV && params.has('scene')) {
       const t = [...Array(63).keys()].find((i) => I.canExpand(st, i) && 'bcsgf'.includes(I.terrain(i)));
       if (t !== undefined) I.buyPlot(st, t);
     }
-    const plan: [string, BuildingId][] = [['b', 'dock'], ['c', 'dock'], ['s', 'saltfield'], ['b', 'saltfield'], ['g', 'brewhouse'], ['g', 'shop'], ['g', 'warehouse'], ['g', 'lantern'], ['f', 'lantern']];
+    const plan: [string, BuildingId][] = [['b', 'dock'], ['c', 'dock'], ['s', 'saltfield'], ['b', 'saltfield'], ['g', 'brewhouse'], ['g', 'shop'], ['g', 'touroffice'], ['g', 'warehouse'], ['g', 'lantern'], ['f', 'lantern']];
     for (const [ter, id] of plan) {
       const t = st.island.owned.find((i) => I.terrain(i) === ter && !st.island.buildings.some((b) => b.tile === i));
       if (t !== undefined && I.build(st, t, id)) I.hire(st, t);

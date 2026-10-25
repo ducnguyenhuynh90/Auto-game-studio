@@ -99,3 +99,12 @@
   125-175; a staff-heavy sim player reaches the Reef later (wages are real costs). Bot: dog chain done
   in 8 trips, Mực barked twice, no errors.
 - **Result:** pending real players.
+
+## EXP-008 · A business report with linked fixes + tourism (build 3.4)
+- **Hypothesis:** showing where money comes from and goes, with a one-tap fix on every line, raises the
+  share of players who run a profitable island (net/h > 0) and how many income lines they enable.
+- **Metrics:** business_open, business_fix by kind, income lines active per player, time with idle staff,
+  festival / radio_ad / contract_done counts, tourist income share.
+- **Simulation (NOT evidence):** first tourism tuning gave ~7,900 coins/h late-game (too much); cut
+  (groups /6, tickets 4 + attraction/5, a tour every 3 min) → a few hundred/h early, a few thousand late.
+- **Result:** pending real players.

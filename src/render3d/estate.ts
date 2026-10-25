@@ -325,7 +325,7 @@ export class Estate {
   // ---------- Staff ----------
   private rebuildStaff(s: GameState): void {
     const shopLevel = Math.max(0, ...s.island.buildings.filter((b) => b.id === 'shop').map((b) => b.level));
-    const key = `${s.island.staff.map((x) => `${x.uid}:${x.tile}:${x.level}`).join(',')}|${shopLevel}|${this.lite}`;
+    const key = `${s.island.staff.map((x) => `${x.uid}:${x.tile}:${x.level}`).join(',')}|${s.island.buildings.map((b) => b.tile).join(',')}|${shopLevel}|${this.lite}`;
     if (key === this.staffKey) return;
     this.staffKey = key;
     for (const c of [...this.people.children]) discard(c);
@@ -359,6 +359,22 @@ export class Estate {
         }
         this.workers.push(view);
       });
+    }
+    // tourists follow their guide from the Tour Office to the sights and back
+    const office = s.island.buildings.find((b) => b.id === 'touroffice');
+    const guides = office ? staffAt(s, office.tile).length : 0;
+    if (office && guides) {
+      const from = plotCenter(office.tile).add(new THREE.Vector3(0, TOP, 3));
+      const sights = s.island.buildings.filter((b) => ['brewhouse', 'saltfield', 'shrine', 'dock', 'lantern'].includes(b.id)).map((b) => plotCenter(b.tile).add(new THREE.Vector3(0, TOP, 3.5)));
+      sights.push(new THREE.Vector3(0, TOP, 5)); // the village
+      const hats = ['#f2c14e', '#ffffff', '#e8443a', '#5aa0d8', '#7fd18b', '#f28aa0'];
+      const n = this.lite ? 2 : Math.min(8, guides * 3 + 1);
+      for (let i = 0; i < n; i++) {
+        const g = mergeStatic(makeWorker('customer', hats[(i + 2) % hats.length]));
+        g.scale.setScalar(1.9);
+        this.people.add(g);
+        this.walkers.push({ group: g, from: from.clone().add(new THREE.Vector3((i % 3) * 0.9 - 0.9, 0, Math.floor(i / 3) * 0.9)), to: sights[i % sights.length], t: (i * 0.13) % 1, speed: 0.035 + (i % 4) * 0.006 });
+      }
     }
     // customers stroll from the village to the shop (more with a bigger shop)
     const shop = s.island.buildings.find((b) => b.id === 'shop');

@@ -69,3 +69,5 @@ Only [PLAYER] entries count as product evidence.
   hidden when zoomed out). Lesson: every main action must be reachable from every main view.
 - [SIM] Brand multipliers inflate late-game coins (~+50% by trip 300) but also give the economy its
   first real coin sink (15000 for the top stage).
+- [SIM] In a dev island with 3 fishers and 2 salt makers, the report showed every producer idle: one jar
+  was the bottleneck. Production chains need the report to name the true bottleneck, not the symptom.

@@ -6,7 +6,7 @@ import { BALANCE, SPECIES_BY_ID, saucePrice, type SeaId } from './data';
 import { rollShadow, speciesForSea } from './fishing';
 import type { Rng } from './rng';
 import { addReputation, brandMult } from './brand';
-import { agingLevel, bestJarFill, canFerment, openJar, sealJar, type GameState } from './state';
+import { agingLevel, bestJarFill, canFerment, openJar, sealJar, villageLevel, type GameState } from './state';
 
 // ---------- Map ----------
 
@@ -66,8 +66,8 @@ const START_OWNED = (() => {
 
 // ---------- Buildings ----------
 
-export type Role = 'fisher' | 'salter' | 'brewer' | 'seller';
-export type BuildingId = 'dock' | 'saltfield' | 'brewhouse' | 'shop' | 'warehouse' | 'tradepost' | 'lantern' | 'shrine';
+export type Role = 'fisher' | 'salter' | 'brewer' | 'seller' | 'guide';
+export type BuildingId = 'dock' | 'saltfield' | 'brewhouse' | 'shop' | 'warehouse' | 'tradepost' | 'touroffice' | 'lantern' | 'shrine';
 
 export interface BuildingDef {
   id: BuildingId;
@@ -93,6 +93,7 @@ export const BUILDINGS: BuildingDef[] = [
   { id: 'shop', name: 'Sauce Shop', local: 'Tiệm mắm', desc: 'Shopkeepers sell the bottles your staff brewed.', cost: 180, upgrade: [400, 1200], role: 'seller', needs: 'land', minLevel: 2 },
   { id: 'warehouse', name: 'Warehouse', local: 'Nhà kho', desc: 'Bigger fish and salt storage for your staff.', cost: 200, upgrade: [450, 1300], needs: 'land', minLevel: 2 },
   { id: 'tradepost', name: 'Trading Post', local: 'Trạm buôn', desc: 'Traders buy fish your bucket has no room for, and pay 20% more for bottles.', cost: 400, upgrade: [900, 2500], needs: 'pier', minLevel: 3 },
+  { id: 'touroffice', name: 'Tour Office', local: 'Văn phòng du lịch', desc: 'Guides bring tourists: tickets, souvenirs, word of mouth.', cost: 300, upgrade: [700, 2000], role: 'guide', needs: 'land', minLevel: 2 },
   { id: 'lantern', name: 'Lantern Row', local: 'Đèn lồng', desc: 'Pretty lights. +1 charm (shop prices +2%).', cost: 40, upgrade: [], needs: 'land', charm: 1, minLevel: 1 },
   { id: 'shrine', name: 'Banyan Shrine', local: 'Miếu đa', desc: 'Visitors stop to pray, then shop. +3 charm.', cost: 160, upgrade: [], needs: 'land', charm: 3, minLevel: 3 },
 ];
@@ -121,6 +122,7 @@ export const ROLE: Record<Role, { title: string; verb: string; section: 'fishing
   salter: { title: 'Salt Maker', verb: 'raking salt', section: 'salt', hire: 50, perk: (l) => `1 salt / ${Math.round(saltSeconds(l))}s` },
   brewer: { title: 'Brewer', verb: 'brewing', section: 'salt', hire: 80, perk: (l) => `+${l - 1}°N per jar · waits for ${l >= 3 ? '★★' : '★'} aging` },
   seller: { title: 'Shopkeeper', verb: 'selling', section: 'shop', hire: 70, perk: (l) => `1 bottle / ${Math.round(sellSeconds(l))}s · price +${(l - 1) * 5}%` },
+  guide: { title: 'Tour Guide', verb: 'guiding', section: 'shop', hire: 80, perk: (l) => `1 tour / ${Math.round(tourSeconds(l))}s` },
 };
 
 const NAMES = ['Anh Ba', 'Chị Tư', 'Cô Sáu', 'Chú Bảy', 'Anh Tám', 'Bé Na', 'Chị Hai', 'Ông Chín', 'Cậu Mười', 'Cô Mai', 'Anh Lộc', 'Chị Thu'];
@@ -134,6 +136,7 @@ export const fishSeconds = (lvl: number) => 75 / speed(lvl);
 export const saltSeconds = (lvl: number) => 60 / speed(lvl);
 export const brewSeconds = 30;
 export const sellSeconds = (lvl: number) => 45 / speed(lvl);
+export const tourSeconds = (lvl: number) => 180 / speed(lvl);
 
 // ---------- State ----------
 
@@ -155,7 +158,23 @@ export interface IslandState {
   /** True while there isn't enough money for wages: staff stop working until it is paid. */
   unpaid?: boolean;
   /** Lifetime money in and out, and a smoothed income rate (coins per hour) for the ledger. */
-  ledger?: { income: number; wages: number; upkeep: number; incomeRate: number };
+  ledger?: { income: number; wages: number; upkeep: number; incomeRate: number; boosts?: number; src?: Record<string, { total: number; rate: number }> };
+  /** Festival and radio-ad end times (epoch ms). */
+  festivalUntil?: number;
+  adUntil?: number;
+  /** Export orders at the Trading Post (core/business.ts) and the 2-hour slot they belong to. */
+  contracts?: Contract[];
+  contractSlot?: number;
+}
+
+export interface Contract {
+  id: number;
+  buyer: string;
+  count: number;
+  minDeg: number;
+  recipe?: string;
+  pay: number;
+  done?: boolean;
 }
 
 export function newIsland(): IslandState {
@@ -332,13 +351,13 @@ export function dismiss(s: GameState, uid: number): boolean {
 
 // ---------- Running costs ----------
 
-/** Wages per hour at level 1; each level adds 25%. */
-export const WAGE: Record<Role, number> = { fisher: 30, salter: 20, brewer: 40, seller: 30 };
+/** Wages per hour at level 1; each level adds 15% (while work speed adds 25%: training pays off). */
+export const WAGE: Record<Role, number> = { fisher: 30, salter: 20, brewer: 40, seller: 30, guide: 35 };
 /** Upkeep per hour per building level (repairs, nets, salt bags, rent). */
-export const UPKEEP: Record<BuildingId, number> = { dock: 10, saltfield: 6, brewhouse: 12, shop: 15, warehouse: 8, tradepost: 20, lantern: 1, shrine: 3 };
+export const UPKEEP: Record<BuildingId, number> = { dock: 10, saltfield: 6, brewhouse: 12, shop: 15, warehouse: 8, tradepost: 20, touroffice: 12, lantern: 1, shrine: 3 };
 
 export function wage(st: Staff): number {
-  return Math.round(WAGE[st.role] * (1 + 0.25 * (st.level - 1)));
+  return Math.round(WAGE[st.role] * (1 + 0.15 * (st.level - 1)));
 }
 
 export function wagesPerHour(s: GameState): number {
@@ -412,7 +431,7 @@ export function trainStaff(s: GameState, uid: number): boolean {
 
 // ---------- Production ----------
 
-const level = (s: GameState, id: BuildingId) => Math.max(0, ...s.island.buildings.filter((b) => b.id === id).map((b) => b.level));
+export const level = (s: GameState, id: BuildingId) => Math.max(0, ...s.island.buildings.filter((b) => b.id === id).map((b) => b.level));
 
 export function bucketCap(s: GameState): number {
   return 15 + 10 * level(s, 'warehouse');
@@ -424,8 +443,74 @@ export function charm(s: GameState): number {
   return s.island.buildings.reduce((a, b) => a + (BUILDINGS_BY_ID[b.id].charm ?? 0), 0);
 }
 /** Price multiplier for staff-sold bottles: shopkeeper level, charm (max +30%), trading post. */
-export function shopMult(s: GameState, sellerLevel: number): number {
-  return (1 + 0.05 * (sellerLevel - 1)) * (1 + Math.min(0.3, 0.02 * charm(s))) * (level(s, 'tradepost') > 0 ? 1.2 : 1) * brandMult(s);
+export function shopMult(s: GameState, sellerLevel: number, now = Date.now()): number {
+  return (1 + 0.05 * (sellerLevel - 1)) * (1 + Math.min(0.3, 0.02 * charm(s))) * (level(s, 'tradepost') > 0 ? 1.2 : 1) * brandMult(s) * (festivalOn(s, now) ? 1.2 : 1);
+}
+
+// ---------- Tourism and boosts ----------
+
+export const FESTIVAL = { cost: 400, minutes: 15 };
+export const RADIO_AD = { cost: 150, minutes: 60 };
+
+export const festivalOn = (s: GameState, now: number) => (s.island.festivalUntil ?? 0) > now;
+export const adOn = (s: GameState, now: number) => (s.island.adUntil ?? 0) > now;
+
+/** A festival: 15 minutes of double tour groups and +20% shop prices. Costs coins up front. */
+export function hostFestival(s: GameState, now: number): boolean {
+  if (s.coins < FESTIVAL.cost || festivalOn(s, now)) return false;
+  s.coins -= FESTIVAL.cost;
+  s.island.festivalUntil = now + FESTIVAL.minutes * 60_000;
+  ledger(s).boosts = (ledger(s).boosts ?? 0) + FESTIVAL.cost;
+  return true;
+}
+
+/** A radio ad on Phú Quốc FM: an hour of bigger tour groups. */
+export function runAd(s: GameState, now: number): boolean {
+  if (s.coins < RADIO_AD.cost || adOn(s, now)) return false;
+  s.coins -= RADIO_AD.cost;
+  s.island.adUntil = now + RADIO_AD.minutes * 60_000;
+  ledger(s).boosts = (ledger(s).boosts ?? 0) + RADIO_AD.cost;
+  return true;
+}
+
+/** What tourists come to see. Each line is something the player built or earned. */
+export function attractions(s: GameState, now = Date.now()): { name: string; points: number }[] {
+  const out: { name: string; points: number }[] = [];
+  const has = (id: BuildingId) => s.island.buildings.some((b) => b.id === id);
+  if (has('brewhouse')) out.push({ name: 'Mắm tasting at the Brew House', points: 4 });
+  if (has('saltfield')) out.push({ name: 'Walk the salt fields', points: 2 });
+  const docks = s.island.buildings.filter((b) => b.id === 'dock').length;
+  if (docks) out.push({ name: 'Fishing boats at the dock', points: Math.min(3, docks) });
+  if (has('shop')) out.push({ name: 'Shopping at the Sauce Shop', points: 2 });
+  if (has('tradepost')) out.push({ name: 'The old pier and traders', points: 2 });
+  if (charm(s)) out.push({ name: 'Lanterns and the banyan shrine', points: charm(s) });
+  if (s.dog?.house) out.push({ name: 'Selfies with Mực the dog', points: 3 });
+  const vl = villageLevel(s) - 1;
+  if (vl > 0) out.push({ name: 'A growing village', points: vl });
+  if (s.brand?.level) out.push({ name: 'Your brand is known', points: s.brand.level * 2 });
+  if (festivalOn(s, now)) out.push({ name: 'Festival!', points: 10 });
+  if (adOn(s, now)) out.push({ name: 'Radio ad on Phú Quốc FM', points: 5 });
+  return out;
+}
+
+export function attraction(s: GameState, now = Date.now()): number {
+  return attractions(s, now).reduce((a, x) => a + x.points, 0);
+}
+
+/** Tourists per tour group: more to see, bigger groups (doubled by a festival, +50% with an ad). */
+export function tourGroup(s: GameState, now = Date.now()): number {
+  const base = 2 + Math.floor(attraction(s, now) / 6);
+  return Math.min(14, Math.floor(base * (festivalOn(s, now) ? 2 : 1) * (adOn(s, now) ? 1.5 : 1)));
+}
+
+export function ticketPrice(s: GameState, now = Date.now()): number {
+  return 4 + Math.floor(attraction(s, now) / 5);
+}
+
+/** Records income by source, for the business report. */
+function earn(rep: TickReport, src: string, amount: number): void {
+  rep.coins += amount;
+  rep.src[src] = (rep.src[src] ?? 0) + amount;
 }
 
 /** Workers fish with nets: no legends, treasure or crates (those stay the player's adventure). */
@@ -443,26 +528,32 @@ export interface TickReport {
   jars: number;
   bottles: number;
   coins: number;
+  tourists: number;
+  /** Coins by source: shop, trade, tours, souvenirs. */
+  src: Record<string, number>;
 }
+
+export const emptyReport = (): TickReport => ({ fish: 0, salt: 0, jars: 0, bottles: 0, coins: 0, tourists: 0, src: {} });
 
 /**
  * Advances the island by `seconds` of staff work. Deterministic for a given rng. Used every frame and,
  * on load, for offline time (capped by the caller). Stops at storage limits instead of wasting work.
  */
 export function tickIsland(s: GameState, seconds: number, rng: Rng, now: number): TickReport {
-  const rep: TickReport = { fish: 0, salt: 0, jars: 0, bottles: 0, coins: 0 };
+  const rep = emptyReport();
   const isl = s.island;
   if (seconds <= 0 || (!isl.staff.length && !isl.buildings.length)) return rep;
   // wages and upkeep come first; unpaid staff don't work
   if (!payCosts(s, seconds)) return rep;
   // order matters: salt and fish first, so brewers can use them in the same tick
-  const order: Role[] = ['salter', 'fisher', 'brewer', 'seller'];
+  const order: Role[] = ['salter', 'fisher', 'brewer', 'seller', 'guide'];
   for (const role of order) {
     for (const st of isl.staff.filter((x) => x.role === role)) {
       const b = buildingAt(s, st.tile);
       if (!b) continue;
       const t = terrain(st.tile);
-      const every = role === 'fisher' ? fishSeconds(st.level) / (t === 'c' ? 1.25 : 1) : role === 'salter' ? saltSeconds(st.level) / (t === 's' ? 1.5 : 1) : role === 'brewer' ? brewSeconds : sellSeconds(st.level);
+      const every =
+        role === 'fisher' ? fishSeconds(st.level) / (t === 'c' ? 1.25 : 1) : role === 'salter' ? saltSeconds(st.level) / (t === 's' ? 1.5 : 1) : role === 'brewer' ? brewSeconds : role === 'guide' ? tourSeconds(st.level) : sellSeconds(st.level);
       let acc = (isl.timers[st.uid] ?? 0) + seconds;
       let guard = 0;
       while (acc >= every && guard++ < 2000) {
@@ -482,7 +573,7 @@ export function tickIsland(s: GameState, seconds: number, rng: Rng, now: number)
               const raw = SPECIES_BY_ID[id].raw;
               s.coins += raw;
               s.stats.earned += raw;
-              rep.coins += raw;
+              earn(rep, 'trade', raw);
               continue;
             }
             acc = Math.min(acc, every);
@@ -496,20 +587,41 @@ export function tickIsland(s: GameState, seconds: number, rng: Rng, now: number)
           rep.fish++;
         } else if (role === 'brewer') {
           brewStep(s, st.level, rng, now, rep);
+        } else if (role === 'guide') {
+          // a tour group: tickets for everyone, a souvenir bottle for every third tourist
+          const n = tourGroup(s, now);
+          const tickets = n * ticketPrice(s, now);
+          s.coins += tickets;
+          s.stats.earned += tickets;
+          earn(rep, 'tours', tickets);
+          rep.tourists += n;
+          s.brand.rep += Math.ceil(n / 2); // word of mouth
+          for (let k = 0; k < Math.floor(n / 3); k++) {
+            const i = s.shelf.findIndex((p) => p.auto);
+            if (i < 0) break;
+            const price = Math.round(saucePrice(s.shelf[i].degrees, s.upgrades.stall) * brandMult(s) * 1.2);
+            addReputation(s, s.shelf[i].degrees);
+            s.shelf.splice(i, 1);
+            s.coins += price;
+            s.stats.earned += price;
+            s.stats.sold++;
+            rep.bottles++;
+            earn(rep, 'souvenirs', price);
+          }
         } else {
           const i = s.shelf.findIndex((p) => p.auto);
           if (i < 0) {
             acc = Math.min(acc, every);
             break;
           }
-          const price = Math.round(saucePrice(s.shelf[i].degrees, s.upgrades.stall) * shopMult(s, st.level));
+          const price = Math.round(saucePrice(s.shelf[i].degrees, s.upgrades.stall) * shopMult(s, st.level, now));
           addReputation(s, s.shelf[i].degrees);
           s.shelf.splice(i, 1);
           s.coins += price;
           s.stats.earned += price;
           s.stats.sold++;
           rep.bottles++;
-          rep.coins += price;
+          earn(rep, 'shop', price);
         }
       }
       isl.timers[st.uid] = acc;
@@ -522,7 +634,16 @@ export function tickIsland(s: GameState, seconds: number, rng: Rng, now: number)
   isl.made.coins += rep.coins;
   const l = ledger(s);
   l.income += rep.coins;
-  l.incomeRate += ((rep.coins * 3600) / seconds - l.incomeRate) * Math.min(1, seconds / 900);
+  const k = Math.min(1, seconds / 900);
+  l.incomeRate += ((rep.coins * 3600) / seconds - l.incomeRate) * k;
+  // per-source totals and smoothed rates, for the business report
+  l.src ??= {};
+  for (const name of ['shop', 'trade', 'tours', 'souvenirs']) {
+    const got = rep.src[name] ?? 0;
+    const e = (l.src[name] ??= { total: 0, rate: 0 });
+    e.total += got;
+    e.rate += ((got * 3600) / seconds - e.rate) * k;
+  }
   return rep;
 }
 
@@ -547,7 +668,7 @@ export const OFFLINE_CAP_SECONDS = 4 * 3600;
 
 /** Catches the island up to `now` in 10 s steps (jar aging uses real time, so brewing stays correct). */
 export function catchUp(s: GameState, rng: Rng, now: number): TickReport {
-  const total: TickReport = { fish: 0, salt: 0, jars: 0, bottles: 0, coins: 0 };
+  const total = emptyReport();
   const last = s.island.lastTick || now;
   let left = Math.min(OFFLINE_CAP_SECONDS, Math.max(0, (now - last) / 1000));
   let t = now - left * 1000;
@@ -555,7 +676,7 @@ export function catchUp(s: GameState, rng: Rng, now: number): TickReport {
     const step = Math.min(10, left);
     t += step * 1000;
     const r = tickIsland(s, step, rng, t);
-    for (const k of Object.keys(total) as (keyof TickReport)[]) total[k] += r[k];
+    for (const k of ['fish', 'salt', 'jars', 'bottles', 'coins', 'tourists'] as const) total[k] += r[k];
     left -= step;
   }
   s.island.lastTick = now;

@@ -126,3 +126,10 @@ built, but as ONE connected system rather than separate features:
 - Mực's bark is an honest signal (it points at a real rare shadow), consistent with "no fake odds".
 - The dog's goals sit inside the tutorial after the first sale, so existing players also get his story
   (their next goal becomes "Feed Mực 3 fish").
+
+## D-015 · 2026-10-25 · Every number explains itself, every problem has a button
+- The report never just says a number: each line says what it needs or what blocks it, and the button
+  goes straight to the place that fixes it. Idle-worker detection finds the real bottleneck (jars or a
+  missing brewer) before suggesting storage.
+- Wage growth lowered to +15% per level (speed +25%) so training is the main way to cut cost per unit.
+- Export orders are seeded by a 2-hour time slot (deterministic, not a paid random reward).
