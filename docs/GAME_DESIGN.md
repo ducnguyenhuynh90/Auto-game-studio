@@ -217,3 +217,21 @@ Phú Quốc FM (150: 1 h of +50% groups, +5 attraction).
 **Export orders** at the Trading Post: 3 orders every 2 hours (same on every device: seeded by the time
 slot), e.g. "Hội An café: 3 bottles ≥ 22°N", paying ~1.6× market (1.9× for a recipe you have brewed),
 +3 reputation per bottle. Weakest qualifying bottles are used, so the best stay for the market.
+
+## Build 3.5: the production line, auto/manual steps, honest income (founder feedback)
+**"I saw brewing but no income."** Root cause (traced an hour of staff work in several setups):
+1. **No Sauce Shop:** brewers made ~15 jars/h, the bottles piled up on the shelf, and nothing sold
+   them; hand-selling them didn't even count as business income. → The estimate now says so ("Nobody
+   sells: bottles wait on your shelf") with a button, and hand-sold staff bottles count as income.
+2. **One jar, holding your own sauce:** the brewer could never start; fish piled up; wages ran.
+   → `staffJars()` excludes your sealed jars; the line shows "every jar holds your own sauce → More jars".
+With a Shopkeeper the same line earns ≈ +725/h (+608 after wages) in the trace.
+
+**How it's made** (village button, Brew House / Dock / Salt Field panels, report): the six steps
+(catch → salt → fill jars → ferment → open & bottle → sell), live: bucket and salt stock, every jar with
+its owner (You / Staff), fermentation bars with aging stars and seconds left, the shelf. Each step with
+staff has an **AUTO / YOU** switch: YOU means you do it by hand and that step's staff rest **unpaid**.
+Manual buttons where you act: Go fishing, Fill a jar, Open, Sell now.
+**Estimate:** bottles/h, expected °N and price, sold/h, ≈ coins/h (sauce + tours), and a capacity bar per
+step (fish ÷ 3, salt, jars, selling) with the **bottleneck** in orange and its fix button. A unit test
+keeps the estimate within ±45% of an hour of real staff work.

@@ -71,3 +71,6 @@ Only [PLAYER] entries count as product evidence.
   first real coin sink (15000 for the top stage).
 - [SIM] In a dev island with 3 fishers and 2 salt makers, the report showed every producer idle: one jar
   was the bottleneck. Production chains need the report to name the true bottleneck, not the symptom.
+- [FOUNDER] 2026-10-25: "brewing but no income". Traced: without a shop, staff bottles silently piled up;
+  with one jar holding the player's own sauce, the brewer never started. Lesson: a production chain
+  must show its stock between steps and say which step stops the money.

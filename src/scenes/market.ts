@@ -6,6 +6,7 @@ import { VILLAGE_STAGES, villageStage } from '../core/evolution';
 import { EvolutionOverlay } from './evolution';
 import { BrandOverlay } from './brand';
 import { BRAND_STAGES } from '../core/brand';
+import { recordHandSale } from '../core/island';
 import { buyUpgrade, productPrice, sellFish, sellProduct, upgradeCost } from '../core/state';
 import { sfx } from '../render/audio';
 import { COLORS, H, W, clamp01, stageImage, drawBottle, drawCoin, drawPointer, ease, outlinedText, panel, rr, text, type Ctx } from '../render/draw';
@@ -37,6 +38,8 @@ export class MarketOverlay implements Scene {
     const rep0 = s.brand.rep;
     for (const p of [...s.shelf]) {
       const price = sellProduct(s, p.uid);
+      // staff-made bottles you sell by hand still count as business income in the report
+      if (p.auto) recordHandSale(s, price);
       total += price;
       analytics.track('sell_product', { recipe: p.recipe, degrees: p.degrees, price, where: 'market' });
     }

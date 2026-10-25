@@ -51,6 +51,7 @@ import { PuzzleHubOverlay } from './puzzles';
 import { MarketOverlay } from './market';
 import { BrandOverlay } from './brand';
 import { BusinessOverlay } from './business';
+import { ProductionOverlay } from './production';
 import { BRAND_STAGES } from '../core/brand';
 import { refreshContracts } from '../core/business';
 import { StoryOverlay } from './story';
@@ -384,10 +385,14 @@ export class IslandScene implements Scene {
         analytics.track('building_upgrade', { id: b.id, level: before + 1 });
       }, { color: '#3a8fd9', dark: '#22609e', size: 12, disabled: s.coins < upCost });
     const role = def.role;
+    if (b.id === 'brewhouse' || b.id === 'dock' || b.id === 'saltfield') {
+      this.game.button(ctx, 'line_btn', 20, H - 50, W - 40, 38, 'Production line ›', () => this.game.push(new ProductionOverlay(this.game)), { color: '#e67e22', dark: '#a85a14', size: 15 });
+    }
     if (b.id === 'touroffice') {
       // what tourists come to see, and how big the groups are
       const list = attractions(s);
-      text(ctx, `Attraction ${attraction(s)} · groups of ${tourGroup(s)} · ticket ${ticketPrice(s)}`, W / 2, H - 80, 12, COLORS.ink, 'center', 900);
+      const roomy = staffAt(s, b.tile).length <= 1;
+      if (roomy) text(ctx, `Attraction ${attraction(s)} · groups of ${tourGroup(s)} · ticket ${ticketPrice(s)}`, W / 2, H - 64, 12, COLORS.ink, 'center', 900);
       // the sights, a few per line, so the player sees what raised (or would raise) the score
       ctx.font = font(9.5, 700);
       const lines: string[] = [];
@@ -400,18 +405,18 @@ export class IslandScene implements Scene {
         } else cur = next;
       }
       lines.push(cur.replace(/ ·$/, ''));
-      lines.slice(0, 2).forEach((ln, i) => text(ctx, ln, W / 2, H - 112 + i * 13, 9.5, 'rgba(43,33,24,0.75)', 'center', 700));
-      this.game.button(ctx, 'tour_boost', 20, H - 64, W - 40, 44, 'Festival & radio ad ›', () => this.game.push(new BusinessOverlay(this.game, 'boost')), { color: '#e8443a', dark: '#9a2a22', size: 15 });
+      if (roomy) lines.slice(0, 2).forEach((ln, i) => text(ctx, ln, W / 2, H - 96 + i * 13, 9.5, 'rgba(43,33,24,0.75)', 'center', 700));
+      this.game.button(ctx, 'tour_boost', 20, H - 50, W - 40, 38, 'Festival & radio ad ›', () => this.game.push(new BusinessOverlay(this.game, 'boost')), { color: '#e8443a', dark: '#9a2a22', size: 15 });
     }
     if (b.id === 'tradepost') {
       const open = refreshContracts(s).filter((c) => !c.done).length;
-      this.game.button(ctx, 'trade_orders', 20, H - 64, W - 40, 44, `Export orders (${open} open) ›`, () => this.game.push(new BusinessOverlay(this.game, 'boost')), { color: COLORS.good, dark: '#2f7a3b', size: 15, pulse: open > 0 });
+      this.game.button(ctx, 'trade_orders', 20, H - 50, W - 40, 38, `Export orders (${open} open) ›`, () => this.game.push(new BusinessOverlay(this.game, 'boost')), { color: COLORS.good, dark: '#2f7a3b', size: 15, pulse: open > 0 });
     }
     if (b.id === 'shop') {
       // your own bottles are sold here too (staff only sell what staff brewed)
-      const by = H - 66;
-      this.game.button(ctx, 'shop_sell', 20, by, (W - 52) / 2, 46, s.shelf.length ? `Sell my bottles (${s.shelf.length})` : 'Market', () => this.game.push(new MarketOverlay(this.game)), { color: '#e67e22', dark: '#a85a14', size: 14, pulse: s.shelf.length > 0 });
-      this.game.button(ctx, 'shop_brand', 32 + (W - 52) / 2, by, (W - 52) / 2, 46, `Brand ×${BRAND_STAGES[s.brand.level].mult.toFixed(2)}`, () => this.game.push(new BrandOverlay(this.game)), { color: '#a35bd6', dark: '#6f3a96', size: 14 });
+      const by = H - 50;
+      this.game.button(ctx, 'shop_sell', 20, by, (W - 52) / 2, 38, s.shelf.length ? `Sell my bottles (${s.shelf.length})` : 'Market', () => this.game.push(new MarketOverlay(this.game)), { color: '#e67e22', dark: '#a85a14', size: 14, pulse: s.shelf.length > 0 });
+      this.game.button(ctx, 'shop_brand', 32 + (W - 52) / 2, by, (W - 52) / 2, 38, `Brand ×${BRAND_STAGES[s.brand.level].mult.toFixed(2)}`, () => this.game.push(new BrandOverlay(this.game)), { color: '#a35bd6', dark: '#6f3a96', size: 14 });
     }
     if (!role) {
       const extra = b.id === 'warehouse' ? `Storage: ${bucketCap(s)} fish, ${saltCap(s)} salt.` : def.charm ? `Charm ${charm(s)}: staff-sold bottles +${Math.min(30, charm(s) * 2)}%.` : '';
@@ -420,7 +425,7 @@ export class IslandScene implements Scene {
     }
     const staff = staffAt(s, b.tile);
     staff.forEach((st, i) => {
-      const y = PANEL_Y + 76 + i * 50;
+      const y = PANEL_Y + 76 + i * 48;
       ctx.fillStyle = '#fff';
       rr(ctx, 16, y, W - 32, 46, 12);
       ctx.fill();
@@ -454,10 +459,10 @@ export class IslandScene implements Scene {
       }
     });
     const free = slots(b) - staff.length;
-    const yBtn = PANEL_Y + 80 + staff.length * 50;
-    if (free > 0 && yBtn < H - 60) {
+    const yBtn = PANEL_Y + 78 + staff.length * 48;
+    if (free > 0 && yBtn < H - 92) {
       const cost = hireCost(s, role);
-      this.game.button(ctx, 'hire', W / 2 - 110, yBtn, 220, 48, cost === 0 ? `Hire ${ROLE[role].title} (free!)` : `Hire ${ROLE[role].title}  ${cost}`, () => {
+      this.game.button(ctx, 'hire', W / 2 - 110, yBtn, 220, 42, cost === 0 ? `Hire ${ROLE[role].title} (free!)` : `Hire ${ROLE[role].title}  ${cost}`, () => {
         const st = hire(s, b.tile);
         if (!st) return;
         sfx.upgrade();

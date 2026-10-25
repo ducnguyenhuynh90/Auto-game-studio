@@ -165,6 +165,20 @@ export interface IslandState {
   /** Export orders at the Trading Post (core/business.ts) and the 2-hour slot they belong to. */
   contracts?: Contract[];
   contractSlot?: number;
+  /** Which steps staff do on their own. A step switched to "manual" is yours: its staff rest, unpaid. */
+  auto?: Partial<Record<Step, boolean>>;
+}
+
+/** The production steps the player can hand to staff or keep. */
+export type Step = 'fish' | 'salt' | 'brew' | 'sell' | 'tours';
+export const ROLE_STEP: Record<Role, Step> = { fisher: 'fish', salter: 'salt', brewer: 'brew', seller: 'sell', guide: 'tours' };
+
+export function isAuto(s: GameState, step: Step): boolean {
+  return s.island.auto?.[step] !== false;
+}
+
+export function setAuto(s: GameState, step: Step, on: boolean): void {
+  (s.island.auto ??= {})[step] = on;
 }
 
 export interface Contract {
@@ -360,8 +374,9 @@ export function wage(st: Staff): number {
   return Math.round(WAGE[st.role] * (1 + 0.15 * (st.level - 1)));
 }
 
+/** Wages of staff on duty (staff on a step you do by hand rest, and aren't paid). */
 export function wagesPerHour(s: GameState): number {
-  return s.island.staff.reduce((a, st) => a + wage(st), 0);
+  return s.island.staff.reduce((a, st) => a + (isAuto(s, ROLE_STEP[st.role]) ? wage(st) : 0), 0);
 }
 
 export function upkeepPerHour(s: GameState): number {
@@ -507,6 +522,18 @@ export function ticketPrice(s: GameState, now = Date.now()): number {
   return 4 + Math.floor(attraction(s, now) / 5);
 }
 
+/** A staff-made bottle the player sold by hand: business income too (source "hand"). */
+export function recordHandSale(s: GameState, coins: number): void {
+  const l = ledger(s);
+  l.income += coins;
+  l.src ??= {};
+  const e = (l.src.hand ??= { total: 0, rate: 0 });
+  e.total += coins;
+  // nudge the smoothed rates as if it were earned over the next quarter hour
+  e.rate += coins * 4 * 0.1;
+  l.incomeRate += coins * 4 * 0.1;
+}
+
 /** Records income by source, for the business report. */
 function earn(rep: TickReport, src: string, amount: number): void {
   rep.coins += amount;
@@ -548,6 +575,7 @@ export function tickIsland(s: GameState, seconds: number, rng: Rng, now: number)
   // order matters: salt and fish first, so brewers can use them in the same tick
   const order: Role[] = ['salter', 'fisher', 'brewer', 'seller', 'guide'];
   for (const role of order) {
+    if (!isAuto(s, ROLE_STEP[role])) continue;
     for (const st of isl.staff.filter((x) => x.role === role)) {
       const b = buildingAt(s, st.tile);
       if (!b) continue;
@@ -638,7 +666,7 @@ export function tickIsland(s: GameState, seconds: number, rng: Rng, now: number)
   l.incomeRate += ((rep.coins * 3600) / seconds - l.incomeRate) * k;
   // per-source totals and smoothed rates, for the business report
   l.src ??= {};
-  for (const name of ['shop', 'trade', 'tours', 'souvenirs']) {
+  for (const name of ['shop', 'trade', 'tours', 'souvenirs', 'hand']) {
     const got = rep.src[name] ?? 0;
     const e = (l.src[name] ??= { total: 0, rate: 0 });
     e.total += got;

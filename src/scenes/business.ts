@@ -11,6 +11,7 @@ import type { Game, Scene } from '../game';
 import { BrandOverlay } from './brand';
 import { MarketOverlay } from './market';
 import { PuzzleHubOverlay } from './puzzles';
+import { ProductionOverlay } from './production';
 
 type Tab = 'earn' | 'costs' | 'boost';
 const STATUS = { active: { c: COLORS.good, t: 'Earning' }, idle: { c: '#e67e22', t: 'Idle' }, off: { c: '#9a948a', t: 'Not set up' } };
@@ -148,6 +149,7 @@ export class BusinessOverlay implements Scene {
     const totals = earningsBySource(s).filter((x) => x.total > 0);
     const line = totals.length ? `Earned so far: ${totals.map((x) => `${x.name} ${x.total}`).join(' · ')}` : 'Earned so far: nothing yet from staff. Set up a line above!';
     wrap(ctx, line, W - 50, 10).slice(0, 2).forEach((ln, j) => text(ctx, ln, W / 2, 728 + j * 14, 10, '#7a5aa8', 'center', 800));
+    this.game.button(ctx, 'biz_line', 30, 762, W - 60, 40, 'See the production line ›', () => this.game.push(new ProductionOverlay(this.game)), { color: '#e67e22', dark: '#a85a14', size: 15 });
   }
 
   private drawCosts(ctx: Ctx): void {

@@ -2,10 +2,17 @@
 // staff are idle and why, and concrete ways to cut costs. Also export contracts at the Trading Post.
 // Pure rules: the report screen (scenes/business.ts) only draws these and runs the linked actions.
 import { BALANCE, saucePrice } from './data';
+import { spawnWeight, speciesForSea } from './fishing';
 import { brandMult } from './brand';
 import {
   BUILDINGS_BY_ID,
   ROLE,
+  ROLE_STEP,
+  brewSeconds,
+  isAuto,
+  sellSeconds,
+  shopMult,
+  tourSeconds,
   UPKEEP,
   attraction,
   bucketCap,
@@ -256,7 +263,81 @@ export function deliverContract(s: GameState, id: number): number {
 /** Lifetime earnings by source, for the report's totals. */
 export function earningsBySource(s: GameState): { name: string; total: number }[] {
   const src = ledger(s).src ?? {};
-  const names: Record<string, string> = { shop: 'Shop sales', tours: 'Tour tickets', souvenirs: 'Souvenir bottles', trade: 'Traders', contracts: 'Export orders' };
+  const names: Record<string, string> = { shop: 'Shop sales', hand: 'Staff bottles you sold', tours: 'Tour tickets', souvenirs: 'Souvenir bottles', trade: 'Traders', contracts: 'Export orders' };
   return Object.entries(names).map(([k, name]) => ({ name, total: Math.round(src[k]?.total ?? 0) }));
 }
 
+
+// ---------- The production line: what staff make per hour, the bottleneck, and estimated income ----------
+
+export interface LineStep {
+  id: 'fish' | 'salt' | 'brew' | 'sell';
+  /** Units per hour this step can deliver right now (0 when nobody does it). */
+  perHour: number;
+}
+
+export interface LineEstimate {
+  steps: LineStep[];
+  /** Bottles per hour the staff line can produce, and sell. */
+  bottlesPerHour: number;
+  soldPerHour: number;
+  /** Estimated °N and price of a staff-made bottle. */
+  degrees: number;
+  price: number;
+  /** Estimated coins per hour from staff sales and tours (before wages). */
+  coinsPerHour: number;
+  toursPerHour: number;
+  /** The slowest step (where to invest next), or null if the line isn't running at all. */
+  bottleneck: LineStep['id'] | null;
+}
+
+/** Jars the staff can use: empty ones and their own (your own sealed jars are off-limits). */
+export function staffJars(s: GameState): number {
+  return s.jars.filter((j) => !j.sealed || j.auto).length;
+}
+
+/** Expected °N of a staff bottle: the sea's usual fish at the fishers' freshness, salt, aging, brewer. */
+export function staffDegrees(s: GameState): number {
+  const fishers = staffOf(s, 'fisher');
+  const lvl = fishers.length ? Math.max(...fishers.map((f) => f.level)) : 1;
+  const pool = speciesForSea(s.sea).filter((sp) => sp.sauce > 0 && sp.rarity < 5);
+  const total = pool.reduce((a, sp) => a + spawnWeight(sp, Math.min(3, lvl - 1)), 0) || 1;
+  const sauce = pool.reduce((a, sp) => a + sp.sauce * spawnWeight(sp, Math.min(3, lvl - 1)), 0) / total;
+  const brewers = staffOf(s, 'brewer');
+  const blvl = brewers.length ? Math.max(...brewers.map((b) => b.level)) : 1;
+  const fresh = Math.min(0.85, 0.35 + 0.09 * lvl);
+  const d = sauce * 1.05 + fresh * BALANCE.freshnessBonus + BALANCE.saltBonus[s.upgrades.salt] + BALANCE.agingBonus[blvl >= 3 ? 2 : 1] + (blvl - 1);
+  return Math.round(d * 10) / 10;
+}
+
+export function lineEstimate(s: GameState, now = Date.now()): LineEstimate {
+  const rateOf = (role: Role, base: (l: number) => number, bonus: (st: Staff) => number) =>
+    isAuto(s, ROLE_STEP[role]) ? staffOf(s, role).reduce((a, st) => a + (3600 / base(st.level)) * bonus(st), 0) : 0;
+  const fishPH = rateOf('fisher', fishSeconds, (st) => (terrain(st.tile) === 'c' ? 1.25 : 1));
+  const saltPH = rateOf('salter', saltSeconds, (st) => (terrain(st.tile) === 's' ? 1.5 : 1));
+  const brewers = isAuto(s, 'brew') ? staffOf(s, 'brewer') : [];
+  const wait = brewers.some((b) => b.level >= 3) ? 2 : 1;
+  // one jar: a brewer's turn to seal it, the aging, another turn to open it
+  const cycle = 2 * brewSeconds + BALANCE.agingSecondsPerLevel * wait;
+  const jarPH = brewers.length ? Math.min((staffJars(s) * 3600) / cycle, brewers.length * (3600 / brewSeconds / 2)) : 0;
+  const steps: LineStep[] = [
+    { id: 'fish', perHour: fishPH / BALANCE.jarSlots },
+    { id: 'salt', perHour: saltPH },
+    { id: 'brew', perHour: jarPH },
+  ];
+  const bottlesPerHour = brewers.length ? Math.min(...steps.map((x) => x.perHour)) : 0;
+  const sellPH = rateOf('seller', sellSeconds, () => 1);
+  const guides = isAuto(s, 'tours') ? staffOf(s, 'guide') : [];
+  const toursPerHour = guides.reduce((a, g) => a + 3600 / tourSeconds(g.level), 0);
+  const souvenirPH = toursPerHour * Math.floor(tourGroup(s, now) / 3);
+  steps.push({ id: 'sell', perHour: sellPH + souvenirPH });
+  const soldPerHour = Math.min(bottlesPerHour, sellPH + souvenirPH);
+  const degrees = staffDegrees(s);
+  const sellerLvl = Math.max(1, ...staffOf(s, 'seller').map((x) => x.level));
+  const price = Math.round(saucePrice(degrees, s.upgrades.stall) * shopMult(s, sellerLvl, now));
+  const tickets = toursPerHour * tourGroup(s, now) * ticketPrice(s, now);
+  const coinsPerHour = Math.round(soldPerHour * price + tickets);
+  const running = steps.filter((x) => x.perHour > 0);
+  const bottleneck = brewers.length || fishPH || saltPH ? [...steps].sort((a, b) => a.perHour - b.perHour)[0].id : null;
+  return { steps, bottlesPerHour, soldPerHour, degrees, price, coinsPerHour, toursPerHour, bottleneck: running.length ? bottleneck : null };
+}

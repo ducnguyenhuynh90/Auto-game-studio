@@ -12,6 +12,7 @@ import type { Game, Scene } from '../game';
 import { JarFillOverlay, RevealOverlay } from './jar';
 import { MarketOverlay } from './market';
 import { BusinessOverlay } from './business';
+import { ProductionOverlay } from './production';
 import { DogOverlay } from './dog';
 import { DexOverlay } from './dex';
 import { MissionsOverlay, RelicOverlay } from './missions';
@@ -282,6 +283,9 @@ export class VillageScene implements Scene {
   /** Village / Island toggle and, in the overview, a one-line business summary. */
   private drawViewBar(ctx: Ctx): void {
     const s = this.game.state;
+    // how fish sauce is made, step by step (once the first fish is in the bucket)
+    if (!this.overview && s.stats.catches > 0)
+      this.game.button(ctx, 'how', 10, 174, 128, 38, 'How it\'s made', () => this.game.push(new ProductionOverlay(this.game)), { color: '#e67e22', dark: '#a85a14', size: 13 });
     if (!islandUnlocked(s) || !this.game.world) return;
     const overview = this.overview;
     this.game.button(ctx, 'view', W - 118, 174, 108, 38, overview ? 'Village' : 'Island view', () => this.setView(overview ? 'village' : 'island'), {
