@@ -5,6 +5,7 @@
 import { BALANCE, SPECIES_BY_ID, saucePrice, type SeaId } from './data';
 import { rollShadow, speciesForSea } from './fishing';
 import type { Rng } from './rng';
+import { addReputation, brandMult } from './brand';
 import { agingLevel, bestJarFill, canFerment, openJar, sealJar, type GameState } from './state';
 
 // ---------- Map ----------
@@ -149,6 +150,12 @@ export interface IslandState {
   made: { fish: number; salt: number; jars: number; bottles: number; coins: number };
   /** LAYOUT_VERSION the tile numbers refer to. */
   layout?: number;
+  /** Running costs owed but not yet paid (fractions of a coin carry over). */
+  owed?: number;
+  /** True while there isn't enough money for wages: staff stop working until it is paid. */
+  unpaid?: boolean;
+  /** Lifetime money in and out, and a smoothed income rate (coins per hour) for the ledger. */
+  ledger?: { income: number; wages: number; upkeep: number; incomeRate: number };
 }
 
 export function newIsland(): IslandState {
@@ -315,6 +322,67 @@ export function hire(s: GameState, tile: number): Staff | null {
   return staff;
 }
 
+/** Lets a staff member go (no refund of the hire cost; their wage stops). */
+export function dismiss(s: GameState, uid: number): boolean {
+  const before = s.island.staff.length;
+  s.island.staff = s.island.staff.filter((x) => x.uid !== uid);
+  delete s.island.timers[uid];
+  return s.island.staff.length < before;
+}
+
+// ---------- Running costs ----------
+
+/** Wages per hour at level 1; each level adds 25%. */
+export const WAGE: Record<Role, number> = { fisher: 30, salter: 20, brewer: 40, seller: 30 };
+/** Upkeep per hour per building level (repairs, nets, salt bags, rent). */
+export const UPKEEP: Record<BuildingId, number> = { dock: 10, saltfield: 6, brewhouse: 12, shop: 15, warehouse: 8, tradepost: 20, lantern: 1, shrine: 3 };
+
+export function wage(st: Staff): number {
+  return Math.round(WAGE[st.role] * (1 + 0.25 * (st.level - 1)));
+}
+
+export function wagesPerHour(s: GameState): number {
+  return s.island.staff.reduce((a, st) => a + wage(st), 0);
+}
+
+export function upkeepPerHour(s: GameState): number {
+  return s.island.buildings.reduce((a, b) => a + UPKEEP[b.id] * b.level, 0);
+}
+
+export function ledger(s: GameState): NonNullable<IslandState['ledger']> {
+  return (s.island.ledger ??= { income: 0, wages: 0, upkeep: 0, incomeRate: 0 });
+}
+
+/**
+ * Pays running costs for `seconds`. Returns false if the money ran out: staff then stop until the
+ * player earns enough (coins never go below zero, and the debt is capped at one hour of costs).
+ */
+function payCosts(s: GameState, seconds: number): boolean {
+  const isl = s.island;
+  const w = wagesPerHour(s);
+  const u = upkeepPerHour(s);
+  if (w + u <= 0) return true;
+  isl.owed = Math.min((isl.owed ?? 0) + ((w + u) * seconds) / 3600, w + u);
+  const due = Math.floor(isl.owed);
+  if (due <= 0) {
+    if (isl.unpaid && s.coins <= 0) return false;
+    isl.unpaid = false;
+    return true;
+  }
+  if (s.coins < due) {
+    isl.unpaid = true;
+    return false;
+  }
+  s.coins -= due;
+  isl.owed -= due;
+  isl.unpaid = false;
+  const l = ledger(s);
+  // kept as fractions so small payments split fairly between wages and upkeep
+  l.wages += (due * w) / (w + u);
+  l.upkeep += (due * u) / (w + u);
+  return true;
+}
+
 /** Puzzle levels cleared in a section set how far its staff can be trained. */
 export function staffLevelCap(s: GameState, role: Role): number {
   const cleared = (s.puzzles[ROLE[role].section] ?? []).filter((x) => x > 0).length;
@@ -357,7 +425,7 @@ export function charm(s: GameState): number {
 }
 /** Price multiplier for staff-sold bottles: shopkeeper level, charm (max +30%), trading post. */
 export function shopMult(s: GameState, sellerLevel: number): number {
-  return (1 + 0.05 * (sellerLevel - 1)) * (1 + Math.min(0.3, 0.02 * charm(s))) * (level(s, 'tradepost') > 0 ? 1.2 : 1);
+  return (1 + 0.05 * (sellerLevel - 1)) * (1 + Math.min(0.3, 0.02 * charm(s))) * (level(s, 'tradepost') > 0 ? 1.2 : 1) * brandMult(s);
 }
 
 /** Workers fish with nets: no legends, treasure or crates (those stay the player's adventure). */
@@ -384,7 +452,9 @@ export interface TickReport {
 export function tickIsland(s: GameState, seconds: number, rng: Rng, now: number): TickReport {
   const rep: TickReport = { fish: 0, salt: 0, jars: 0, bottles: 0, coins: 0 };
   const isl = s.island;
-  if (!isl.staff.length || seconds <= 0) return rep;
+  if (seconds <= 0 || (!isl.staff.length && !isl.buildings.length)) return rep;
+  // wages and upkeep come first; unpaid staff don't work
+  if (!payCosts(s, seconds)) return rep;
   // order matters: salt and fish first, so brewers can use them in the same tick
   const order: Role[] = ['salter', 'fisher', 'brewer', 'seller'];
   for (const role of order) {
@@ -433,6 +503,7 @@ export function tickIsland(s: GameState, seconds: number, rng: Rng, now: number)
             break;
           }
           const price = Math.round(saucePrice(s.shelf[i].degrees, s.upgrades.stall) * shopMult(s, st.level));
+          addReputation(s, s.shelf[i].degrees);
           s.shelf.splice(i, 1);
           s.coins += price;
           s.stats.earned += price;
@@ -449,6 +520,9 @@ export function tickIsland(s: GameState, seconds: number, rng: Rng, now: number)
   isl.made.jars += rep.jars;
   isl.made.bottles += rep.bottles;
   isl.made.coins += rep.coins;
+  const l = ledger(s);
+  l.income += rep.coins;
+  l.incomeRate += ((rep.coins * 3600) / seconds - l.incomeRate) * Math.min(1, seconds / 900);
   return rep;
 }
 

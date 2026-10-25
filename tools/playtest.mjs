@@ -124,10 +124,27 @@ await page.evaluate(({ skill }) => {
           tap(195, 810);
         }
         wait = 0.6;
+      } else if (top.name === 'dog') {
+        // Mực's card: feed him until he trusts us, then build his house, then close
+        shot('dog');
+        if (s.dog.fed < 3 && s.bucket.length) tap(195, 554);
+        else if (!s.dog.house && s.coins >= 60) tap(195, 614);
+        else tap(346, 270);
+        wait = 0.4;
       } else if (top.name === 'village') {
         shot(`village_trip${s.stats.trips}`);
         if (bot.trips >= bot.maxTrips) {
           bot.done = true;
+          return;
+        }
+        const dogPt = g.world.village.dogScreen();
+        const dogWants = dogPt && ((s.dog.fed < 3 && s.bucket.length) || (s.dog.fed >= 3 && !s.dog.house && s.coins >= 60));
+        if (dogWants && g.world.village.zoom < 0.5 && !bot.dogTried) {
+          bot.dogTried = true;
+          setTimeout(() => (bot.dogTried = false), 3000);
+          tap(dogPt.x, dogPt.y - 10);
+          wait = 0.6;
+          requestAnimationFrame(step);
           return;
         }
         const R = window.__mam.rules;
@@ -255,7 +272,7 @@ const report = await page.evaluate(() => {
     gpu: g.world ? { geometries: g.world.renderer.info.memory.geometries, textures: g.world.renderer.info.memory.textures, calls: g.world.renderer.info.render.calls, tris: g.world.renderer.info.render.triangles } : null,
     state: { coins: g.state.coins, upgrades: g.state.upgrades, stats: g.state.stats, dex: Object.keys(g.state.dex), cellar: g.state.cellar, goalsDone: g.state.goalsDone },
     funnel: window.__mam.analytics.funnelState(),
-    counts: { cast: count('cast'), catch: count('catch'), lost: count('fish_lost'), jar_open: count('jar_open'), upgrade: count('upgrade'), mission: count('mission_complete'), relic: count('relic_unlock'), level: count('level_up'), gadget: count('gadget_use'), hungry: count('hungry'), chain_link: count('chain_link') },
+    counts: { cast: count('cast'), catch: count('catch'), lost: count('fish_lost'), jar_open: count('jar_open'), upgrade: count('upgrade'), mission: count('mission_complete'), relic: count('relic_unlock'), level: count('level_up'), gadget: count('gadget_use'), hungry: count('hungry'), chain_link: count('chain_link'), dog_feed: count('dog_feed'), dog_house: count('dog_house'), dog_bark: count('dog_bark') },
     progress: { storySeen: g.state.storySeen, sea: g.state.sea, xp: g.state.xp, missions: g.state.missionsDone, relics: g.state.relics, gadgets: g.state.gadgets },
     lostReasons: ev.filter((x) => x.e === 'fish_lost').map((x) => x.p.reason),
     log: window.__bot.log,

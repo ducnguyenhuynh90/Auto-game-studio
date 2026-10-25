@@ -26,6 +26,8 @@ export function loadFromBlob(s: GameState): GameState {
     upgrades: { ...base.upgrades, ...s.upgrades },
     island: { ...base.island, ...s.island, made: { ...base.island.made, ...s.island?.made } },
     puzzles: { ...base.puzzles, ...s.puzzles },
+    brand: { ...base.brand, ...s.brand },
+    dog: { ...base.dog, ...s.dog },
   };
   // the island map changed shape (v2): move plots and buildings over, refunding land
   if (s.island && s.island.layout !== LAYOUT_VERSION) {

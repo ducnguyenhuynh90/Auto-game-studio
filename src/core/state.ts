@@ -6,6 +6,8 @@ import { range, type Rng } from './rng';
 import { SEAS, SEAS_BY_ID, missionDone, seaLock, type Mission, type Sea } from './seas';
 import { newIsland, type IslandState } from './island';
 import { newPuzzles, type PuzzleProgress } from './puzzles';
+import { addReputation, brandMult, newBrand, type BrandState } from './brand';
+import { newDog, type DogState } from './dog';
 
 export interface CaughtFish {
   uid: number;
@@ -69,6 +71,10 @@ export interface GameState {
   island: IslandState;
   /** Puzzle stars per section (src/core/puzzles.ts). */
   puzzles: PuzzleProgress;
+  /** Brand stage and reputation (src/core/brand.ts). */
+  brand: BrandState;
+  /** Mực the Phú Quốc dog (src/core/dog.ts). */
+  dog: DogState;
 }
 
 export function newState(): GameState {
@@ -94,6 +100,8 @@ export function newState(): GameState {
     storySeen: [],
     island: newIsland(),
     puzzles: newPuzzles(),
+    brand: newBrand(),
+    dog: newDog(),
   };
 }
 
@@ -146,6 +154,7 @@ export function addCatch(s: GameState, species: string, size: number, freshness:
   } else {
     s.bucket.push(fish);
   }
+  if (s.dog?.house) s.dog.catches++;
   const xp = catchXp(species, fish.perfect);
   const levelUps = addXp(s, xp);
   return { fish, isNew, isRecord, gadget, xp, levelUps };
@@ -245,14 +254,16 @@ export function openJar(s: GameState, jarIndex: number, now: number): { product:
 
 // ---------- Market ----------
 
+/** What a bottle sells for at your stall: quality, stall level and brand. */
 export function productPrice(s: GameState, p: Product): number {
-  return saucePrice(p.degrees, s.upgrades.stall);
+  return Math.round(saucePrice(p.degrees, s.upgrades.stall) * brandMult(s));
 }
 
 export function sellProduct(s: GameState, uid: number): number {
   const i = s.shelf.findIndex((p) => p.uid === uid);
   if (i < 0) return 0;
   const price = productPrice(s, s.shelf[i]);
+  addReputation(s, s.shelf[i].degrees);
   s.shelf.splice(i, 1);
   s.coins += price;
   s.stats.sold++;

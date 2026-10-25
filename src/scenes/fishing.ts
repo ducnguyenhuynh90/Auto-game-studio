@@ -7,6 +7,7 @@ import { GADGETS, hasRelic, type GadgetId } from '../core/items';
 import { SEAS_BY_ID } from '../core/seas';
 import { goalPair, progressLabel } from '../core/goals';
 import { SCENES, pendingScene } from '../core/story';
+import { dogAboard } from '../core/dog';
 import { FISHING_LEVELS, completeLevel, fishingGoalMet, fishingGoalText, fishingStars, levelOpen, type FishingLevel } from '../core/puzzles';
 import { StoryOverlay } from './story';
 import { range } from '../core/rng';
@@ -30,6 +31,8 @@ interface Shadow extends ShadowSpec {
   locked: boolean;
   /** Food chain: this fish smelled the last catch, swam up within reach and bites fast. */
   hungry?: boolean;
+  /** Mực already barked at this one. */
+  barked?: boolean;
 }
 
 /** Food-chain level colours (1 small … 4 apex), shared by the shadow chips and the ladder. */
@@ -83,6 +86,10 @@ export class FishingScene implements Scene {
   /** Fishing puzzle mode: a fixed school of fish, a fixed number of casts and a goal. */
   readonly puzzle: FishingLevel | null;
   tripLinks = 0;
+  /** Mực's nose: seconds left on his current bark, the shadow he barks at, barks this trip. */
+  barkT = 0;
+  barkAt: Shadow | null = null;
+  private barks = 0;
   puzzleResult: { met: boolean; stars: number; coins: number } | null = null;
 
   constructor(
@@ -423,9 +430,26 @@ export class FishingScene implements Scene {
     this.t = 0;
   }
 
+  /** Mực barks (twice a trip at most) at a real rare shadow: an honest hint, never a fake one. */
+  private sniff(dt: number): void {
+    this.barkT = Math.max(0, this.barkT - dt);
+    if (this.barkT <= 0) this.barkAt = null;
+    if (!dogAboard(this.game.state) || this.barks >= 2 || this.barkT > 0 || this.phase !== 'aim' || this.t < 1.5) return;
+    const rare = this.shadows.find((sh) => sh.state === 'swim' && sh.alpha > 0.8 && SPECIES_BY_ID[sh.species].rarity >= 3 && !sh.barked);
+    if (!rare) return;
+    rare.barked = true;
+    this.barkAt = rare;
+    this.barkT = 3.5;
+    this.barks++;
+    sfx.bite();
+    vibrate([15, 40, 15]);
+    analytics.track('dog_bark', { species: rare.species, sea: this.sea });
+  }
+
   // ---------- Update ----------
   update(dt: number): void {
     this.t += dt;
+    this.sniff(dt);
     this.hintT += dt;
     this.earlyTapT = Math.max(0, this.earlyTapT - dt);
     for (const sh of this.shadows) this.updateShadow(sh, dt);
@@ -640,6 +664,27 @@ export class FishingScene implements Scene {
     }
     this.drawShadowLabels(ctx);
     this.drawChainLadder(ctx);
+    this.drawBark(ctx);
+  }
+
+  private drawBark(ctx: Ctx): void {
+    const sh = this.barkAt;
+    if (!sh || this.barkT <= 0 || sh.state === 'flee') return;
+    const k = ease.outBack(clamp01((3.5 - this.barkT) / 0.3));
+    const x = Math.max(60, Math.min(W - 60, sh.x));
+    ctx.save();
+    ctx.translate(x, sh.y - 54);
+    ctx.scale(k, k);
+    panel(ctx, -58, -16, 116, 32, '#fff8e8', 14);
+    text(ctx, 'Gâu! Rare fish!', 0, 1, 13, COLORS.ink, 'center', 900);
+    ctx.restore();
+    ctx.strokeStyle = COLORS.gold;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([5, 5]);
+    ctx.beginPath();
+    ctx.ellipse(sh.x, sh.y, 40, 18, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
   }
 
   /** The sea's food chain as a ladder of fish, with the current chain lit up. */

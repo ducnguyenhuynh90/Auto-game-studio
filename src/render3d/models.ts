@@ -408,8 +408,9 @@ export function makeFisherman(): THREE.Group {
 }
 
 /** Story cast as chunky toy figures. Each has one signature silhouette detail (Pixar: specificity). */
-export function makeCharacter(id: 'lan' | 'nam' | 'rua' | 'toc' | 'tu' | 'hanh'): THREE.Group {
+export function makeCharacter(id: 'lan' | 'nam' | 'rua' | 'toc' | 'tu' | 'hanh' | 'muc'): THREE.Group {
   if (id === 'rua') return makeTurtle();
+  if (id === 'muc') return makeDog();
   const look = {
     lan: { shirt: '#3d6f8f', skin: '#f0c49a', hair: '#1d1410' },
     nam: { shirt: '#7a4a9a', skin: '#e2b48a', hair: '#c9c4bc' },
@@ -1189,5 +1190,91 @@ export function makeWorker(role: string, shirtColor?: string): THREE.Group {
     bottle.position.set(0.3, 0.5, 0.2);
     g.add(bottle);
   }
+  return g;
+}
+
+/**
+ * Mực, a Phú Quốc Ridgeback: lean black dog, upright ears, curled tail, and the breed's signature
+ * ridge of fur running backwards down the spine (drawn as a lighter stripe of little spikes).
+ */
+export function makeDog(): THREE.Group {
+  const g = new THREE.Group();
+  const coat = '#2e2926';
+  const body = mesh(new THREE.CapsuleGeometry(0.17, 0.42, 6, 12), toon(coat));
+  outline(body, 1.06);
+  body.rotation.z = Math.PI / 2;
+  body.position.set(0, 0.42, 0);
+  g.add(body);
+  const chest = mesh(new THREE.SphereGeometry(0.13, 12, 10), toon('#c49a62'), false);
+  chest.position.set(0.3, 0.38, 0);
+  g.add(chest);
+  for (const [x, z] of [
+    [0.22, 0.09],
+    [0.22, -0.09],
+    [-0.22, 0.09],
+    [-0.22, -0.09],
+  ]) {
+    const leg = mesh(new THREE.CylinderGeometry(0.045, 0.04, 0.3, 6), toon(coat));
+    leg.position.set(x, 0.15, z);
+    leg.name = 'leg';
+    g.add(leg);
+  }
+  const head = new THREE.Group();
+  head.name = 'head';
+  head.position.set(0.42, 0.66, 0);
+  const skull = mesh(new THREE.SphereGeometry(0.15, 14, 12), toon(coat));
+  outline(skull, 1.06);
+  head.add(skull);
+  const snout = mesh(new THREE.BoxGeometry(0.17, 0.1, 0.11), toon('#3a332f'));
+  snout.position.set(0.15, -0.04, 0);
+  head.add(snout);
+  const nose = mesh(new THREE.SphereGeometry(0.03, 8, 6), new THREE.MeshBasicMaterial({ color: 0x111111 }), false);
+  nose.position.set(0.24, -0.01, 0);
+  head.add(nose);
+  for (const sd of [-1, 1]) {
+    const ear = mesh(new THREE.ConeGeometry(0.06, 0.16, 4), toon(coat));
+    ear.position.set(-0.02, 0.15, sd * 0.08);
+    ear.rotation.x = sd * -0.2;
+    head.add(ear);
+    const eye = mesh(new THREE.SphereGeometry(0.025, 8, 6), new THREE.MeshBasicMaterial({ color: 0xf2c14e }), false);
+    eye.position.set(0.11, 0.04, sd * 0.075);
+    head.add(eye);
+    const pupil = mesh(new THREE.SphereGeometry(0.013, 6, 4), new THREE.MeshBasicMaterial({ color: 0x111111 }), false);
+    pupil.position.set(0.13, 0.04, sd * 0.078);
+    head.add(pupil);
+  }
+  g.add(head);
+  // the ridge: a strip of fur growing the "wrong way" along the back
+  for (let i = 0; i < 6; i++) {
+    const spike = mesh(new THREE.ConeGeometry(0.035, 0.08, 4), toon('#5a4a3e'), false);
+    spike.position.set(0.22 - i * 0.075, 0.6, 0);
+    spike.rotation.z = Math.PI / 2 + 0.6;
+    g.add(spike);
+  }
+  const tail = mesh(new THREE.TorusGeometry(0.08, 0.025, 6, 10, Math.PI * 1.3), toon(coat), false);
+  tail.position.set(-0.4, 0.6, 0);
+  tail.name = 'tail';
+  g.add(tail);
+  return g;
+}
+
+/** A little wooden dog house with Mực's name plate. */
+export function makeDogHouse(): THREE.Group {
+  const g = new THREE.Group();
+  const box = mesh(new THREE.BoxGeometry(0.8, 0.55, 0.7), toon('#c49a62'));
+  outline(box, 1.04);
+  box.position.y = 0.28;
+  g.add(box);
+  const roof = mesh(new THREE.ConeGeometry(0.66, 0.4, 4), toon('#c0392b'));
+  outline(roof, 1.04);
+  roof.rotation.y = Math.PI / 4;
+  roof.position.y = 0.75;
+  g.add(roof);
+  const door = mesh(new THREE.CircleGeometry(0.17, 12), new THREE.MeshBasicMaterial({ color: 0x2b2118 }), false);
+  door.position.set(0, 0.25, 0.36);
+  g.add(door);
+  const bowl = mesh(new THREE.CylinderGeometry(0.12, 0.09, 0.07, 12), toon('#3a8fd9'), false);
+  bowl.position.set(0.5, 0.04, 0.35);
+  g.add(bowl);
   return g;
 }

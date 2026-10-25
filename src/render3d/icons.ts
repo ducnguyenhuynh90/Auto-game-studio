@@ -54,7 +54,7 @@ let pScene: THREE.Scene | null = null;
 let pCamera: THREE.PerspectiveCamera | null = null;
 
 /** Head-and-shoulders portrait of a story character, rendered once from its 3D model. */
-export function characterPortrait(id: 'lan' | 'nam' | 'rua' | 'toc' | 'tu' | 'hanh'): HTMLCanvasElement | null {
+export function characterPortrait(id: 'lan' | 'nam' | 'rua' | 'toc' | 'tu' | 'hanh' | 'muc'): HTMLCanvasElement | null {
   const hit = portraitCache.get(id);
   if (hit) return hit;
   try {
@@ -72,10 +72,12 @@ export function characterPortrait(id: 'lan' | 'nam' | 'rua' | 'toc' | 'tu' | 'ha
     }
     const g = makeCharacter(id);
     const turtle = id === 'rua';
-    g.rotation.y = turtle ? -0.6 : 0.25;
+    const dog = id === 'muc';
+    g.rotation.y = turtle ? -0.6 : dog ? -1.1 : 0.25;
+    if (dog) g.scale.setScalar(1.6);
     pScene!.add(g);
-    pCamera!.position.set(0, turtle ? 0.8 : 1.0, turtle ? 2.5 : 2.9);
-    pCamera!.lookAt(0, turtle ? 0.36 : 0.86, 0);
+    pCamera!.position.set(0, turtle ? 0.8 : dog ? 1.2 : 1.0, turtle ? 2.5 : dog ? 2.6 : 2.9);
+    pCamera!.lookAt(0, turtle ? 0.36 : dog ? 0.75 : 0.86, 0);
     pRenderer!.render(pScene!, pCamera!);
     pScene!.remove(g);
     const out = document.createElement('canvas');

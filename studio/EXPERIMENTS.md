@@ -85,3 +85,17 @@
 - **QA:** `node tools/island-qa.mjs` builds, hires, solves Salt 1 and Shop 1 through the real UI (3★),
   trains a Salt Maker and checks staff output. The browser bot (8 trips) still runs clean.
 - **Result:** pending real players.
+
+## EXP-007 · Running costs + brand make the business a real decision (build 3.3)
+- **Founder request:** income and costs for running and hiring; improve the brand to sell at better prices;
+  a Phú Quốc dog story and missions after the first few tasks.
+- **Hypothesis:** visible wages/upkeep and a brand ladder give players a reason to plan (which staff,
+  when to expand, when to invest in the brand), raising session length for players past the first sale.
+- **Metrics:** brand_up events and stage per player; staff_dismiss; time spent unpaid; Manage opens;
+  the dog chain completion (dog_feed → dog_house → dog_boat) and dog_bark → catch of that species.
+- **Guardrails:** no player should be stuck broke (unpaid) for more than one session; tutorial completion
+  must not drop with the 3 dog goals added.
+- **Simulation (NOT evidence):** brand reaches stage 2 by trip ~15-30 and the top stage around trip
+  125-175; a staff-heavy sim player reaches the Reef later (wages are real costs). Bot: dog chain done
+  in 8 trips, Mực barked twice, no errors.
+- **Result:** pending real players.

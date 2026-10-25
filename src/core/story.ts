@@ -2,7 +2,7 @@
 // Pure data + trigger rules, so scenes can't desync from progress.
 import type { GameState } from './state';
 
-export type CharacterId = 'lan' | 'nam' | 'rua' | 'toc' | 'tu' | 'hanh';
+export type CharacterId = 'lan' | 'nam' | 'rua' | 'toc' | 'tu' | 'hanh' | 'muc';
 
 export interface Character {
   id: CharacterId;
@@ -18,6 +18,7 @@ export const CAST: Record<CharacterId, Character> = {
   toc: { id: 'toc', name: 'Mr. Tốc', title: 'InstaMắm Co.', color: '#5a6470' },
   tu: { id: 'tu', name: 'Chú Tư', title: 'Delta prawn fisher', color: '#8a6238' },
   hanh: { id: 'hanh', name: 'Cô Hạnh', title: 'Lighthouse keeper', color: '#c0603e' },
+  muc: { id: 'muc', name: 'Mực', title: 'Phú Quốc Ridgeback', color: '#3a3330' },
 };
 
 export interface Line {
@@ -72,6 +73,49 @@ export const SCENES: StoryScene[] = [
       { who: 'nam', text: 'Look, Lan! That fish smelled your catch. Cá lớn nuốt cá bé: big fish eat small fish.' },
       { who: 'lan', text: 'It swam right up to the boat! Even deep fish come up when they\'re hungry?' },
       { who: 'nam', text: 'Cast at the hungry one next. Small, then bigger, then biggest. Think before you cast.' },
+    ],
+  },
+  {
+    id: 'dog_arrive',
+    where: 'village',
+    when: (s) => s.stats.sold >= 1 && s.storySeen.includes('first_sale'),
+    lines: [
+      { who: 'lan', text: "Bà! A skinny black puppy is sniffing around our jars!" },
+      { who: 'nam', text: 'A Phú Quốc dog. See the ridge of fur on his back? It grows the wrong way.' },
+      { who: 'nam', text: 'Only a few breeds in the whole world have that ridge. Ours is one.' },
+      { who: 'lan', text: "He's black as squid ink. I'll call you Mực!" },
+      { who: 'muc', text: 'Gâu! (He is looking at your fish bucket.)' },
+      { who: 'nam', text: 'Feed him. A Phú Quốc dog never forgets a friend.' },
+    ],
+  },
+  {
+    id: 'dog_trust',
+    where: 'village',
+    when: (s) => s.dog.fed >= 3,
+    lines: [
+      { who: 'muc', text: '(Mực rolls over and wags his whole body.)' },
+      { who: 'lan', text: 'He follows me everywhere now. Even to the toilet!' },
+      { who: 'nam', text: 'He has chosen you. A dog who chooses deserves a home. Build him one.' },
+    ],
+  },
+  {
+    id: 'dog_boat',
+    where: 'village',
+    when: (s) => s.dog.house,
+    lines: [
+      { who: 'lan', text: 'Mực, want to come fishing with me?' },
+      { who: 'muc', text: 'GÂU GÂU! (He is already in the boat.)' },
+      { who: 'nam', text: 'Phú Quốc dogs swim and hunt. Watch his nose: he smells rare fish.' },
+    ],
+  },
+  {
+    id: 'dog_done',
+    where: 'village',
+    when: (s) => s.dog.catches >= 3,
+    lines: [
+      { who: 'lan', text: 'Mực barked at a shadow and it was a rare one! Good boy!' },
+      { who: 'toc', text: 'A dog that finds fish? …How much do you want for him?' },
+      { who: 'lan', text: 'Not for sale, Mr. Tốc. Some things money can\'t buy.' },
     ],
   },
   {

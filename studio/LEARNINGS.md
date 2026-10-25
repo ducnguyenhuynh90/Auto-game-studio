@@ -65,3 +65,7 @@ Only [PLAYER] entries count as product evidence.
   separate plots. Built 3.2. Lesson: for a tycoon map, show territory as regions on one landmass.
 - [SIM] Two coplanar surfaces (cliff cap and painted top) z-fought into stripes in the far view; draw
   only the cliff walls and raise the camera's near plane as it zooms out.
+- [FOUNDER] 2026-10-25: couldn't sell manually from the island view or the Sauce Shop (the market label is
+  hidden when zoomed out). Lesson: every main action must be reachable from every main view.
+- [SIM] Brand multipliers inflate late-game coins (~+50% by trip 300) but also give the economy its
+  first real coin sink (15000 for the top stage).

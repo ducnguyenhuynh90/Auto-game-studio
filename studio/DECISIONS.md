@@ -117,3 +117,12 @@ built, but as ONE connected system rather than separate features:
   one landmass. Plots are shown as painted regions plus a property fence instead of separate blocks.
 - Changing the map (village on the north coast) breaks old tile numbers, so saves migrate with a full
   refund of bought land and buildings relocated for free: no player loses anything.
+
+## D-014 · 2026-10-25 · Wages, upkeep, brand, and Mực
+- Wages and upkeep are continuous and honest: no debt spiral (coins never negative, debt capped at one
+  hour), staff simply pause when unpaid, and the ledger shows why.
+- Brand needs both reputation (earned by selling, faster with stronger sauce) and coins, so quality and
+  volume matter, not just money. Stage 4 uses Phú Quốc's real protected origin as the fantasy.
+- Mực's bark is an honest signal (it points at a real rare shadow), consistent with "no fake odds".
+- The dog's goals sit inside the tutorial after the first sale, so existing players also get his story
+  (their next goal becomes "Feed Mực 3 fish").

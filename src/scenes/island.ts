@@ -30,6 +30,11 @@ import {
   trainProblem,
   trainStaff,
   upgradeBuilding,
+  dismiss,
+  ledger,
+  upkeepPerHour,
+  wage,
+  wagesPerHour,
   type Building,
   type Terrain,
 } from '../core/island';
@@ -38,6 +43,9 @@ import { sfx } from '../render/audio';
 import { COLORS, H, W, drawCoin, drawFish, font, islandImage, outlinedText, panel, rr, stageImage, text, type Ctx } from '../render/draw';
 import type { Game, Scene } from '../game';
 import { PuzzleHubOverlay } from './puzzles';
+import { MarketOverlay } from './market';
+import { BrandOverlay } from './brand';
+import { BRAND_STAGES } from '../core/brand';
 import { StoryOverlay } from './story';
 
 const TILE = 50;
@@ -241,14 +249,38 @@ export class IslandScene implements Scene {
   private drawOverview(ctx: Ctx): void {
     const s = this.game.state;
     const m = s.island.made;
-    text(ctx, 'Your fish sauce business', W / 2, PANEL_Y + 26, 18, COLORS.ink, 'center', 900);
-    const lines = s.island.staff.length
-      ? [`Staff made so far: ${m.fish} fish · ${m.salt} salt · ${m.jars} jars · ${m.bottles} bottles sold`, `They earned ${m.coins} coins. They keep working while you play or rest (up to 4 h).`]
-      : ['Staff fish, rake salt, brew and sell for you, even while you are away.', 'Start with a Fishing Dock or a Salt Field on the shore.'];
-    lines.forEach((l, i) => text(ctx, l, W / 2, PANEL_Y + 54 + i * 20, 11.5, COLORS.ink, 'center', 600));
-    text(ctx, 'Tap a plot to build · tap fog (+) to buy land', W / 2, PANEL_Y + 104, 13, '#7a5aa8', 'center', 900);
-    text(ctx, 'Solve Puzzles to train your staff to higher levels.', W / 2, PANEL_Y + 126, 12, 'rgba(43,33,24,0.7)', 'center', 700);
-    if (s.island.freeHires > 0) text(ctx, `Cousin Út will work for free: ${s.island.freeHires} free hire`, W / 2, PANEL_Y + 150, 12, COLORS.good, 'center', 900);
+    text(ctx, 'Your fish sauce business', W / 2, PANEL_Y + 22, 17, COLORS.ink, 'center', 900);
+    if (!s.island.staff.length && !s.island.buildings.length) {
+      text(ctx, 'Staff fish, rake salt, brew and sell for you, even while you are away.', W / 2, PANEL_Y + 48, 11.5, COLORS.ink, 'center', 600);
+      text(ctx, 'Start with a Fishing Dock or a Salt Field on the shore.', W / 2, PANEL_Y + 66, 11.5, COLORS.ink, 'center', 600);
+    } else {
+      // the ledger: what the business makes and costs per hour
+      const l = ledger(s);
+      const income = Math.round(l.incomeRate);
+      const wages = wagesPerHour(s);
+      const upkeep = upkeepPerHour(s);
+      const net = income - wages - upkeep;
+      const cols: [string, string, string][] = [
+        ['Income', `+${income}/h`, COLORS.good],
+        ['Wages', `−${wages}/h`, COLORS.bad],
+        ['Upkeep', `−${upkeep}/h`, COLORS.bad],
+        ['Net', `${net >= 0 ? '+' : '−'}${Math.abs(net)}/h`, net >= 0 ? COLORS.good : COLORS.bad],
+      ];
+      const cw = (W - 40) / 4;
+      cols.forEach(([label, v, c], i) => {
+        const x = 20 + cw * i + cw / 2;
+        text(ctx, label, x, PANEL_Y + 44, 10, 'rgba(43,33,24,0.6)', 'center', 900);
+        text(ctx, v, x, PANEL_Y + 62, 15, c, 'center', 900);
+      });
+      text(ctx, `So far: ${m.fish} fish · ${m.salt} salt · ${m.jars} jars · ${m.bottles} bottles · earned ${l.income} · paid ${Math.round(l.wages + l.upkeep)}`, W / 2, PANEL_Y + 84, 9.5, 'rgba(43,33,24,0.7)', 'center', 700);
+      if (s.island.unpaid) text(ctx, 'Not enough coins for wages! Staff have stopped. Sell something.', W / 2, PANEL_Y + 102, 11.5, COLORS.bad, 'center', 900);
+      else text(ctx, income === 0 && wages > 0 ? 'Income shows once your shop sells (a dock alone only costs).' : 'Staff keep working while you play or rest (up to 4 h).', W / 2, PANEL_Y + 102, 10.5, 'rgba(43,33,24,0.7)', 'center', 700);
+    }
+    const brand = BRAND_STAGES[s.brand.level];
+    this.game.button(ctx, 'ov_sell', 20, PANEL_Y + 118, (W - 52) / 2, 46, s.shelf.length ? `Sell (${s.shelf.length})` : 'Market', () => this.game.push(new MarketOverlay(this.game)), { color: '#e67e22', dark: '#a85a14', size: 15, pulse: s.shelf.length > 0 });
+    this.game.button(ctx, 'ov_brand', 32 + (W - 52) / 2, PANEL_Y + 118, (W - 52) / 2, 46, `Brand ×${brand.mult.toFixed(2)}`, () => this.game.push(new BrandOverlay(this.game)), { color: '#a35bd6', dark: '#6f3a96', size: 15, sub: `rep ${s.brand.rep}` });
+    text(ctx, 'Tap land to build or buy · solve Puzzles to train staff', W / 2, PANEL_Y + 186, 11.5, '#7a5aa8', 'center', 900);
+    if (s.island.freeHires > 0) text(ctx, `Cousin Út will work for free: ${s.island.freeHires} free hire`, W / 2, PANEL_Y + 206, 12, COLORS.good, 'center', 900);
   }
 
   private drawPlot(ctx: Ctx, tile: number): void {
@@ -343,6 +375,12 @@ export class IslandScene implements Scene {
         analytics.track('building_upgrade', { id: b.id, level: before + 1 });
       }, { color: '#3a8fd9', dark: '#22609e', size: 12, disabled: s.coins < upCost });
     const role = def.role;
+    if (b.id === 'shop') {
+      // your own bottles are sold here too (staff only sell what staff brewed)
+      const by = H - 66;
+      this.game.button(ctx, 'shop_sell', 20, by, (W - 52) / 2, 46, s.shelf.length ? `Sell my bottles (${s.shelf.length})` : 'Market', () => this.game.push(new MarketOverlay(this.game)), { color: '#e67e22', dark: '#a85a14', size: 14, pulse: s.shelf.length > 0 });
+      this.game.button(ctx, 'shop_brand', 32 + (W - 52) / 2, by, (W - 52) / 2, 46, `Brand ×${BRAND_STAGES[s.brand.level].mult.toFixed(2)}`, () => this.game.push(new BrandOverlay(this.game)), { color: '#a35bd6', dark: '#6f3a96', size: 14 });
+    }
     if (!role) {
       const extra = b.id === 'warehouse' ? `Storage: ${bucketCap(s)} fish, ${saltCap(s)} salt.` : def.charm ? `Charm ${charm(s)}: staff-sold bottles +${Math.min(30, charm(s) * 2)}%.` : '';
       text(ctx, extra, W / 2, PANEL_Y + 110, 13, COLORS.ink, 'center', 900);
@@ -357,7 +395,14 @@ export class IslandScene implements Scene {
       const pimg = islandImage('worker', st.role);
       if (pimg) ctx.drawImage(pimg, 18, y - 4, 50, 50);
       text(ctx, `${st.name} · ${ROLE[st.role].title} Lv ${st.level}`, 72, y + 15, 13, COLORS.ink, 'left', 900);
-      text(ctx, ROLE[st.role].perk(st.level), 72, y + 33, 10, 'rgba(43,33,24,0.75)', 'left', 700);
+      text(ctx, `${ROLE[st.role].perk(st.level)} · wage ${wage(st)}/h`, 72, y + 33, 9.5, 'rgba(43,33,24,0.75)', 'left', 700);
+      // let staff go to cut costs
+      this.game.button(ctx, `dismiss_${st.uid}`, W - 132, y + 10, 24, 26, '×', () => {
+        if (!dismiss(s, st.uid)) return;
+        analytics.track('staff_dismiss', { role: st.role, level: st.level });
+        this.game.toast(`${st.name} has gone home`, '#8a7a66', 'Their wage stops. You can hire again any time.');
+        this.game.commit();
+      }, { color: '#bdb3a3', dark: '#8f8678', size: 14, textColor: COLORS.ink });
       const problem = trainProblem(s, st);
       const cost = staffUpgradeCost(st);
       if (cost !== null && (!problem || problem.startsWith('Needs')))

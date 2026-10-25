@@ -12,8 +12,11 @@ import type { FishingScene } from '../scenes/fishing';
 import type { RevealOverlay } from '../scenes/jar';
 import { PROFILES, type Quality, type QualityProfile } from './quality';
 import { Estate, SEA_Y, plotCenter } from './estate';
+import { dogAboard, dogPresent } from '../core/dog';
 import {
   discard,
+  makeDog,
+  makeDogHouse,
   setOutlinesEnabled,
   makeBoat,
   makeBottle,
@@ -143,6 +146,7 @@ class FishingRig {
   private boat = new THREE.Group();
   private boatKind = -1;
   private turtle: THREE.Group | null = null;
+  private dog: THREE.Group | null = null;
   private fisher = makeFisherman();
   private rod = new THREE.Group();
   private rodTip: THREE.Object3D = new THREE.Object3D();
@@ -356,7 +360,7 @@ class FishingRig {
   private setBoat(kind: number): void {
     if (kind === this.boatKind) return;
     this.boatKind = kind;
-    for (const c of [...this.boat.children]) if (c !== this.fisher && c !== this.rod && c !== this.turtle) this.boat.remove(c);
+    for (const c of [...this.boat.children]) if (c !== this.fisher && c !== this.rod && c !== this.turtle && c !== this.dog) this.boat.remove(c);
     const b = makeBoat(kind);
     if (kind >= 1) {
       b.rotation.y = Math.PI / 2;
@@ -391,6 +395,21 @@ class FishingRig {
       this.turtle.position.set(-0.5, 0.18, 0.15);
       this.turtle.rotation.y = Math.PI - 0.4;
       this.boat.add(this.turtle);
+    }
+    // Mực rides at the bow once he has a home
+    if (dogAboard(game.state) && !this.dog) {
+      this.dog = makeDog();
+      this.dog.scale.setScalar(0.9);
+      this.dog.position.set(0.45, 0.2, -0.35);
+      this.dog.rotation.y = Math.PI / 2 + 0.3;
+      this.boat.add(this.dog);
+    }
+    if (this.dog) {
+      const head = this.dog.getObjectByName('head');
+      const barking = f.barkT > 0;
+      if (head) head.rotation.z = barking ? Math.sin(t * 30) * 0.15 + 0.2 : Math.sin(t * 1.7) * 0.08;
+      const tail = this.dog.getObjectByName('tail');
+      if (tail) tail.rotation.x = Math.sin(t * (barking ? 25 : 8)) * 0.4;
     }
     if (this.turtle) {
       const head = this.turtle.getObjectByName('head');
@@ -586,6 +605,10 @@ class VillageRig {
   private key = '';
   private boat: THREE.Group | null = null;
   private fisher = makeCharacter('nam'); // Bà Năm tends the village
+  /** Mực, once he has turned up (core/dog.ts). */
+  private dog: THREE.Group | null = null;
+  private dogHouse: THREE.Group | null = null;
+  private dogHopT = 0;
   private palms: THREE.Group[] = [];
   private market: THREE.Group | null = null;
   private lanterns: THREE.Mesh[] = [];
@@ -597,6 +620,15 @@ class VillageRig {
   /** Make the villager hop (when tapped). */
   hop(): void {
     this.hopT = 0.5;
+  }
+
+  /** Mực jumps for joy (fed, petted). */
+  dogHop(): void {
+    this.dogHopT = 0.6;
+  }
+
+  dogScreen(): ScreenPt | null {
+    return this.dog ? this.world.project(this.dog.position.clone().setY(0.6), this.camera) : null;
   }
 
   fisherScreen(): ScreenPt {
@@ -862,6 +894,32 @@ class VillageRig {
     if (this.boat) {
       this.boat.position.y = SEA_Y + 0.05 + Math.sin(t * 1.5) * 0.05;
       this.boat.rotation.z = Math.sin(t * 1.2) * 0.04;
+    }
+    // Mực trots around between Bà Năm and the jars; he sleeps by his house once he has one
+    if (dogPresent(s) && !this.dog) {
+      this.dog = makeDog();
+      this.dog.scale.setScalar(1.1);
+      this.root.add(this.dog);
+    }
+    if (s.dog.house && !this.dogHouse) {
+      this.dogHouse = makeDogHouse();
+      this.dogHouse.position.set(-3.2, 0.2, 1.4);
+      this.dogHouse.rotation.y = 0.5;
+      this.dogHouse.scale.setScalar(1.2);
+      this.root.add(this.dogHouse);
+    }
+    if (this.dog) {
+      this.dogHopT = Math.max(0, this.dogHopT - dt);
+      const a = t * 0.35;
+      const x = 0.2 + Math.cos(a) * 2.2;
+      const z = 0.9 + Math.sin(a * 2) * 0.6;
+      const hop = Math.sin((this.dogHopT / 0.6) * Math.PI) * 0.5;
+      this.dog.position.set(x, 0.2 + Math.abs(Math.sin(t * 9)) * 0.04 + hop, z);
+      // face the way he is trotting
+      this.dog.rotation.y = Math.atan2(-Math.cos(a * 2) * 1.2, -Math.sin(a) * 2.2);
+      for (const leg of this.dog.children.filter((c) => c.name === 'leg')) leg.rotation.z = Math.sin(t * 12 + leg.position.x * 10) * 0.4;
+      const tail = this.dog.getObjectByName('tail');
+      if (tail) tail.rotation.x = Math.sin(t * (this.dogHopT > 0 ? 25 : 9)) * 0.5;
     }
     this.hopT = Math.max(0, this.hopT - dt);
     this.fisher.position.y = 0.2 + Math.abs(Math.sin(t * 2.2)) * 0.05 + Math.sin((this.hopT / 0.5) * Math.PI) * 0.6;

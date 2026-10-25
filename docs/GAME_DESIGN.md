@@ -166,3 +166,31 @@ low-poly island (like a diorama) that you open up by buying land.
   spreads south of it. Shore buildings (dock, salt field, trading post) sit at the water's edge and face it.
 - **Save migration:** v1 islands are moved onto the new map: every plot bought is refunded, buildings
   and their staff move to fitting plots (given free), nothing built or hired is lost (tested).
+
+## Build 3.3: selling anywhere, running costs, brand, and Mực the Phú Quốc dog (founder feedback)
+**"Why can't I click the shop and sell?"** In the island view the village MARKET label was hidden, and
+tapping the Sauce Shop opened its staff page with no way to sell. Now: an orange **Market** button in
+the island view, **Sell / Market** on the Manage overview and in the Sauce Shop panel. (Shopkeepers
+still only sell bottles the staff brewed; bottles you keep stay yours until you sell them.)
+
+**Running costs.** Staff earn wages (Fisher 30/h, Salt Maker 20/h, Brewer 40/h, Shopkeeper 30/h, +25%
+per level) and buildings cost upkeep per level (Dock 10, Salt Field 6, Brew House 12, Shop 15,
+Warehouse 8, Trading Post 20, décor 1–3). Costs are paid continuously (also offline). If coins run out,
+staff **stop working** until you earn again: coins never go negative and debt is capped at one hour of
+costs. The Manage screen shows a ledger: income/h (smoothed), wages/h, upkeep/h, net/h, lifetime totals.
+Staff can be let go (×) to cut costs. A lone dock with no brewer and shop only costs money, which is the
+lesson: build the whole chain.
+
+**Brand.** Every bottle sold (by you or the shop) earns reputation (°N ÷ 5). Brand stages need
+reputation plus coins and multiply every sauce price: Homemade ×1.0 → Hand-drawn Label ×1.1 (rep 20,
+120) → Mắm Bà Năm ×1.25 (80, 500) → Market Favourite ×1.4 (250, 1800) → Phú Quốc Origin Seal ×1.6
+(700, 6000; Phú Quốc fish sauce really has a protected geographical indication) → Famous Across
+Vietnam ×1.85 (2000, 15000). This is also the late-game coin sink the economy lacked.
+
+**Mực, the Phú Quốc dog.** After the first sale a stray black Phú Quốc Ridgeback (chó Phú Quốc, one
+of the few breeds with a ridge of fur growing backwards along the spine) turns up. Three tutorial
+goals woven between the existing ones: **Feed Mực 3 fish** (he takes the cheapest fish, never your
+best), **Build Mực a dog house** (60), **Take Mực fishing: catch 3 fish**. Four short scenes
+(arrive, trust, boat, done) with Bà Năm, Lan and a jealous Mr. Tốc ("How much for the dog?" "Not for
+sale."). Once he has a home, Mực rides the boat and barks (twice a trip at most) at a **real** rare
+shadow: an honest hint, never a fake one. He trots around the village; tap him to feed and pet him.

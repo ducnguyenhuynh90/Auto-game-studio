@@ -4,6 +4,8 @@ import { SPECIES_BY_ID, UPGRADES, UPGRADES_BY_ID, tierFor, type UpgradeId } from
 import { goalPair } from '../core/goals';
 import { VILLAGE_STAGES, villageStage } from '../core/evolution';
 import { EvolutionOverlay } from './evolution';
+import { BrandOverlay } from './brand';
+import { BRAND_STAGES } from '../core/brand';
 import { buyUpgrade, productPrice, sellFish, sellProduct, upgradeCost } from '../core/state';
 import { sfx } from '../render/audio';
 import { COLORS, H, W, clamp01, stageImage, drawBottle, drawCoin, drawPointer, ease, outlinedText, panel, rr, text, type Ctx } from '../render/draw';
@@ -32,6 +34,7 @@ export class MarketOverlay implements Scene {
   private sellAll(): void {
     const s = this.game.state;
     let total = 0;
+    const rep0 = s.brand.rep;
     for (const p of [...s.shelf]) {
       const price = sellProduct(s, p.uid);
       total += price;
@@ -42,6 +45,7 @@ export class MarketOverlay implements Scene {
       sfx.coin();
       this.game.coinPulse = 1;
       this.game.float(W / 2, 200, `+${total}`, COLORS.gold, 40);
+      this.game.float(W / 2, 250, `+${s.brand.rep - rep0} reputation`, '#d9a8ff', 18);
       this.game.commit();
     }
   }
@@ -78,6 +82,8 @@ export class MarketOverlay implements Scene {
 
     // --- Shelf ---
     text(ctx, 'YOUR FISH SAUCE', 30, 118, 13, 'rgba(43,33,24,0.6)', 'left', 900);
+    const brand = BRAND_STAGES[s.brand.level];
+    this.game.button(ctx, 'brand', W - 168, 102, 140, 30, `Brand ×${brand.mult.toFixed(2)} ›`, () => this.game.push(new BrandOverlay(this.game)), { color: '#a35bd6', dark: '#6f3a96', size: 12 });
     if (s.shelf.length === 0) {
       text(ctx, 'No bottles yet. Open a ready jar!', W / 2, 160, 15, 'rgba(43,33,24,0.6)');
     } else {

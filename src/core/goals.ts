@@ -18,14 +18,20 @@ export const GOALS: Goal[] = [
   { id: 'trip2', text: 'Go fishing while it ferments', reward: 5, done: (s) => s.stats.jarsOpened > 0 || s.jars.some((j) => j.sealed && s.stats.fullTrips > j.sealedTrip) },
   { id: 'open1', text: 'Open your jar!', reward: 0, done: (s) => s.stats.jarsOpened >= 1 },
   { id: 'sell1', text: 'Sell your fish sauce', reward: 0, done: (s) => s.stats.sold >= 1 },
+  // Mực, the Phú Quốc dog, arrives after the first sale (core/dog.ts)
+  { id: 'dog_feed', text: 'Feed Mực 3 fish', reward: 5, done: (s) => s.dog.fed >= 3, progress: (s) => [Math.min(3, s.dog.fed), 3] },
   { id: 'jar2', text: 'Buy a second jar', reward: 10, done: (s) => s.upgrades.jars >= 1 },
+  { id: 'dog_home', text: 'Build Mực a dog house', reward: 10, done: (s) => s.dog.house },
   { id: 'chain2', text: 'Chain 2 fish: big eats small', reward: 10, done: (s) => (s.stats.bestChain ?? 0) >= 2, progress: (s) => [Math.min(2, Math.max(s.stats.bestChain ?? 0, 0)), 2] },
+  { id: 'dog_boat', text: 'Take Mực fishing: catch 3 fish', reward: 15, done: (s) => s.dog.catches >= 3, progress: (s) => [Math.min(3, s.dog.catches), 3] },
   { id: 'gear1', text: 'Upgrade your fishing gear', reward: 10, done: (s) => s.upgrades.rod + s.upgrades.line + s.upgrades.hook + s.upgrades.bait >= 1 },
 ];
 
 /** Past-tense verb for a goal's progress counter: "Catch 3 fish" → "Caught 2/3". */
 const VERBS: Record<string, string> = {
   catch: 'Caught',
+  feed: 'Fed',
+  take: 'Caught',
   chain: 'Chained',
   land: 'Landed',
   brew: 'Brewed',

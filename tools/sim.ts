@@ -6,6 +6,8 @@ import { BALANCE, SPECIES_BY_ID, UPGRADES, type UpgradeId } from '../src/core/da
 import { castDistance, rollShadow } from '../src/core/fishing';
 import { BUILDINGS_BY_ID, build, buyPlot, canExpand, hire, hireCost, placeProblem, staffAt, terrain, tickIsland, trainStaff, COLS, ROWS, type BuildingId } from '../src/core/island';
 import { completeLevel } from '../src/core/puzzles';
+import { upgradeBrand } from '../src/core/brand';
+import { buildDogHouse, feedDog } from '../src/core/dog';
 import { HUNGRY_DIFFICULTY, addChainLink, foodLevel, rollHungry } from '../src/core/chain';
 import { checkGoals } from '../src/core/goals';
 import { levelForXp } from '../src/core/progression';
@@ -131,6 +133,10 @@ for (let trip = 1; trip <= trips; trip++) {
     }
   }
   runIsland(trip);
+  // Mực: feed him after the first sale, then build his house
+  while (s.stats.sold >= 1 && s.dog.fed < 3 && feedDog(s));
+  buildDogHouse(s);
+  if (upgradeBrand(s)) mark(`brand ${s.brand.level}`, trip);
   checkGoals(s);
   for (const m of checkMissions(s)) {
     mark(`mission ${m.mission.id}`, trip);
@@ -148,4 +154,4 @@ for (const [k, t] of Object.entries(milestones).sort((a, b) => a[1] - b[1])) {
   if (k.startsWith('level') && Number(k.split(' ')[1]) % 5 !== 0) continue;
   console.log(`trip ${String(t).padStart(3)} (~${min(t).padStart(7)})  ${k}`);
 }
-console.log(`\nfinal: coins ${s.coins}, level ${levelForXp(s.xp)}, relics ${s.relics.join(',')}, upgrades ${JSON.stringify(s.upgrades)}, tangles ${s.stats.tangles}, island ${JSON.stringify(s.island.made)}, chain links ${s.stats.chains}, best chain ${s.stats.bestChain}`);
+console.log(`\nfinal: coins ${s.coins}, level ${levelForXp(s.xp)}, relics ${s.relics.join(',')}, upgrades ${JSON.stringify(s.upgrades)}, tangles ${s.stats.tangles}, brand ${s.brand.level} rep ${s.brand.rep}, ledger ${JSON.stringify(s.island.ledger)}, island ${JSON.stringify(s.island.made)}, chain links ${s.stats.chains}, best chain ${s.stats.bestChain}`);

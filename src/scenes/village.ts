@@ -11,6 +11,7 @@ import { COLORS, W, clamp01, drawCoin, ease, font, outlinedText, panel, rr, star
 import type { Game, Scene } from '../game';
 import { JarFillOverlay, RevealOverlay } from './jar';
 import { MarketOverlay } from './market';
+import { DogOverlay } from './dog';
 import { DexOverlay } from './dex';
 import { MissionsOverlay, RelicOverlay } from './missions';
 import { SettingsOverlay } from './settings';
@@ -202,7 +203,14 @@ export class VillageScene implements Scene {
     if (readyIdx >= 0 && (g?.id === 'open1' || g?.id === 'trip2' || s.stats.jarsOpened < 2)) return { x: jars[readyIdx].x, y: jars[readyIdx].y - 60 };
     if (!g) return null;
     const canAfford = (ids: UpgradeId[]) => ids.some((id) => s.coins >= (upgradeCost(s, id) ?? Infinity));
+    const dogPt = this.game.world?.village.dogScreen();
     switch (g.id) {
+      case 'dog_feed':
+        return s.bucket.length && dogPt ? { x: dogPt.x, y: dogPt.y - 70 } : fishBtn;
+      case 'dog_home':
+        return dogPt && s.coins >= 60 ? { x: dogPt.x, y: dogPt.y - 70 } : fishBtn;
+      case 'dog_boat':
+        return fishBtn;
       case 'seal1': {
         const empty = s.jars.findIndex((j) => !j.sealed);
         return this.fermentableCount() >= 3 && empty >= 0 ? { x: jars[empty].x, y: jars[empty].y - 60 } : fishBtn;
@@ -243,6 +251,7 @@ export class VillageScene implements Scene {
       this.drawJarLabels(ctx);
       this.drawMarketLabel(ctx);
       this.drawVillager(ctx);
+      this.drawDog(ctx);
     }
     this.drawTopBar(ctx);
     this.drawGoal(ctx);
@@ -250,6 +259,23 @@ export class VillageScene implements Scene {
     this.drawBottom(ctx);
     const p = overview ? null : this.pointTarget();
     if (p && this.game.overlays.length === 0) this.drawHand(ctx, p.x, p.y);
+  }
+
+  /** Mực: tap him to feed, house and pet him. A paw chip shows when he wants something. */
+  private drawDog(ctx: Ctx): void {
+    const p = this.game.world?.village.dogScreen();
+    if (!p) return;
+    const s = this.game.state;
+    this.game.hitArea('dog', p.x - 40, p.y - 50, 80, 80, () => this.game.push(new DogOverlay(this.game)));
+    const wants = s.dog.fed < 3 ? (s.bucket.length ? 'Hungry!' : '') : !s.dog.house ? 'Home?' : '';
+    if (wants) {
+      const b = 1 + Math.sin(this.t * 5) * 0.06;
+      ctx.save();
+      ctx.translate(p.x, p.y - 46);
+      ctx.scale(b, b);
+      this.tag(ctx, 0, 0, `Mực: ${wants}`);
+      ctx.restore();
+    }
   }
 
   /** Village / Island toggle and, in the overview, a one-line business summary. */
@@ -269,6 +295,8 @@ export class VillageScene implements Scene {
     text(ctx, `Island Lv ${islandLevel(s)} · ${working} staff · Fish ${s.bucket.length}/${bucketCap(s)} · Salt ${s.island.salt}/${saltCap(s)}`, 10 + (W - 136) / 2, 193, 10.5, COLORS.ink, 'center', 900);
     text(ctx, 'Drag to look · pinch or ± to zoom · tap a plot', W / 2, 228, 11, '#fff', 'center', 900);
     const rig = this.game.world!.village;
+    // selling works from the island view too (the village market label is hidden out here)
+    this.game.button(ctx, 'ov_market', 10, 252, 116, 40, s.shelf.length ? `Market (${s.shelf.length})` : 'Market', () => this.game.push(new MarketOverlay(this.game)), { color: '#e67e22', dark: '#a85a14', size: 14, pulse: s.shelf.length > 0 });
     this.game.button(ctx, 'zin', W - 52, 252, 42, 40, '+', () => (rig.overviewScale = Math.max(0.35, rig.overviewScale * 0.7)), { color: '#8a7a66', dark: '#5f5244', size: 22 });
     this.game.button(ctx, 'zout', W - 52, 298, 42, 40, '−', () => (rig.overviewScale = Math.min(1.4, rig.overviewScale / 0.7)), { color: '#8a7a66', dark: '#5f5244', size: 22 });
   }

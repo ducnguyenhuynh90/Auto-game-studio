@@ -86,3 +86,11 @@ See `src/core/story.ts` for the exact lines.
 - **Cultural respect:** Vietnamese names, proverbs (*chậm mà chắc*), the carp-and-dragon-gate legend and
   mắm tôm are used with care and without caricature. Anything sensitive gets a native-speaker review
   before public launch (backlog).
+
+## 8 · Mực, the Phú Quốc dog (build 3.3)
+- **Who:** a stray black Phú Quốc Ridgeback puppy (chó Phú Quốc), named Mực ("squid", for his ink-black
+  coat). The breed is native to the island and has a ridge of fur growing the wrong way along its back.
+- **Why he's in the story:** Lan's flaw is impatience; a shy stray can't be rushed. He trusts her only
+  after she feeds him, again and again (*chậm mà chắc* in miniature). Mr. Tốc tries to buy him; Lan
+  says some things money can't buy: the first time she says the theme out loud herself.
+- **Gameplay:** feed 3 fish → build a dog house → he rides the boat and barks at real rare fish.
