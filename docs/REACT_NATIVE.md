@@ -50,6 +50,9 @@ fishing trips by watching the reel tension, fill and seal a jar, age it, open it
 check the save. CI: `.github/workflows/react-native.yml` type-checks, bundles, then `expo prebuild` +
 Gradle builds a release APK (debug-signed: installs on any phone) and Xcode builds the iOS simulator app.
 
+**Verified (2026-10-26):** CI run #2 of `react-native.yml` built both native apps: the Android release APK
+(57.7 MB artifact) and the iOS simulator app (31 MB). Not yet run on a real phone.
+
 **Run on a phone:** Android: download the CI artifact `mam-village-rn-android-N`, install `app-release.apk`.
 iPhone: a development build needs a Mac with Xcode (`npx expo run:ios`) or EAS Build (Expo account; the
 paid plan only if the free build queue is too slow: founder decision).
