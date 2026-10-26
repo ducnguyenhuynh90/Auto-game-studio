@@ -198,3 +198,14 @@ built, but as ONE connected system rather than separate features:
   web build. GA in the app uses the Measurement Protocol (no Firebase SDK, no `google-services.json`),
   opt-in after the first catch, anonymous install id only, no ad ids. The GA API secret ships in the app
   (it can only send events; rotate it in GA if abused). Delete account is in Settings (store rule).
+
+## D-023 · 2026-10-26 · Store pipeline for the React Native app, keys and accounts stay with the founder
+- Android: release builds signed with the Google Play upload key from CI secrets (same names as the
+  Capacitor build), via an Expo config plugin because the native project is regenerated on every build.
+  Without the key, builds stay debug-signed for testers. First Play upload is manual (Google's rule).
+- iOS: archive + upload to TestFlight on request (workflow_dispatch "testflight"), with Xcode's
+  cloud-managed signing and an App Store Connect API key: no certificates or profiles in the repo.
+- Sign in with Apple is offered next to Google (App Store rule for third-party sign-in), through the
+  same Supabase web flow; a native Apple sheet is later polish.
+- Store accounts (US$25 Play, US$99/yr Apple), the final app id and the store listing are founder
+  decisions (docs/STORE_RELEASE.md). Nothing is published or paid by the pipeline on its own.

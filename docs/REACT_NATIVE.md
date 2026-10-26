@@ -65,10 +65,20 @@ Optional: `EXPO_PUBLIC_GA_CONSENT=granted` skips the question (founder/legal cal
 The API secret ships inside the app, like any client key: it can only send events, and Google lets you
 rotate it.
 
+## Accounts and store release (done)
+- **Google / Apple sign-in** (Settings → Cloud backup, `src/cloud.ts`): links the identity to the
+  anonymous account (same save), or signs in to an account that already has a save and asks which to
+  keep. Opens the provider in the system browser and returns by `com.mamvillage.rn://auth/callback`
+  (PKCE). Supabase must list that redirect URL.
+- **Store release** (docs/STORE_RELEASE.md): Android release builds are signed with the Google Play
+  upload key when CI has it (`plugins/withReleaseSigning.js`) and also produce the `.aab`; iOS archives
+  and uploads to TestFlight on request with an App Store Connect API key. Versions come from the CI run
+  number (`app.config.js`).
+
 ## Next
-- Google / Apple sign-in in the app (to move a save between phones and the web): `expo-auth-session`
-  with the Supabase redirect, then the link flow the web game already has.
-- Store release: signing keys and an upload (EAS or CI), store listing, privacy labels (founder steps).
+- Run on real phones (Android APK from CI; iPhone through TestFlight once the Apple account exists).
+- Store listing, screenshots, privacy answers (docs/STORE_RELEASE.md), then the founder picks this app
+  or the Capacitor one for the stores.
 - The 3D world (three.js on `expo-gl`) if the 2.5D Skia scene tests worse with players than the web's 3D.
 
 ## Build and test

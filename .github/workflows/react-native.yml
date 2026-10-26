@@ -6,6 +6,11 @@ on:
   push:
     paths: ['mobile/**', 'src/core/**', 'src/auth/**', 'src/analytics/**', 'src/render/audio.ts', 'src/render/ambience.ts', '.github/workflows/react-native.yml']
   workflow_dispatch:
+    inputs:
+      testflight:
+        description: 'Also archive the iOS app and upload it to TestFlight (needs the App Store Connect secrets)'
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
@@ -77,6 +82,8 @@ jobs:
       EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
       EXPO_PUBLIC_GA_MEASUREMENT_ID: ${{ secrets.VITE_GA_MEASUREMENT_ID }}
       EXPO_PUBLIC_GA_API_SECRET: ${{ secrets.GA_API_SECRET }}
+      # the store app id, once the founder picks it (docs/STORE_RELEASE.md); unset = com.mamvillage.rn
+      MAM_APP_ID: ${{ vars.MAM_APP_ID }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -89,14 +96,34 @@ jobs:
           distribution: temurin
           java-version: 17
       - run: npm ci
+      - name: Upload key (only when the secrets are set; plugins/withReleaseSigning.js)
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        if: env.KEYSTORE_B64 != ''
+        run: |
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/upload.jks"
+          echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/upload.jks" >> "$GITHUB_ENV"
       - run: npx expo prebuild --platform android --no-install
-      - name: Build release APK (debug-signed, installable on any phone)
+        env:
+          MAM_VERSION_CODE: ${{ github.run_number }}
+          MAM_VERSION_NAME: 1.0.${{ github.run_number }}
+      # APK to install on any phone; with the upload key also the AAB for Google Play. Without the key
+      # both are signed with the debug key (fine for testers, refused by Play).
+      - name: Build release APK (+ AAB for Google Play when signed)
         working-directory: mobile/android
-        run: ./gradlew --no-daemon assembleRelease
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: ./gradlew --no-daemon assembleRelease ${ANDROID_KEYSTORE_PATH:+bundleRelease}
+      - name: Show which key signed the APK
+        run: keytool -printcert -jarfile mobile/android/app/build/outputs/apk/release/app-release.apk | head -8
       - uses: actions/upload-artifact@v4
         with:
           name: mam-village-rn-android-${{ github.run_number }}
-          path: mobile/android/app/build/outputs/apk/release/app-release.apk
+          path: |
+            mobile/android/app/build/outputs/apk/release/app-release.apk
+            mobile/android/app/build/outputs/bundle/release/app-release.aab
           if-no-files-found: error
 
   ios:
@@ -108,6 +135,8 @@ jobs:
       EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
       EXPO_PUBLIC_GA_MEASUREMENT_ID: ${{ secrets.VITE_GA_MEASUREMENT_ID }}
       EXPO_PUBLIC_GA_API_SECRET: ${{ secrets.GA_API_SECRET }}
+      # the store app id, once the founder picks it (docs/STORE_RELEASE.md); unset = com.mamvillage.rn
+      MAM_APP_ID: ${{ vars.MAM_APP_ID }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -130,3 +159,61 @@ jobs:
         with:
           name: mam-village-rn-ios-simulator-${{ github.run_number }}
           path: MamVillage-RN-simulator.zip
+
+  # App Store: archive, sign and upload to TestFlight, on request (Actions → Run workflow → testflight).
+  # Signing is cloud-managed by Xcode with an App Store Connect API key, so no certificates or profiles
+  # live in the repository. Needs the founder's Apple Developer account (docs/STORE_RELEASE.md).
+  ios-testflight:
+    needs: check
+    if: github.event_name == 'workflow_dispatch' && inputs.testflight
+    runs-on: macos-latest
+    env:
+      EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+      EXPO_PUBLIC_GA_MEASUREMENT_ID: ${{ secrets.VITE_GA_MEASUREMENT_ID }}
+      EXPO_PUBLIC_GA_API_SECRET: ${{ secrets.GA_API_SECRET }}
+      # the store app id, once the founder picks it (docs/STORE_RELEASE.md); unset = com.mamvillage.rn
+      MAM_APP_ID: ${{ vars.MAM_APP_ID }}
+      MAM_VERSION_CODE: ${{ github.run_number }}
+      MAM_VERSION_NAME: 1.0.${{ github.run_number }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
+    steps:
+      - name: Check the App Store secrets
+        working-directory: .
+        run: |
+          for v in APPLE_TEAM_ID ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_P8_BASE64; do
+            if [ -z "${!v}" ]; then echo "::error::Missing secret $v (docs/STORE_RELEASE.md)"; exit 1; fi
+          done
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - run: npm ci
+      - run: npx expo prebuild --platform ios
+      - name: Archive, sign and upload to TestFlight
+        run: |
+          echo "$ASC_KEY_P8_BASE64" | base64 -d > "$RUNNER_TEMP/AuthKey.p8"
+          AUTH=(-allowProvisioningUpdates -authenticationKeyPath "$RUNNER_TEMP/AuthKey.p8" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID")
+          WS=$(ls -d ios/*.xcworkspace | head -1)
+          SCHEME=$(basename "$WS" .xcworkspace)
+          xcodebuild -workspace "$WS" -scheme "$SCHEME" -configuration Release -sdk iphoneos \
+            -destination 'generic/platform=iOS' -archivePath build/MamVillage.xcarchive \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" CODE_SIGN_STYLE=Automatic "${AUTH[@]}" archive
+          cat > build/ExportOptions.plist <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>teamID</key><string>$APPLE_TEAM_ID</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+          </dict></plist>
+          PLIST
+          xcodebuild -exportArchive -archivePath build/MamVillage.xcarchive -exportOptionsPlist build/ExportOptions.plist \
+            -exportPath build/export "${AUTH[@]}"
