@@ -133,3 +133,4 @@ export function initGa(): GoogleAnalytics | null {
 export function getGa(): GoogleAnalytics | null {
   return ga;
 }
+export { playerProps } from './gamap';

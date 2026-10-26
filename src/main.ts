@@ -24,9 +24,7 @@ import { IslandScene } from './scenes/island';
 import { PuzzleHubOverlay, SaltPuzzleOverlay, ShopPuzzleOverlay } from './scenes/puzzles';
 import { FISHING_LEVELS } from './core/puzzles';
 import { SCENES } from './core/story';
-import { build, buyPlot, canExpand, catchUp, hire, islandLevel, terrain, type BuildingId } from './core/island';
-import { levelForXp } from './core/progression';
-import { career, careerTitle } from './core/career';
+import { build, buyPlot, canExpand, catchUp, hire, terrain, type BuildingId } from './core/island';
 import { RevealOverlay } from './scenes/jar';
 import { addCatch, canFerment, sealJar, upgradeCost } from './core/state';
 import { UPGRADES } from './core/data';
@@ -114,27 +112,13 @@ game.goVillage();
 // Google Analytics 4 on self-hosted builds with a Measurement ID (analytics/ga.ts, docs/ANALYTICS.md).
 declare const __GA__: boolean;
 if (__GA__)
-  void import('./analytics/ga').then(({ initGa }) => {
+  void import('./analytics/ga').then(({ initGa, playerProps }) => {
     const ga = initGa();
     if (!ga) return;
     game.ga = ga;
     const platform = (window as unknown as { Capacitor?: { getPlatform?(): string } }).Capacitor?.getPlatform?.() ?? 'web';
     // who the player is in the game: how far they got (GA user properties)
-    ga.setPropsProvider(() => {
-      const st = game.state;
-      return {
-        captain_level: levelForXp(st.xp),
-        career_stage: career(st).stage,
-        career_title: careerTitle(st),
-        brand_level: st.brand?.level ?? 0,
-        island_level: islandLevel(st),
-        team_size: st.island.staff.length,
-        sea: st.sea,
-        relics: st.relics.length,
-        dex: Object.keys(st.dex).length,
-        platform,
-      };
-    });
+    ga.setPropsProvider(() => playerProps(game.state, platform));
   });
 
 // Accounts: claude.ai identity inside the playtest page, social login on configured builds.

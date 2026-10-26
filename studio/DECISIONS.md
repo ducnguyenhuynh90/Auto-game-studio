@@ -188,3 +188,13 @@ built, but as ONE connected system rather than separate features:
 - Built in phases: 1) the core loop (done, tested in a browser play-through), 2) the island business
   screens, 3) the 3D world, story, audio, accounts and analytics. The Capacitor apps keep working until
   the React Native app reaches parity; then the founder picks one for the stores.
+
+## D-022 · 2026-10-26 · React Native phase 3: a 2.5D Skia world, the web's sound engine, services opt-in by config
+- The hub world is a 2.5D Skia scene drawn from the game state, not three.js on `expo-gl`: it runs on weak
+  phones, needs no native GL module, and works in the browser test bots. Revisit only if players miss the 3D.
+- Sound reuses `src/render/audio.ts` + `ambience.ts` on `react-native-audio-api` (a Web Audio API for
+  phones): one soundscape for web and app, no audio files to ship.
+- Cloud backup and Google Analytics turn on only when a build has their `EXPO_PUBLIC_*` settings, like the
+  web build. GA in the app uses the Measurement Protocol (no Firebase SDK, no `google-services.json`),
+  opt-in after the first catch, anonymous install id only, no ad ids. The GA API secret ships in the app
+  (it can only send events; rotate it in GA if abused). Delete account is in Settings (store rule).

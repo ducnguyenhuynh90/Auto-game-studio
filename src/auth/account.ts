@@ -20,11 +20,8 @@ export interface AccountInfo {
   name: string;
 }
 
-export interface CloudBackend {
-  load(): Promise<SaveBlob | null>;
-  save(blob: SaveBlob): Promise<void>;
-  signOut?(): Promise<void>;
-}
+export type { CloudBackend } from './cloudsave';
+import type { CloudBackend } from './cloudsave';
 
 /** Injected at build time: true only for self-hosted builds that have Firebase / Supabase config. */
 declare const __FIREBASE__: boolean;

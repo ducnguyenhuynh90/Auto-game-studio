@@ -40,11 +40,36 @@ buttons with a 16 px touch slop, the same analytics events (tagged `app: 'react-
 | Puzzles hub, Salt channels, Shop orders (rewards + staff training caps) | `src/screens/Puzzles.tsx` | `core/puzzles.ts` |
 | ⓘ cards on every locked button | `src/ui.tsx` (`whyNot`, `HelpSheet`) | `core/help.ts` |
 
-## Next phase
-3. **World and polish:** the 3D village and sea (three.js on `expo-gl`, or a 2.5D Skia scene), story
-   scenes, fishing puzzles + food chain + gadgets + the sea chart (Hạ Long Bay, the Abyss), Mực's trip
-   surprises, beach soundscape (`expo-audio`), accounts (supabase-js works in React Native), Google
-   Analytics (Firebase Analytics native SDK), store release signing (EAS or CI).
+## Phase 3: world, story, sound, accounts, analytics (done)
+| What | File | Shared code used |
+|---|---|---|
+| Living village behind the hub (Skia, ~30 fps): clouds, waves, your boat (sail from the Junk Sailboat), swaying palm, one house per kind of building, workers walking, Mực wagging | `src/scene/LivingVillage.tsx` | game state |
+| Story scenes: chapter cards, speaker lines, tap to go on, Skip | `src/screens/Story.tsx`, `store.ts` (`checkStory`, `playStory`) | `core/story.ts` |
+| Fishing parity: food chain (a hungry fish rushes the bait after a small catch), Mực's fetch / find surprises, fishing puzzles (fixed school + goal) | `src/screens/Fishing.tsx` | `core/chain.ts`, `core/dog.ts`, `core/puzzles.ts` |
+| Sea Chart: five seas, missions with progress, relics, why a sea is locked (ⓘ) | `src/screens/SeaChart.tsx` | `core/seas.ts` |
+| Beach soundscape + effects: the web game's own sound engine on `react-native-audio-api` (Web Audio API on iOS / Android) | `src/audio.ts` | `src/render/audio.ts`, `src/render/ambience.ts` |
+| Settings: Sound, Music, play statistics, cloud backup, two-save choice, Delete account | `src/screens/Settings.tsx` | |
+| Cloud backup (Supabase, anonymous account on first launch, same tables and merge rules as the web game) | `src/cloud.ts` | `src/auth/cloudsave.ts`, `src/auth/merge.ts` |
+| Google Analytics 4 (Measurement Protocol, opt-in card after the first catch, same events and player properties as the web) | `src/ga.ts`, `src/screens/Consent.tsx` | `src/analytics/gamap.ts`, `src/analytics/mp.ts` |
+
+**Turning the services on** (build-time settings; unset = off and the app plays offline as before). CI reads
+repository secrets: the Supabase ones the web build already uses, plus one new GA secret.
+
+| Setting (EXPO_PUBLIC_…) | CI secret | Where to get it |
+|---|---|---|
+| `SUPABASE_URL`, `SUPABASE_ANON_KEY` | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` | Supabase → Project Settings → API (anonymous sign-ins must be on: Auth → Providers) |
+| `GA_MEASUREMENT_ID` | `VITE_GA_MEASUREMENT_ID` | GA4 → Admin → Data streams |
+| `GA_API_SECRET` | `GA_API_SECRET` (new) | GA4 → Admin → Data streams → the stream → Measurement Protocol API secrets → Create |
+
+Optional: `EXPO_PUBLIC_GA_CONSENT=granted` skips the question (founder/legal call, as on the web).
+The API secret ships inside the app, like any client key: it can only send events, and Google lets you
+rotate it.
+
+## Next
+- Google / Apple sign-in in the app (to move a save between phones and the web): `expo-auth-session`
+  with the Supabase redirect, then the link flow the web game already has.
+- Store release: signing keys and an upload (EAS or CI), store listing, privacy labels (founder steps).
+- The 3D world (three.js on `expo-gl`) if the 2.5D Skia scene tests worse with players than the web's 3D.
 
 ## Build and test
 ```bash
@@ -57,7 +82,11 @@ npm run web:setup && npx expo export --platform web --output-dir /tmp/rn-web
 `tools/web-e2e.mjs` plays the app like a person in Chromium (React Native Web + Skia/CanvasKit): two
 fishing trips by watching the reel tension, fill and seal a jar, age it, open it, sell it, reload and
 check the save. `tools/web-e2e-business.mjs` buys land, builds, hires, opens ⓘ cards, rakes salt, feeds
-Mực and clears Salt 1 and Shop 1. CI: `.github/workflows/react-native.yml` type-checks, bundles, runs both play-through bots (screenshots
+Mực and clears Salt 1 and Shop 1; the core bot also reads the intro story, opens the Sea Chart (a locked
+sea explains itself), toggles sound in Settings and starts Fishing puzzle 1. `tools/web-e2e-services.mjs`
+runs a build with the services on against fake Supabase and GA servers: anonymous sign-in and backup on
+first launch, no GA traffic before "yes", the right events and player properties after it, and Delete
+account (server call, fresh local game, new anonymous account). CI: `.github/workflows/react-native.yml` type-checks, bundles, runs both play-through bots (screenshots
 uploaded), then `expo prebuild` +
 Gradle builds a release APK (debug-signed: installs on any phone) and Xcode builds the iOS simulator app.
 

@@ -91,6 +91,16 @@ class GameStore {
     this.changed();
   }
 
+  /** A different save takes over (the cloud's, or a fresh game after deleting the account). */
+  replaceState(s: GameState): void {
+    this.state = s;
+    this.story = [];
+    this.stageUps = [];
+    this.help = null;
+    saveState(s);
+    this.changed();
+  }
+
   /** Plays the story beat whose moment has come here ('village' hub or a trip start), once. */
   checkStory(where: 'village' | 'fishing'): void {
     const sc = pendingScene(this.state, where);

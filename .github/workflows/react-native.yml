@@ -4,7 +4,7 @@ name: React Native app (mobile/)
 # fresh on every run (expo prebuild): nothing generated is committed. docs/REACT_NATIVE.md.
 on:
   push:
-    paths: ['mobile/**', 'src/core/**', '.github/workflows/react-native.yml']
+    paths: ['mobile/**', 'src/core/**', 'src/auth/**', 'src/analytics/**', 'src/render/audio.ts', 'src/render/ambience.ts', '.github/workflows/react-native.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -50,6 +50,18 @@ jobs:
           sleep 2
           node tools/web-e2e.mjs http://localhost:4181/ shots
           node tools/web-e2e-business.mjs http://localhost:4181/ shots
+      # cloud backup + Google Analytics, against fake servers (no keys needed)
+      - name: Play the optional services (fake Supabase and GA)
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: https://fake.supabase.test
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: anon
+          EXPO_PUBLIC_GA_MEASUREMENT_ID: G-TEST
+          EXPO_PUBLIC_GA_API_SECRET: secret
+        run: |
+          npx expo export --platform web --output-dir /tmp/rn-web-svc
+          (cd /tmp/rn-web-svc && python3 -m http.server 4182 >/dev/null 2>&1 &)
+          sleep 2
+          node tools/web-e2e-services.mjs http://localhost:4182/ shots
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -59,6 +71,12 @@ jobs:
   android:
     needs: check
     runs-on: ubuntu-latest
+    # the services turn on when the repository has these secrets (docs/REACT_NATIVE.md); unset = off
+    env:
+      EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+      EXPO_PUBLIC_GA_MEASUREMENT_ID: ${{ secrets.VITE_GA_MEASUREMENT_ID }}
+      EXPO_PUBLIC_GA_API_SECRET: ${{ secrets.GA_API_SECRET }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -84,6 +102,12 @@ jobs:
   ios:
     needs: check
     runs-on: macos-latest
+    # the services turn on when the repository has these secrets (docs/REACT_NATIVE.md); unset = off
+    env:
+      EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+      EXPO_PUBLIC_GA_MEASUREMENT_ID: ${{ secrets.VITE_GA_MEASUREMENT_ID }}
+      EXPO_PUBLIC_GA_API_SECRET: ${{ secrets.GA_API_SECRET }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

@@ -2,6 +2,10 @@
 // events. Pure functions, unit-tested: every event is forwarded under its own name, funnel steps also
 // become their own events (for GA funnel explorations), and a few map onto GA's recommended game events.
 import type { AnalyticsEvent } from '../core/analytics';
+import { career, careerTitle } from '../core/career';
+import { islandLevel } from '../core/island';
+import { levelForXp } from '../core/progression';
+import type { GameState } from '../core/state';
 
 export type GaParams = Record<string, string | number | boolean>;
 export interface GaHit {
@@ -70,4 +74,20 @@ export function toGa(ev: AnalyticsEvent): GaHit[] {
       break;
   }
   return hits;
+}
+
+/** The player's GA user properties: how far they are (web gtag and the app's Measurement Protocol alike). */
+export function playerProps(st: GameState, platform: string): GaParams {
+  return {
+    captain_level: levelForXp(st.xp),
+    career_stage: career(st).stage,
+    career_title: careerTitle(st),
+    brand_level: st.brand?.level ?? 0,
+    island_level: islandLevel(st),
+    team_size: st.island.staff.length,
+    sea: st.sea,
+    relics: st.relics.length,
+    dex: Object.keys(st.dex).length,
+    platform,
+  };
 }

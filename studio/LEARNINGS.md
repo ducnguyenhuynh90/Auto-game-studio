@@ -98,3 +98,7 @@ Only [PLAYER] entries count as product evidence.
   said what a worker produces or why the team can't grow forever; the X was hard to hit. Rule from now on:
   every requirement explains itself with numbers and a button (core/help.ts), and every disabled button
   stays tappable to say why.
+- [DESIGN] 2026-10-26 · React Native phase 3: putting the save-sync and GA mapping code in pure modules
+  (`src/auth/cloudsave.ts`, `src/analytics/gamap.ts`, `mp.ts`) let the app reuse them unchanged and test
+  them with fakes. The services bot found one real bug before any player: GA renames events that start
+  with `ga_` (reserved prefix), so `ga_consent` arrived as `mam_ga_consent`. Event names now avoid it.

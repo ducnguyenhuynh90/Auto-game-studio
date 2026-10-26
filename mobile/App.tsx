@@ -20,6 +20,13 @@ import { startAudio } from './src/audio';
 import { SeaChartScreen } from './src/screens/SeaChart';
 import { SettingsScreen } from './src/screens/Settings';
 import { StoryCard } from './src/screens/Story';
+import { ConsentCard } from './src/screens/Consent';
+import { cloud } from './src/cloud';
+import { ga } from './src/ga';
+
+// optional services (only builds with their EXPO_PUBLIC_* settings turn them on)
+ga.setState(() => game.state);
+void cloud.start();
 
 export default function App() {
   const [stack, setStack] = useState<Screen[]>([{ name: 'village' }]);
@@ -40,7 +47,7 @@ export default function App() {
     });
     return () => sub.remove();
   }, [stack, back]);
-  useGame();
+  const s = useGame();
   const top = stack[stack.length - 1];
   // where the ⓘ cards' buttons go (core/help.ts HelpAction)
   const helpGo = (a: HelpAction) => {
@@ -85,6 +92,7 @@ export default function App() {
           <Toasts />
           <HelpSheet go={helpGo} />
           <StoryCard />
+          {ga.askNeeded && top.name === 'village' && s.stats.catches > 0 && !game.story.length && !stageUp ? <ConsentCard /> : null}
           {stageUp && top.name !== 'fishing' && !game.story.length ? (
             <StageUpCard
               up={stageUp}
