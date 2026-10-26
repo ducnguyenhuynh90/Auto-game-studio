@@ -10,7 +10,6 @@ its builds; see docs/STORE_RELEASE.md for that route.
 ```bash
 git clone https://github.com/ducnguyenhuynh90/Auto-game-studio.git
 cd Auto-game-studio
-git checkout ccr-833d8974-lkhlcm        # the branch with the app until it's merged to main
 cd mobile
 npm ci                                 # Node 22 LTS; only mobile/ needs installing
 cp .env.example .env.local             # then fill it in (step 1)
