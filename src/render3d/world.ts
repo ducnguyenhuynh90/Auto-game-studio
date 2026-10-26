@@ -1285,12 +1285,16 @@ export class World {
   }
 
   render(game: Game, dt: number): void {
+    // Only what is on screen counts: an opaque layer (the jar reveal) hides everything under it, even a
+    // full-screen menu it was opened from (the production line).
+    const opaqueIdx = game.overlays.map((o) => !!o.opaque).lastIndexOf(true);
+    const visible = game.overlays.slice(Math.max(0, opaqueIdx));
     // Full-screen menus hide the world: keep the last frame on screen and save the GPU.
-    if (game.overlays.some((o) => o.covers3d)) return;
+    if (visible.some((o) => o.covers3d)) return;
     // Low tier draws the 3D layer at half rate; the 2D UI still runs every frame.
     if (++this.frame % this.profile.frameSkip !== 0) return;
     dt *= this.profile.frameSkip;
-    const reveal = game.overlays.find((o) => o.name === 'reveal') as RevealOverlay | undefined;
+    const reveal = visible.find((o) => o.name === 'reveal') as RevealOverlay | undefined;
     if (reveal) {
       this.showcase.sync(reveal, game.time);
       this.renderer.render(this.showcase.scene, this.showcase.camera);

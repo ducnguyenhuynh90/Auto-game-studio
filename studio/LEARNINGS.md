@@ -80,3 +80,10 @@ Only [PLAYER] entries count as product evidence.
   hand-made ones is unknown until players clear them.
 - [SIM] 2026-10-25 · The Capacitor wrapper compiled for iOS on the first CI run; Android failed once on a Groovy
   parsing trap (`versionCode (x).toInteger()` calls the setter first). Use `versionCode = ...` in Gradle files.
+- [PLAYER] 2026-10-26 · Founder on an Android phone (claude.ai app), n=1: (1) opening a jar from the
+  production line showed a frozen village and no bottle: the 3D layer skipped rendering because a
+  full-screen menu sat *under* the opaque reveal; (2) "Make salt" said "You do this" with no way to do
+  it; (3) the line's buttons felt unresponsive: 26 px tall, and an AUTO switch's tap area overlapped
+  the bottom of "Go fishing". Fixes: render only visible layers, a Rake salt button, 32 px buttons, and
+  a 10 px tap tolerance on every button. Lesson: every "You do this" needs a button, and every new
+  overlay path into the reveal needs a QA shot.

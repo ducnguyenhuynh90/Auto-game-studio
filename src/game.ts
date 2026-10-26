@@ -214,7 +214,17 @@ export class Game {
       const h = this.hits[i];
       if (x >= h.x && x <= h.x + h.w && y >= h.y && y <= h.y + h.h) return h;
     }
-    return undefined;
+    // Fingers are wider than small buttons: a near miss (within 10 px) still counts, nearest first.
+    let best: Hit | undefined;
+    let bestD = 10;
+    for (const h of this.hits) {
+      const d = Math.hypot(Math.max(h.x - x, 0, x - h.x - h.w), Math.max(h.y - y, 0, y - h.y - h.h));
+      if (d < bestD) {
+        bestD = d;
+        best = h;
+      }
+    }
+    return best;
   }
 
   /** Registers a tappable region for this frame (used by custom-drawn widgets). */

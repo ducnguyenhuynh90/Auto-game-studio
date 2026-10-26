@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { lineEstimate, staffJars } from '../src/core/business';
-import { build, hire, isAuto, setAuto, terrain, tickIsland, wagesPerHour, buyPlot, canExpand, COLS, ROWS } from '../src/core/island';
+import { build, hire, isAuto, rakeSalt, saltCap, setAuto, terrain, tickIsland, wagesPerHour, buyPlot, canExpand, COLS, ROWS } from '../src/core/island';
 import { makeRng } from '../src/core/rng';
 import { newState } from '../src/core/state';
 
@@ -71,5 +71,18 @@ describe('production line', () => {
     s.jars[0] = { fish: [], sealed: true, recipe: 'classic', variance: 0, sealedTrip: 0, sealedAt: 0 };
     expect(staffJars(s)).toBe(0);
     expect(lineEstimate(s).bottlesPerHour).toBe(0);
+  });
+});
+
+describe('making salt by hand', () => {
+  it('rakes one salt at a time into the store, never past its cap', () => {
+    const s = newState();
+    s.island.salt = 0;
+    expect(rakeSalt(s)).toBe(true);
+    expect(s.island.salt).toBe(1);
+    s.island.salt = saltCap(s) - 1;
+    expect(rakeSalt(s)).toBe(true);
+    expect(rakeSalt(s)).toBe(false);
+    expect(s.island.salt).toBe(saltCap(s));
   });
 });

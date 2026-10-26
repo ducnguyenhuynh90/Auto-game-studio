@@ -4,7 +4,7 @@
 import { analytics } from '../core/analytics';
 import { lineEstimate, staffJars, suggestPlot, type Fix } from '../core/business';
 import { BALANCE } from '../core/data';
-import { ROLE, bucketCap, isAuto, islandUnlocked, saltCap, setAuto, staffAt, type Role, type Step } from '../core/island';
+import { RAKE_SECONDS, ROLE, bucketCap, isAuto, islandUnlocked, rakeSalt, saltCap, setAuto, staffAt, type Role, type Step } from '../core/island';
 import { agingLevel, canFerment, productPrice } from '../core/state';
 import { sfx } from '../render/audio';
 import { COLORS, H, W, clamp01, drawBottle, drawCoin, drawFish, drawJar, font, outlinedText, panel, rr, star, text, type Ctx } from '../render/draw';
@@ -19,6 +19,9 @@ export class ProductionOverlay implements Scene {
   name = 'production';
   covers3d = true;
   t = 0;
+  /** Salt the player asked to rake by hand: one fills every RAKE_SECONDS. */
+  private rakeQueue = 0;
+  private rakeT = 0;
 
   constructor(private game: Game) {
     analytics.track('production_open', {});
@@ -26,6 +29,19 @@ export class ProductionOverlay implements Scene {
 
   update(dt: number): void {
     this.t += dt;
+    if (this.rakeQueue > 0) {
+      this.rakeT += dt;
+      if (this.rakeT >= RAKE_SECONDS) {
+        this.rakeT = 0;
+        this.rakeQueue--;
+        if (rakeSalt(this.game.state)) {
+          sfx.tap();
+          this.game.float(W - 66, TOP + CARD_H + 20, '+1 salt', '#4f6f94', 18);
+          analytics.track('salt_rake', { salt: this.game.state.island.salt });
+          if (this.rakeQueue === 0) this.game.commit();
+        } else this.rakeQueue = 0;
+      }
+    }
   }
 
   private staffOf(role: Role) {
@@ -52,7 +68,7 @@ export class ProductionOverlay implements Scene {
     ctx.arc(auto ? x + 58 : x + 12, sy + 12, 9, 0, Math.PI * 2);
     ctx.fill();
     text(ctx, auto ? 'AUTO' : 'YOU', auto ? x + 26 : x + 44, sy + 12, 10, '#fff', 'center', 900);
-    this.game.hitArea(`auto_${step}`, x - 6, sy - 6, 82, 36, () => {
+    this.game.hitArea(`auto_${step}`, x - 6, sy - 2, 82, 30, () => {
       setAuto(s, step, !auto);
       sfx.tap();
       analytics.track('auto_toggle', { step, auto: !auto });
@@ -113,9 +129,9 @@ export class ProductionOverlay implements Scene {
     let y = this.card(ctx, 0, 'Catch fish', s.bucket.length > 0 || (isAuto(s, 'fish') && this.staffOf('fisher').length > 0));
     for (let k = 0; k < Math.min(6, s.bucket.length); k++) drawFish(ctx, s.bucket[k].species, 56 + (k % 3) * 9, y + 36 + Math.floor(k / 3) * 14, 22, { wiggle: this.t * 3 + k });
     text(ctx, `Bucket ${s.bucket.length}/${islandUnlocked(s) ? bucketCap(s) : '∞'} · ${fermentable} good for sauce`, 92, y + 36, 11, COLORS.ink, 'left', 700);
-    if (est.steps[0].perHour > 0) text(ctx, `${Math.round(est.steps[0].perHour * BALANCE.jarSlots)} fish/h`, W - 26, y + 15, 11, COLORS.good, 'right', 900);
+    if (est.steps[0].perHour > 0 && isAuto(s, 'fish') && this.staffOf('fisher').length) text(ctx, `${Math.round(est.steps[0].perHour * BALANCE.jarSlots)} fish/h`, W - 26, y + 15, 11, COLORS.good, 'right', 900);
     this.who(ctx, y, 'fish', 'fisher');
-    if (!isAuto(s, 'fish') || !this.staffOf('fisher').length) this.game.button(ctx, 'prod_fish', W - 104, y + 26, 82, 26, 'Go fishing', () => this.game.goFishing(s.sea), { color: '#2a9db5', dark: '#16677a', size: 11 });
+    if (!isAuto(s, 'fish') || !this.staffOf('fisher').length) this.game.button(ctx, 'prod_fish', W - 112, y + 14, 92, 32, 'Go fishing', () => this.game.goFishing(s.sea), { color: '#2a9db5', dark: '#16677a', size: 11 });
 
     // 2. salt
     y = this.card(ctx, 1, 'Make salt', s.island.salt > 0);
@@ -131,9 +147,26 @@ export class ProductionOverlay implements Scene {
       ctx.fill();
       ctx.stroke();
     }
-    text(ctx, `Salt ${s.island.salt}/${saltCap(s)} · staff jars need 1 salt each`, 92, y + 36, 11, COLORS.ink, 'left', 700);
-    if (est.steps[1].perHour > 0) text(ctx, `${Math.round(est.steps[1].perHour)} salt/h`, W - 26, y + 15, 11, COLORS.good, 'right', 900);
+    text(ctx, `Salt ${s.island.salt}/${saltCap(s)} · staff jars need 1 each`, 92, y + 36, 11, COLORS.ink, 'left', 700);
     this.who(ctx, y, 'salt', 'salter');
+    if (isAuto(s, 'salt') && this.staffOf('salter').length) {
+      if (est.steps[1].perHour > 0) text(ctx, `${Math.round(est.steps[1].perHour)} salt/h`, W - 26, y + 15, 11, COLORS.good, 'right', 900);
+    } else {
+      // by hand: rake salt from the shore pans (each tap queues one more, up to 5)
+      const full = s.island.salt + this.rakeQueue >= saltCap(s);
+      const label = this.rakeQueue > 0 ? `Raking… ×${this.rakeQueue}` : full ? 'Salt full' : 'Rake salt';
+      this.game.button(ctx, 'prod_salt', W - 112, y + 8, 92, 32, label, () => {
+        if (this.rakeQueue < 5 && !full) this.rakeQueue++;
+      }, { color: '#7d9cc0', dark: '#4f6f94', size: 12, disabled: full && this.rakeQueue === 0 });
+      if (this.rakeQueue > 0) {
+        ctx.fillStyle = 'rgba(43,33,24,0.15)';
+        rr(ctx, W - 108, y + 44, 84, 6, 3);
+        ctx.fill();
+        ctx.fillStyle = '#4f6f94';
+        rr(ctx, W - 108, y + 44, 84 * clamp01(this.rakeT / RAKE_SECONDS), 6, 3);
+        ctx.fill();
+      }
+    }
 
     // 3. fill jars (3 fish + 1 salt) — every jar, whose it is, and its state
     y = this.card(ctx, 2, 'Fill jars: 3 fish + salt', s.jars.some((j) => j.sealed));
@@ -144,7 +177,7 @@ export class ProductionOverlay implements Scene {
     });
     const emptyIdx = s.jars.findIndex((j) => !j.sealed);
     if (emptyIdx >= 0 && fermentable >= BALANCE.jarSlots)
-      this.game.button(ctx, 'prod_fill', W - 104, y + 6, 82, 26, 'Fill a jar', () => this.game.push(new JarFillOverlay(this.game, emptyIdx)), { color: '#e67e22', dark: '#a85a14', size: 11 });
+      this.game.button(ctx, 'prod_fill', W - 112, y + 8, 92, 32, 'Fill a jar', () => this.game.push(new JarFillOverlay(this.game, emptyIdx)), { color: '#e67e22', dark: '#a85a14', size: 11 });
     this.who(ctx, y, 'brew', 'brewer');
 
     // 4. ferment — live progress per sealed jar
@@ -186,7 +219,7 @@ export class ProductionOverlay implements Scene {
     drawBottle(ctx, 56, y + 70, 34, 'classic', '#f2c14e');
     text(ctx, ready.length ? `${ready.length} jar${ready.length > 1 ? 's' : ''} ready · more ★ = stronger sauce` : 'Jars open after ★ (or more, for stronger sauce)', 92, y + 36, 10.5, COLORS.ink, 'left', 700);
     const mine = ready.find((x) => !x.j.auto) ?? (!isAuto(s, 'brew') || !this.staffOf('brewer').length ? ready[0] : undefined);
-    if (mine) this.game.button(ctx, 'prod_open', W - 104, y + 48, 82, 26, 'Open', () => this.game.push(new RevealOverlay(this.game, mine.i)), { color: COLORS.gold, dark: '#b8860b', size: 12, pulse: true });
+    if (mine) this.game.button(ctx, 'prod_open', W - 112, y + 44, 92, 32, 'Open', () => this.game.push(new RevealOverlay(this.game, mine.i)), { color: COLORS.gold, dark: '#b8860b', size: 12, pulse: true });
     text(ctx, isAuto(s, 'brew') && this.staffOf('brewer').length ? 'Staff open their own jars' : 'You open your jars', 92, y + 70, 10.5, isAuto(s, 'brew') && this.staffOf('brewer').length ? COLORS.good : '#7a5aa8', 'left', 900);
 
     // 6. sell
@@ -195,7 +228,7 @@ export class ProductionOverlay implements Scene {
     drawCoin(ctx, 56, y + 50, 13);
     const avg = s.shelf.length ? Math.round(s.shelf.reduce((a, p) => a + productPrice(s, p), 0) / s.shelf.length) : est.price;
     text(ctx, `Shelf ${s.shelf.length} bottle${s.shelf.length === 1 ? '' : 's'} (${staffMade} staff-made) · ~${avg} coins each`, 92, y + 36, 10.5, COLORS.ink, 'left', 700);
-    if (s.shelf.length) this.game.button(ctx, 'prod_sell', W - 104, y + 6, 82, 26, 'Sell now', () => this.game.push(new MarketOverlay(this.game)), { color: '#e67e22', dark: '#a85a14', size: 11, pulse: staffMade > 3 });
+    if (s.shelf.length) this.game.button(ctx, 'prod_sell', W - 112, y + 8, 92, 32, 'Sell now', () => this.game.push(new MarketOverlay(this.game)), { color: '#e67e22', dark: '#a85a14', size: 11, pulse: staffMade > 3 });
     this.who(ctx, y, 'sell', 'seller');
 
     this.drawEstimate(ctx, est);

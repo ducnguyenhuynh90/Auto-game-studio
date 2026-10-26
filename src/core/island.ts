@@ -454,6 +454,14 @@ export function bucketCap(s: GameState): number {
 export function saltCap(s: GameState): number {
   return 10 + 10 * level(s, 'warehouse');
 }
+/** Seconds to rake one salt by hand (the production line's "Rake salt" button). */
+export const RAKE_SECONDS = 1.5;
+/** The player rakes 1 salt from the shore pans into the store (for staff jars). False when full. */
+export function rakeSalt(s: GameState): boolean {
+  if (s.island.salt >= saltCap(s)) return false;
+  s.island.salt += 1;
+  return true;
+}
 export function charm(s: GameState): number {
   return s.island.buildings.reduce((a, b) => a + (BUILDINGS_BY_ID[b.id].charm ?? 0), 0);
 }
