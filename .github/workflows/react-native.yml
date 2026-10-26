@@ -29,6 +29,33 @@ jobs:
       # the same JS the phones run, bundled with Hermes for both platforms
       - run: npx expo export --platform android --platform ios --output-dir dist-check
 
+  # the app played like a person in Chromium (React Native Web + Skia/CanvasKit): the core loop and the
+  # island business (tools/web-e2e*.mjs). Rules under test are the shared src/core.
+  play:
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - run: npm ci
+      - run: npm install --no-save playwright@1.63.0 && npx playwright install --with-deps chromium
+      - run: npm run web:setup && npx expo export --platform web --output-dir /tmp/rn-web
+      - name: Play the core loop and the island business
+        run: |
+          (cd /tmp/rn-web && python3 -m http.server 4181 >/dev/null 2>&1 &)
+          sleep 2
+          node tools/web-e2e.mjs http://localhost:4181/ shots
+          node tools/web-e2e-business.mjs http://localhost:4181/ shots
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rn-play-screenshots-${{ github.run_number }}
+          path: mobile/shots
+
   android:
     needs: check
     runs-on: ubuntu-latest

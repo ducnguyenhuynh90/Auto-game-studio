@@ -10,6 +10,9 @@ import { makeRng, type Rng } from '@core/rng';
 import { loadState, saveState } from '@core/save';
 import { checkMissions, type GameState } from '@core/state';
 
+import type { Help } from '@core/help';
+import type { StageUp } from '@core/career';
+
 export interface Toast {
   id: number;
   title: string;
@@ -21,6 +24,10 @@ class GameStore {
   state: GameState = loadState();
   readonly rng: Rng = makeRng(Date.now() % 1e9);
   toasts: Toast[] = [];
+  /** The open ⓘ card (core/help.ts), shown by App over any screen. */
+  help: Help | null = null;
+  /** Road stages just finished, celebrated by App (one at a time). */
+  stageUps: StageUp[] = [];
   private version = 0;
   private listeners = new Set<() => void>();
   private toastId = 0;
@@ -75,9 +82,15 @@ class GameStore {
     }
     for (const up of checkCareer(s)) {
       analytics.track('career_stage', { stage: up.index + 1, title: up.stage.title });
-      this.toast(`New title: ${up.stage.title}!`, '#e0a526', `+${up.stage.reward.coins} coins`);
+      this.stageUps.push(up);
     }
     saveState(s);
+    this.changed();
+  }
+
+  showHelp(h: Help | null): void {
+    if (h) analytics.track('help_open', { title: h.title.slice(0, 40), app: 'react-native' });
+    this.help = h;
     this.changed();
   }
 

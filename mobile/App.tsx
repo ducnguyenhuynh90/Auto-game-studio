@@ -10,7 +10,12 @@ import { JarFillScreen } from './src/screens/JarFill';
 import { MarketScreen } from './src/screens/Market';
 import { RevealScreen } from './src/screens/Reveal';
 import { VillageScreen } from './src/screens/Village';
-import { Toasts } from './src/ui';
+import { HelpSheet, Toasts } from './src/ui';
+import { IslandScreen } from './src/screens/Island';
+import { BrandScreen, BusinessScreen, DogScreen, ProductionScreen, RoadScreen, StageUpCard, TeamScreen } from './src/screens/Business';
+import { PuzzleHubScreen, SaltPuzzleScreen, ShopPuzzleScreen } from './src/screens/Puzzles';
+import type { HelpAction } from '@core/help';
+import { game, useGame } from './src/store';
 
 export default function App() {
   const [stack, setStack] = useState<Screen[]>([{ name: 'village' }]);
@@ -31,7 +36,26 @@ export default function App() {
     });
     return () => sub.remove();
   }, [stack, back]);
+  useGame();
   const top = stack[stack.length - 1];
+  // where the ⓘ cards' buttons go (core/help.ts HelpAction)
+  const helpGo = (a: HelpAction) => {
+    const to: Record<HelpAction, Screen | null> = {
+      market: { name: 'market' },
+      production: { name: 'production' },
+      island: { name: 'island' },
+      road: { name: 'road' },
+      puzzles: { name: 'puzzles' },
+      fish: { name: 'fishing' },
+      map: null,
+      brand: { name: 'brand' },
+      missions: null,
+      dog: { name: 'dog' },
+    };
+    const sc = to[a];
+    if (sc) go(sc);
+  };
+  const stageUp = game.stageUps[0];
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
@@ -42,7 +66,25 @@ export default function App() {
           {top.name === 'fill' ? <JarFillScreen nav={nav} jar={top.jar} /> : null}
           {top.name === 'reveal' ? <RevealScreen nav={nav} jar={top.jar} /> : null}
           {top.name === 'market' ? <MarketScreen nav={nav} /> : null}
+          {top.name === 'island' ? <IslandScreen nav={nav} tile={top.tile} /> : null}
+          {top.name === 'team' ? <TeamScreen nav={nav} focus={top.focus} /> : null}
+          {top.name === 'production' ? <ProductionScreen nav={nav} /> : null}
+          {top.name === 'brand' ? <BrandScreen nav={nav} /> : null}
+          {top.name === 'road' ? <RoadScreen nav={nav} /> : null}
+          {top.name === 'business' ? <BusinessScreen nav={nav} /> : null}
+          {top.name === 'dog' ? <DogScreen nav={nav} /> : null}
+          {top.name === 'puzzles' ? <PuzzleHubScreen nav={nav} /> : null}
+          {top.name === 'salt' ? <SaltPuzzleScreen nav={nav} level={top.level} key={`salt${top.level}`} /> : null}
+          {top.name === 'shop' ? <ShopPuzzleScreen nav={nav} level={top.level} key={`shop${top.level}`} /> : null}
           <Toasts />
+          <HelpSheet go={helpGo} />
+          {stageUp && top.name !== 'fishing' ? (
+            <StageUpCard
+              up={stageUp}
+              onClose={() => (game.stageUps.shift(), game.changed())}
+              onBuild={() => (game.stageUps.shift(), game.changed(), go({ name: 'island' }))}
+            />
+          ) : null}
         </View>
       </SafeAreaView>
     </SafeAreaProvider>

@@ -30,12 +30,21 @@ by side while we compare; the founder picks one id for the store).
 Also: haptics (expo-haptics), Android back button (one screen back), safe areas, portrait, 48 px close
 buttons with a 16 px touch slop, the same analytics events (tagged `app: 'react-native'`).
 
-## Next phases
-2. **Island business:** island map (buy plots, build), Your Team (hire/train, team size), How it's made,
-   Brand, Road to the World's Best, Business report, Mực, the ⓘ help cards, puzzles (salt / shop / fishing).
+## Phase 2: the island business (done)
+| Screen | File | Shared rules used |
+|---|---|---|
+| Island map: buy plots (specials disguised, "locals say…"), build, upgrade, hire, train, dismiss | `src/screens/Island.tsx` | `canExpand`, `plotCost`, `buyPlot`, `placeProblem`, `build`, `upgradeBuilding`, `hire`, `trainStaff` |
+| Your Team: every job's rate per hour, training gains, team size that grows with fame | `src/screens/Business.tsx` | `core/team.ts` |
+| How it's made: each step with AUTO / YOU, "+ Hire", Rake salt, staff line estimate + bottleneck | `src/screens/Business.tsx` | `lineEstimate`, `setAuto`, `rakeSalt` |
+| Brand (with "How? ⓘ"), Road to the World's Best (+ Awards entries, stage-up card), Business report (linked fixes), Mực | `src/screens/Business.tsx` | `core/brand.ts`, `core/career.ts`, `core/business.ts`, `core/dog.ts` |
+| Puzzles hub, Salt channels, Shop orders (rewards + staff training caps) | `src/screens/Puzzles.tsx` | `core/puzzles.ts` |
+| ⓘ cards on every locked button | `src/ui.tsx` (`whyNot`, `HelpSheet`) | `core/help.ts` |
+
+## Next phase
 3. **World and polish:** the 3D village and sea (three.js on `expo-gl`, or a 2.5D Skia scene), story
-   scenes, food chain + gadgets + sea chart, beach soundscape (`expo-audio`), accounts (supabase-js works
-   in React Native), Google Analytics (Firebase Analytics native SDK), store release signing (EAS or CI).
+   scenes, fishing puzzles + food chain + gadgets + the sea chart (Hạ Long Bay, the Abyss), Mực's trip
+   surprises, beach soundscape (`expo-audio`), accounts (supabase-js works in React Native), Google
+   Analytics (Firebase Analytics native SDK), store release signing (EAS or CI).
 
 ## Build and test
 ```bash
@@ -47,7 +56,9 @@ npm run web:setup && npx expo export --platform web --output-dir /tmp/rn-web
 ```
 `tools/web-e2e.mjs` plays the app like a person in Chromium (React Native Web + Skia/CanvasKit): two
 fishing trips by watching the reel tension, fill and seal a jar, age it, open it, sell it, reload and
-check the save. CI: `.github/workflows/react-native.yml` type-checks, bundles, then `expo prebuild` +
+check the save. `tools/web-e2e-business.mjs` buys land, builds, hires, opens ⓘ cards, rakes salt, feeds
+Mực and clears Salt 1 and Shop 1. CI: `.github/workflows/react-native.yml` type-checks, bundles, runs both play-through bots (screenshots
+uploaded), then `expo prebuild` +
 Gradle builds a release APK (debug-signed: installs on any phone) and Xcode builds the iOS simulator app.
 
 **Verified (2026-10-26):** CI run #2 of `react-native.yml` built both native apps: the Android release APK

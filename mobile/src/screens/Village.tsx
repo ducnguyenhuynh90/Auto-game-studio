@@ -7,6 +7,9 @@ import { goalPair, progressLabel } from '@core/goals';
 import { levelForXp, levelProgress } from '@core/progression';
 import { SEAS_BY_ID } from '@core/seas';
 import { agingLevel, canFerment, type Jar } from '@core/state';
+import { islandUnlocked } from '@core/island';
+import { teamCap, teamSize } from '@core/team';
+import { dogPresent } from '@core/dog';
 import { C } from '../theme';
 import { useGame } from '../store';
 import { CoinChip, GameButton, Panel } from '../ui';
@@ -74,6 +77,15 @@ export function VillageScreen({ nav }: { nav: Nav }) {
           {next ? <Text style={styles.goalNext}>Next: {next.text}</Text> : null}
         </Panel>
       ) : null}
+      {islandUnlocked(s) ? (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={styles.tools}>
+          <GameButton testID="island" label="🏝 Island" size={13} color={C.good} onPress={() => nav.go({ name: 'island' })} />
+          <GameButton testID="team" label={`Team ${teamSize(s)}/${teamCap(s)}`} size={13} color={C.good} onPress={() => nav.go({ name: 'team' })} />
+          <GameButton testID="how" label="How it’s made" size={13} color={C.accent} onPress={() => nav.go({ name: 'production' })} />
+          <GameButton testID="road" label="Road" size={13} color="#d4a017" onPress={() => nav.go({ name: 'road' })} />
+          {dogPresent(s) ? <GameButton testID="dog" label="🐕 Mực" size={13} color="#6b4a2a" onPress={() => nav.go({ name: 'dog' })} /> : null}
+        </ScrollView>
+      ) : null}
       <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.jars}>
         {s.jars.map((j, i) => {
           const st = jarState(s, j, now);
@@ -114,10 +126,11 @@ const styles = StyleSheet.create({
   xpBar: { height: 7, borderRadius: 4, backgroundColor: 'rgba(43,33,24,0.12)', marginTop: 3, overflow: 'hidden' },
   xpFill: { height: 7, backgroundColor: C.purple },
   goal: { marginHorizontal: 12, marginTop: 8 },
+  tools: { gap: 6, paddingHorizontal: 12, paddingTop: 8 },
   goalText: { fontSize: 17, fontWeight: '900', color: C.ink },
   goalProg: { fontSize: 14, fontWeight: '800', color: C.good, marginTop: 4 },
   goalNext: { fontSize: 12, fontWeight: '700', color: 'rgba(43,33,24,0.7)', marginTop: 4 },
-  jars: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, padding: 12, paddingTop: 140, justifyContent: 'center' },
+  jars: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, padding: 12, paddingTop: 110, justifyContent: 'center' },
   jar: { width: 150, alignItems: 'center', gap: 6 },
   pot: { width: 56, height: 56, borderRadius: 28, borderWidth: 3, borderColor: C.ink },
   jarLabel: { fontWeight: '900', color: C.ink },
