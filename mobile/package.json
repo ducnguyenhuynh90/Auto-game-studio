@@ -33,7 +33,10 @@
     "web": "expo start --web",
     "web:setup": "mkdir -p public && cp node_modules/canvaskit-wasm/bin/full/canvaskit.wasm public/",
     "typecheck": "tsc --noEmit",
-    "bundle:check": "expo export --platform android --platform ios --output-dir dist-check"
+    "bundle:check": "expo export --platform android --platform ios --output-dir dist-check",
+    "native:android": "expo prebuild --platform android --clean",
+    "native:ios": "expo prebuild --platform ios --clean",
+    "release:android": "expo prebuild --platform android --clean && cd android && ./gradlew bundleRelease assembleRelease"
   },
   "private": true
 }

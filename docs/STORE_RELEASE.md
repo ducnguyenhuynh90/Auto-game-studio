@@ -1,5 +1,8 @@
 # Releasing the React Native app to Google Play and the App Store
 
+> Building on your own machine with your own store accounts? Start with docs/BUILD_FOR_STORES.md.
+> This page is the CI route (GitHub builds and signs) plus the store forms.
+
 The pipeline is ready in CI (`.github/workflows/react-native.yml`). The store accounts, keys and
 listings belong to the founder, so this page lists what to set up and what CI does with it. Nothing
 here spends money or publishes anything until the founder creates the accounts and adds the secrets.

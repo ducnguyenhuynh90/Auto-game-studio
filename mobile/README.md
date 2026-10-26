@@ -3,6 +3,9 @@
 Expo SDK 58 · React Native 0.88 · React 19.3 · Skia 2.14. The rules are shared with the web game
 (`../src/core`), so both play exactly the same. Full guide: [../docs/REACT_NATIVE.md](../docs/REACT_NATIVE.md).
 
+**Building for Google Play / the App Store:** [../docs/BUILD_FOR_STORES.md](../docs/BUILD_FOR_STORES.md)
+(`cp .env.example .env.local`, then `npm run release:android`, or `npm run native:ios` and archive in Xcode).
+
 ```bash
 cd mobile
 npm ci
