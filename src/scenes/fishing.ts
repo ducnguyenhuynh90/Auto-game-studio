@@ -7,7 +7,7 @@ import { GADGETS, hasRelic, type GadgetId } from '../core/items';
 import { SEAS_BY_ID } from '../core/seas';
 import { goalPair, progressLabel } from '../core/goals';
 import { SCENES, pendingScene } from '../core/story';
-import { dogAboard } from '../core/dog';
+import { FETCH_CHANCE, FIND_CHANCE, MAX_FETCH_PER_TRIP, dogAboard, dogFetch, dogFind } from '../core/dog';
 import { FISHING_LEVELS, completeLevel, fishingGoalMet, fishingGoalText, fishingStars, levelOpen, type FishingLevel } from '../core/puzzles';
 import { StoryOverlay } from './story';
 import { range } from '../core/rng';
@@ -90,6 +90,11 @@ export class FishingScene implements Scene {
   barkT = 0;
   barkAt: Shadow | null = null;
   private barks = 0;
+  /** Mực's surprises this trip: little fish he fetched, and the one find (trip time it happens, or -1). */
+  private dogFetches = 0;
+  private dogFindAt = -1;
+  /** A fetch waits for the catch card to close, so the two moments don't pile up. */
+  private dogNote: { title: string; detail: string } | null = null;
   puzzleResult: { met: boolean; stars: number; coins: number } | null = null;
 
   constructor(
@@ -99,6 +104,7 @@ export class FishingScene implements Scene {
   ) {
     const s = game.state;
     this.puzzle = puzzleIndex === null ? null : FISHING_LEVELS[puzzleIndex];
+    if (!this.puzzle && dogAboard(s) && game.rng() < FIND_CHANCE) this.dogFindAt = 8 + game.rng() * 30;
     this.totalCasts = this.puzzle ? this.puzzle.casts : castsPerTrip(s);
     this.castsLeft = this.totalCasts;
     if (this.puzzle) {
@@ -379,6 +385,16 @@ export class FishingScene implements Scene {
       analytics.track('chain_link', { links: this.chain, species: sh.species, sea: this.sea, coins: b.coins });
     }
     this.bestTripChain = Math.max(this.bestTripChain, this.chain);
+    // Mực sometimes dives in after your fish and comes back with a little one of his own
+    if (!this.puzzle && dogAboard(s) && !sp.treasure && !sp.crate && this.dogFetches < MAX_FETCH_PER_TRIP && this.game.rng() < FETCH_CHANCE) {
+      const extra = dogFetch(s, this.sea, this.game.rng);
+      if (extra) {
+        this.dogFetches++;
+        this.tripCatches.push(extra);
+        this.dogNote = { title: 'Splash! Mực dives in', detail: `He brings back a ${SPECIES_BY_ID[extra.species].name} (${extra.size} cm) for the bucket` };
+        analytics.track('dog_fetch', { species: extra.species, sea: this.sea });
+      }
+    }
     if (levelUps > 0) this.game.levelUp();
     this.card = { ...res, t: 0, doubled, link };
     this.phase = 'card';
@@ -399,7 +415,27 @@ export class FishingScene implements Scene {
 
   private closeCard(): void {
     this.card = null;
+    if (this.dogNote) {
+      this.game.toast(this.dogNote.title, '#6b4a2a', this.dogNote.detail);
+      sfx.plop();
+      vibrate([15, 40, 15]);
+      this.dogNote = null;
+    }
     this.nextCast();
+  }
+
+  /** Once in a while Mực spots something floating by while you aim. */
+  private dogSniff(): void {
+    if (this.dogFindAt < 0 || this.t < this.dogFindAt || this.phase !== 'aim') return;
+    this.dogFindAt = -1;
+    const f = dogFind(this.game.state, this.game.rng);
+    this.game.toast(f.title, '#6b4a2a', f.detail);
+    this.game.particles.burst(W / 2 - 40, 640, 18, [COLORS.gold, '#fff'], { speed: 160, kind: 'star', size: 5, g: 160, life: 0.9 });
+    this.game.float(W / 2 - 40, 610, 'Gâu gâu!', '#fff', 18);
+    sfx.coin();
+    vibrate([15, 40, 15]);
+    analytics.track('dog_find', { kind: f.kind, sea: this.sea });
+    this.game.commit();
   }
 
   private nextCast(): void {
@@ -450,6 +486,7 @@ export class FishingScene implements Scene {
   update(dt: number): void {
     this.t += dt;
     this.sniff(dt);
+    this.dogSniff();
     this.hintT += dt;
     this.earlyTapT = Math.max(0, this.earlyTapT - dt);
     for (const sh of this.shadows) this.updateShadow(sh, dt);

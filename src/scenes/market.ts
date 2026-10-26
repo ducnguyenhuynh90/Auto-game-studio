@@ -1,4 +1,6 @@
 // Market: turn products into coins, and coins into visible village upgrades.
+import { explain } from '../core/help';
+import { showHelp } from './info';
 import { analytics } from '../core/analytics';
 import { SPECIES_BY_ID, UPGRADES, UPGRADES_BY_ID, tierFor, type UpgradeId } from '../core/data';
 import { goalPair } from '../core/goals';
@@ -156,7 +158,7 @@ export class MarketOverlay implements Scene {
       }
       if (cost !== null) {
         const afford = s.coins >= cost;
-        this.game.button(ctx, `up_${u.id}`, W - 136, y + 14, 100, 48, String(cost), () => this.buy(u.id, cost, y), { coin: true, disabled: !afford, color: COLORS.accent, size: 19, pulse: u.id === goalUp && afford });
+        this.game.button(ctx, `up_${u.id}`, W - 136, y + 14, 100, 48, String(cost), () => this.buy(u.id, cost, y), { coin: true, disabled: !afford, whyNot: () => showHelp(this.game, explain(s, `Needs ${cost} coins`)), color: COLORS.accent, size: 19, pulse: u.id === goalUp && afford });
       }
     });
     if (this.tab === 'village') {

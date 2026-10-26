@@ -1,4 +1,6 @@
 // The Sea Chart: a story route of seas. Tap an island to see its missions, fish and relic, then sail.
+import { explain } from '../core/help';
+import { infoIcon } from './info';
 import { analytics } from '../core/analytics';
 import { RARITY_COLOR, SPECIES, type SeaId } from '../core/data';
 import { RELICS } from '../core/items';
@@ -137,6 +139,8 @@ export class MapScene implements Scene {
     const by = top + 240;
     if (lock) {
       text(ctx, lock, W / 2, by + 6, 13, COLORS.bad, 'center', 900);
+      ctx.font = '900 13px sans-serif';
+      infoIcon(ctx, this.game, 'sealock', W / 2 + ctx.measureText(lock).width / 2 + 16, by + 5, () => explain(s, lock), 9);
       if (/boat/i.test(lock)) this.game.button(ctx, 'tomarket', W / 2 - 90, by + 18, 180, 40, 'Go to Market', () => this.game.push(new MarketOverlay(this.game, 'gear')), { color: COLORS.accent, size: 16 });
     } else {
       const here = sea.id === s.sea;

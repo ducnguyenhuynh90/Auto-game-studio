@@ -65,6 +65,8 @@ export interface ButtonOpts {
   sub?: string;
   pulse?: boolean;
   coin?: boolean; // draw a coin icon before the label
+  /** A disabled button with this stays tappable and explains what is missing (an ⓘ card). */
+  whyNot?: () => void;
 }
 
 export class Game {
@@ -284,6 +286,15 @@ export class Game {
     if (o.sub) text(ctx, o.sub, w / 2, cy + size * 0.85, size * 0.5, 'rgba(255,255,255,0.95)');
     ctx.restore();
     if (!o.disabled) this.hits.push({ id, x, y, w, h, fn });
+    else if (o.whyNot) {
+      this.hits.push({ id, x, y, w, h, fn: o.whyNot });
+      // a little ⓘ in the corner says "tap me to find out how"
+      ctx.fillStyle = '#3a8fd9';
+      ctx.beginPath();
+      ctx.arc(x + w - 4, y + 4, 8, 0, Math.PI * 2);
+      ctx.fill();
+      text(ctx, 'i', x + w - 4, y + 5, 11, '#fff', 'center', 900);
+    }
   }
 
   /** Island staff keep working in every scene; their output is saved every few seconds. */

@@ -1,5 +1,7 @@
 // The island business map (tycoon layer): buy plots, place buildings, hire and train staff.
 // Staff work in every scene (Game.tickIsland); this screen shows where and what they make.
+import { explain } from '../core/help';
+import { infoIcon, showHelp } from './info';
 import { CAREER } from '../core/career';
 import { analytics } from '../core/analytics';
 import { villageStage } from '../core/evolution';
@@ -308,7 +310,7 @@ export class IslandScene implements Scene {
       text(ctx, 'Buy the land next to it first.', W / 2, PANEL_Y + 110, 14, COLORS.bad, 'center', 900);
       return;
     }
-    this.game.button(ctx, 'buyplot', W / 2 - 110, PANEL_Y + 96, 220, 58, `Buy ${cost}`, () => this.buy(tile), { color: COLORS.good, dark: '#2f7a3b', size: 20, coin: true, disabled: s.coins < cost });
+    this.game.button(ctx, 'buyplot', W / 2 - 110, PANEL_Y + 96, 220, 58, `Buy ${cost}`, () => this.buy(tile), { color: COLORS.good, dark: '#2f7a3b', size: 20, coin: true, disabled: s.coins < cost, whyNot: () => showHelp(this.game, explain(s, `Needs ${cost} coins`)) });
   }
 
   private buy(tile: number): void {
@@ -355,7 +357,15 @@ export class IslandScene implements Scene {
         drawCoin(ctx, x + cw / 2 - 18, y + 83, 6);
         text(ctx, String(def.cost), x + cw / 2 + 4, y + 84, 12, s.coins >= def.cost ? COLORS.ink : COLORS.bad, 'center', 900);
       }
-      if (!problem)
+      if (problem) {
+        // locked: the card explains what is missing and how to get it
+        this.game.hitArea(`build_${def.id}`, x + 2, y, cw - 4, ch, () => showHelp(this.game, explain(s, problem)));
+        ctx.fillStyle = '#3a8fd9';
+        ctx.beginPath();
+        ctx.arc(x + cw - 12, y + 10, 8, 0, Math.PI * 2);
+        ctx.fill();
+        text(ctx, 'i', x + cw - 12, y + 11, 11, '#fff', 'center', 900);
+      } else
         this.game.hitArea(`build_${def.id}`, x + 2, y, cw - 4, ch, () => {
           if (!build(s, tile, def.id)) return;
           sfx.upgrade();
@@ -384,7 +394,7 @@ export class IslandScene implements Scene {
         const before = b.level;
         if (!this.upgradeBuilding(b.tile)) return;
         analytics.track('building_upgrade', { id: b.id, level: before + 1 });
-      }, { color: '#3a8fd9', dark: '#22609e', size: 12, disabled: s.coins < upCost });
+      }, { color: '#3a8fd9', dark: '#22609e', size: 12, disabled: s.coins < upCost, whyNot: () => showHelp(this.game, explain(s, `Needs ${upCost} coins`)) });
     const role = def.role;
     if (b.id === 'brewhouse' || b.id === 'dock' || b.id === 'saltfield') {
       this.game.button(ctx, 'line_btn', 20, H - 50, W - 40, 38, 'Production line ›', () => this.game.push(new ProductionOverlay(this.game)), { color: '#e67e22', dark: '#a85a14', size: 15 });
@@ -450,13 +460,14 @@ export class IslandScene implements Scene {
           analytics.track('staff_train', { role: st.role, level: st.level });
           this.game.toast(`${st.name} is now Lv ${st.level}!`, '#a35bd6', ROLE[st.role].perk(st.level));
           this.game.commit();
-        }, { color: '#a35bd6', dark: '#6f3a96', size: 12, disabled: !!problem });
+        }, { color: '#a35bd6', dark: '#6f3a96', size: 12, disabled: !!problem, whyNot: () => showHelp(this.game, explain(s, problem ?? '')) });
       else if (problem) {
         ctx.font = font(9, 900);
         const words = problem.split(' ');
         const half = Math.ceil(words.length / 2);
-        text(ctx, words.slice(0, half).join(' '), W - 62, y + 17, 9, '#7a5aa8', 'center', 900);
-        text(ctx, words.slice(half).join(' '), W - 62, y + 30, 9, '#7a5aa8', 'center', 900);
+        text(ctx, words.slice(0, half).join(' '), W - 66, y + 17, 9, '#7a5aa8', 'center', 900);
+        text(ctx, words.slice(half).join(' '), W - 66, y + 30, 9, '#7a5aa8', 'center', 900);
+        infoIcon(ctx, this.game, `train_${st.uid}`, W - 20, y + 23, () => explain(s, problem), 8);
       }
     });
     const free = slots(b) - staff.length;
@@ -470,7 +481,7 @@ export class IslandScene implements Scene {
         analytics.track('staff_hire', { role, cost, staff: s.island.staff.length });
         this.game.toast(`${st.name} joined!`, COLORS.good, `${ROLE[role].title}: ${ROLE[role].perk(1)}`);
         this.game.commit();
-      }, { color: COLORS.good, dark: '#2f7a3b', size: 15, disabled: s.coins < cost, pulse: staff.length === 0 });
+      }, { color: COLORS.good, dark: '#2f7a3b', size: 15, disabled: s.coins < cost, pulse: staff.length === 0, whyNot: () => showHelp(this.game, explain(s, `Needs ${cost} coins`)) });
     }
   }
 

@@ -3,6 +3,13 @@ import { startPlaySummary } from './remote';
 import { loadFromBlob, loadState, resetSave, saveState } from './core/save';
 import { AccountManager } from './auth/account';
 import { Game } from './game';
+import { helpRoutes } from './scenes/info';
+import { MarketOverlay } from './scenes/market';
+import { ProductionOverlay } from './scenes/production';
+import { RoadOverlay } from './scenes/career';
+import { BrandOverlay } from './scenes/brand';
+import { MissionsOverlay } from './scenes/missions';
+import { DogOverlay } from './scenes/dog';
 import { H, W } from './render/draw';
 import { World } from './render3d/world';
 import { FpsGovernor, detectQuality, loadAutoQuality, loadQualitySetting, saveAutoQuality, saveQualitySetting, type Quality, type QualitySetting } from './render3d/quality';
@@ -64,6 +71,19 @@ setIslandArtProvider((kind, id, level) => stagePreview(kind, kind === 'worker' ?
 if (params.has('speed')) game.timeScale = Number(params.get('speed'));
 
 game.goVillage = () => game.setScene(new VillageScene(game));
+// where the ⓘ cards' buttons go (scenes/info.ts)
+Object.assign(helpRoutes, {
+  market: (g: Game) => g.push(new MarketOverlay(g)),
+  production: (g: Game) => g.push(new ProductionOverlay(g)),
+  island: (g: Game) => g.goIsland(),
+  road: (g: Game) => g.push(new RoadOverlay(g)),
+  puzzles: (g: Game) => g.goPuzzles(),
+  fish: (g: Game) => g.goFishing(g.state.sea),
+  map: (g: Game) => g.goMap(),
+  brand: (g: Game) => g.push(new BrandOverlay(g)),
+  missions: (g: Game) => g.push(new MissionsOverlay(g)),
+  dog: (g: Game) => g.push(new DogOverlay(g)),
+});
 game.goMap = () => game.setScene(new MapScene(game));
 game.goIsland = (tile) => game.setScene(new IslandScene(game, tile));
 game.goPuzzles = () => {

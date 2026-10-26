@@ -1,5 +1,7 @@
 // Business report: where the money comes from, where it goes, and a button on every line that leads to
 // the action that switches an income on, fixes an idle worker, or cuts a cost (core/business.ts).
+import { explain } from '../core/help';
+import { showHelp } from './info';
 import { RoadOverlay } from './career';
 import { analytics } from '../core/analytics';
 import { BRAND_STAGES } from '../core/brand';
@@ -222,7 +224,7 @@ export class BusinessOverlay implements Scene {
         analytics.track('festival', {});
         this.game.toast('Festival!', '#e8443a', 'Lanterns up, music on: tourists pour in');
         this.game.commit();
-      }, { color: '#e8443a', dark: '#9a2a22', size: 14, coin: true, disabled: s.coins < FESTIVAL.cost });
+      }, { color: '#e8443a', dark: '#9a2a22', size: 14, coin: true, disabled: s.coins < FESTIVAL.cost, whyNot: () => showHelp(this.game, explain(s, `Needs ${FESTIVAL.cost} coins`)) });
     // radio ad
     card(276, 76, 'Radio ad on Phú Quốc FM', 'One hour of bigger tour groups (+50%) and +5 attraction. Only worth it with Tour Guides hired.', '#3a8fd9');
     if (adOn(s, now)) text(ctx, left(s.island.adUntil), W - 74, 306, 12, '#3a8fd9', 'center', 900);
@@ -233,7 +235,7 @@ export class BusinessOverlay implements Scene {
         analytics.track('radio_ad', {});
         this.game.toast('On the radio!', '#3a8fd9', '"Visit Bà Năm\'s mắm village on Phú Quốc!"');
         this.game.commit();
-      }, { color: '#3a8fd9', dark: '#22609e', size: 14, coin: true, disabled: s.coins < RADIO_AD.cost });
+      }, { color: '#3a8fd9', dark: '#22609e', size: 14, coin: true, disabled: s.coins < RADIO_AD.cost, whyNot: () => showHelp(this.game, explain(s, `Needs ${RADIO_AD.cost} coins`)) });
     // brand
     const b = BRAND_STAGES[s.brand.level];
     card(360, 64, `Brand: ${b.name} ×${b.mult.toFixed(2)}`, 'Every bottle (yours, the shop\'s, souvenirs, orders) sells for more.', '#a35bd6');
@@ -262,7 +264,23 @@ export class BusinessOverlay implements Scene {
           this.game.coinPulse = 1;
           this.game.float(W / 2, y, `+${pay}`, COLORS.gold, 30);
           this.game.commit();
-        }, { color: COLORS.good, dark: '#2f7a3b', size: 14, disabled: fit < c.count });
+        }, {
+          color: COLORS.good,
+          dark: '#2f7a3b',
+          size: 14,
+          disabled: fit < c.count,
+          whyNot: () =>
+            showHelp(this.game, {
+              title: `This order wants ${c.count} bottles`,
+              lines: [
+                `${c.buyer} wants ${c.count} bottles of ${c.minDeg}°N or stronger${c.recipe ? ` (${c.recipe})` : ''}. You have ${fit} that fit.`,
+                '• Bottles you keep (“Store” after opening a jar) wait on your shelf for orders.',
+                '• Stronger sauce: fresher fish, longer aging (★★★), Magic Salt.',
+                '• Orders change every 2 hours.',
+              ],
+              actions: [{ label: 'How it’s made', action: 'production' }],
+            }),
+        });
     });
     text(ctx, 'New orders every 2 hours. They pay well above the market.', W / 2, 740, 10.5, 'rgba(43,33,24,0.6)', 'center', 700);
   }

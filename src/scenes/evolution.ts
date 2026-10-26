@@ -1,5 +1,7 @@
 // Evolution roadmap: a climbing path of stages for one upgrade line (or the village), each with its
 // 3D model, name and stat. Current stage glows, the next one can be bought, future ones are silhouettes.
+import { explain } from '../core/help';
+import { showHelp } from './info';
 import { analytics } from '../core/analytics';
 import type { UpgradeId } from '../core/data';
 import { TRACK_TITLE, VILLAGE_STAGES, currentStage, stages, type Track } from '../core/evolution';
@@ -89,7 +91,7 @@ export class EvolutionOverlay implements Scene {
           this.evolvedT = 0;
           this.game.particles.burst(p.x, p.y, 40, [COLORS.gold, '#fff', COLORS.accent], { speed: 300, kind: 'star', size: 7, g: 200, life: 1.2 });
         }
-      }, { coin: true, disabled: s.coins < cost, pulse: s.coins >= cost, size: 20, sub: s.coins < cost ? `need ${cost - s.coins} more` : 'Evolve!' });
+      }, { coin: true, disabled: s.coins < cost, whyNot: () => showHelp(this.game, explain(s, `Needs ${cost} coins`)), pulse: s.coins >= cost, size: 20, sub: s.coins < cost ? `need ${cost - s.coins} more` : 'Evolve!' });
     }
   }
 

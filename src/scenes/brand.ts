@@ -3,7 +3,9 @@
 import { analytics } from '../core/analytics';
 import { BRAND_STAGES, brandProblem, upgradeBrand } from '../core/brand';
 import { sfx } from '../render/audio';
-import { COLORS, H, W, clamp01, drawBottle, drawCoin, ease, outlinedText, panel, rr, text, type Ctx } from '../render/draw';
+import { COLORS, H, W, clamp01, drawBottle, drawCoin, ease, font, outlinedText, panel, rr, text, type Ctx } from '../render/draw';
+import { explainBrand } from '../core/help';
+import { infoIcon, showHelp } from './info';
 import type { Game, Scene } from '../game';
 
 export class BrandOverlay implements Scene {
@@ -38,7 +40,10 @@ export class BrandOverlay implements Scene {
     text(ctx, cur.local, 120, 140, 12, 'rgba(43,33,24,0.6)', 'left', 700);
     text(ctx, `Sauce sells for ×${cur.mult.toFixed(2)}`, 120, 166, 15, COLORS.good, 'left', 900);
     const next = BRAND_STAGES[b.level + 1];
-    text(ctx, `Reputation ${b.rep}${next ? ` / ${next.rep}` : ''}`, 120, 192, 13, COLORS.ink, 'left', 900);
+    const repLabel = `Reputation ${b.rep}${next ? ` / ${next.rep}` : ''}`;
+    text(ctx, repLabel, 120, 192, 13, COLORS.ink, 'left', 900);
+    ctx.font = font(13, 900);
+    if (next) infoIcon(ctx, this.game, 'brand_rep', 132 + ctx.measureText(repLabel).width, 191, () => explainBrand(s), 9);
     if (next) {
       ctx.fillStyle = 'rgba(43,33,24,0.12)';
       rr(ctx, 120, 202, W - 150, 10, 5);
@@ -70,7 +75,10 @@ export class BrandOverlay implements Scene {
       const problem = isNext ? brandProblem(s) : null;
       text(ctx, i === 0 ? 'Start' : problem ? problem.replace(' (sell more bottles)', '') : `Rep ${st.rep} · ${st.cost} coins`, 70, y + 54, 10, problem ? COLORS.bad : '#7a5aa8', 'left', 900);
       text(ctx, `×${st.mult.toFixed(2)}`, W - 40, y + 20, 16, done ? COLORS.good : COLORS.ink, 'right', 900);
-      if (isNext) {
+      if (isNext && problem) {
+        // not there yet: the button says how, instead of silently doing nothing
+        this.game.button(ctx, 'brand_how', W - 132, y + 30, 96, 30, 'How? ⓘ', () => showHelp(this.game, explainBrand(s)), { color: '#3a8fd9', dark: '#22609e', size: 13 });
+      } else if (isNext) {
         this.game.button(ctx, 'brand_up', W - 132, y + 30, 96, 30, 'Upgrade', () => {
           if (!upgradeBrand(s)) return;
           sfx.rare();
@@ -78,7 +86,7 @@ export class BrandOverlay implements Scene {
           this.game.toast(`${BRAND_STAGES[s.brand.level].name}!`, '#a35bd6', `Every bottle now sells ×${BRAND_STAGES[s.brand.level].mult.toFixed(2)}`);
           this.game.particles.burst(W / 2, 200, 40, [COLORS.gold, '#fff', '#a35bd6'], { speed: 260, kind: 'star', size: 6, g: 300, life: 1.1 });
           this.game.commit();
-        }, { color: '#a35bd6', dark: '#6f3a96', size: 13, disabled: !!problem });
+        }, { color: '#a35bd6', dark: '#6f3a96', size: 13, pulse: true });
       }
     });
     drawCoin(ctx, 40, 806, 9);

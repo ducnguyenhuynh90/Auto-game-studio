@@ -1,4 +1,6 @@
 // Mực's card: feed him, build his house, pet him (core/dog.ts). He then rides the boat.
+import { explain } from '../core/help';
+import { showHelp } from './info';
 import { analytics } from '../core/analytics';
 import { SPECIES_BY_ID } from '../core/data';
 import { DOG_HOUSE_COST, buildDogHouse, dogHouseProblem, feedDog } from '../core/dog';
@@ -49,9 +51,9 @@ export class DogOverlay implements Scene {
     this.game.button(ctx, 'dog_close', W - 66, 250, 44, 40, 'x', () => this.game.pop(this), { color: '#8a7a66', dark: '#5f5244', size: 18 });
     const y0 = 528;
     if (!d.house) {
-      this.game.button(ctx, 'dog_feed', 40, y0, W - 80, 52, s.bucket.length ? 'Give him a fish' : 'No fish in your bucket', () => this.feed(), { color: '#e67e22', dark: '#a85a14', size: 18, disabled: !s.bucket.length, pulse: d.fed < 3 && s.bucket.length > 0 });
+      this.game.button(ctx, 'dog_feed', 40, y0, W - 80, 52, s.bucket.length ? 'Give him a fish' : 'No fish in your bucket', () => this.feed(), { color: '#e67e22', dark: '#a85a14', size: 18, disabled: !s.bucket.length, pulse: d.fed < 3 && s.bucket.length > 0, whyNot: () => showHelp(this.game, { title: 'No fish to give', lines: ['Mực eats fish from your bucket (the least valuable one). Go fishing, then come back to feed him.'], actions: [{ label: 'Go fishing', action: 'fish' }] }) });
       const problem = dogHouseProblem(s);
-      this.game.button(ctx, 'dog_house', 40, y0 + 60, W - 80, 52, `Build a dog house  ${DOG_HOUSE_COST}`, () => this.house(), { color: COLORS.good, dark: '#2f7a3b', size: 17, disabled: !!problem, coin: false, pulse: !problem });
+      this.game.button(ctx, 'dog_house', 40, y0 + 60, W - 80, 52, `Build a dog house  ${DOG_HOUSE_COST}`, () => this.house(), { color: COLORS.good, dark: '#2f7a3b', size: 17, disabled: !!problem, coin: false, pulse: !problem, whyNot: () => showHelp(this.game, explain(s, problem ?? '')) });
       if (problem && d.fed < 3) text(ctx, problem, W / 2, y0 + 126, 12, '#7a5aa8', 'center', 900);
     } else {
       text(ctx, 'Mực rides your boat. He barks at rare fish!', W / 2, y0 + 10, 14, COLORS.good, 'center', 900);
