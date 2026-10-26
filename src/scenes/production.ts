@@ -11,6 +11,7 @@ import { COLORS, H, W, clamp01, drawBottle, drawCoin, drawFish, drawJar, font, o
 import type { Game, Scene } from '../game';
 import { JarFillOverlay, RevealOverlay } from './jar';
 import { RoadOverlay } from './career';
+import { TeamOverlay } from './team';
 import { MarketOverlay } from './market';
 
 const CARD_H = 82;
@@ -56,7 +57,13 @@ export class ProductionOverlay implements Scene {
     const unlocked = islandUnlocked(s);
     const auto = team.length > 0 && isAuto(s, step);
     const label = auto ? `Staff: ${team.length} ${ROLE[role].title}${team.length > 1 ? 's' : ''}` : 'You do this';
-    text(ctx, label, 92, y + 70, 10.5, auto ? COLORS.good : '#7a5aa8', 'left', 900);
+    const lv = team.length ? ` · Lv ${Math.max(...team.map((x) => x.level))}` : '';
+    text(ctx, label + (auto ? lv : ''), 92, y + 70, 10.5, auto ? COLORS.good : '#7a5aa8', 'left', 900);
+    if (unlocked && !team.length) {
+      // nobody does this step yet: hiring is one tap away (the Team screen explains what they do)
+      this.game.button(ctx, `hire_${step}`, W - 104, y + 52, 82, 26, '+ Hire', () => this.game.push(new TeamOverlay(this.game, role)), { color: COLORS.good, dark: '#2f7a3b', size: 12 });
+      return;
+    }
     if (!unlocked || !team.length) return;
     // the switch: AUTO (staff work, paid) / YOU (staff rest, unpaid)
     const x = W - 92;

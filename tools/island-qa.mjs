@@ -15,6 +15,7 @@ const ev = (fn, arg) => p.evaluate(fn, arg);
 await ev(() => {
   const g = window.__mam.game;
   g.state.storySeen.push('island_intro', 'intro', 'first_sale');
+  g.state.career = { stage: 1, done: [] }; // a Village Mắm Maker: room for 4 staff (core/team.ts)
   g.overlays = [];
 });
 const tap = async (x, y) => {

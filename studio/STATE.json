@@ -1,7 +1,7 @@
 {
   "updated": "2026-10-26",
   "product_state": "INTERNAL_ALPHA",
-  "real_player_evidence": "2 players. 2026-10-24: stalled at the first sale after choosing Keep. 2026-10-26 (founder, Android): reveal from the production line showed no bottle, no way to make salt by hand, small buttons. All fixed in 3.7.1. Too small to conclude anything about fun; see LEARNINGS.",
+  "real_player_evidence": "2 players. 2026-10-24: stalled at the first sale. 2026-10-26 (founder, Android, several sessions): production-line bugs, no salt button, unclear brand/hiring requirements, hard-to-hit X (all addressed in 3.7.1-3.10). Too small to conclude anything about fun; see LEARNINGS.",
   "build": "Vite + TypeScript. three.js 3D world (src/render3d) under a 2D canvas UI layer (src/scenes). Pure rules in src/core (unit-tested).",
   "how_to_run": "npm install && npm run dev  (open http://localhost:5173, ?reset=1 wipes the save, ?seed=N, ?speed=N)",
   "how_to_test": "npm test ; npm run build ; npx vite preview --port 4173 & node tools/playtest.mjs --trips 6 --skill 0.7 --shots (playtests run against the preview build; HMR reloads break bot runs on the dev server)",
@@ -27,7 +27,8 @@
     "Build 3.7 (founder request): native iOS + Android apps with Capacitor 8 (D-017). android/ + ios/ projects, Android back button, save on background + staff catch-up on resume, haptics, safe areas for notch/home bar, portrait lock, system-browser sign-in with deep link, in-app account deletion (SQL function tested in PGlite; browser e2e passes), crisp 1024 icon + adaptive icon + splash. CI builds the Android APK/AAB and an iOS simulator build; CI run #3 builds both (Android APK/AAB 9.2 MB, iOS simulator app 3.4 MB); not yet run on a real phone.",
     "Build 3.7.1 (founder playtest on Android): jar reveal from the production line now shows the jar and bottle (3D renders only visible layers); Rake salt button (1.5 s per salt, queue up to 5); bigger production buttons and a 10 px tap tolerance on every button; AUTO switch no longer steals taps from the button above it.",
     "Build 3.8 (founder requests): Dragon Bay is now Hạ Long Bay (notched karst islands, Hòn Trống Mái, floating village, a red-sailed junk, Cô Hạnh tells the descending-dragon legend). New procedural beach soundscape: uneven waves with foam, sea bed, breeze, a rare distant gull, optional slow D-pentatonic pluck melody with echo (Settings → Music); sound/music choices now persist. The hand stops pointing at Mực after the first tap.",
-    "Build 3.9 (founder direction D-019): Road to the World's Best Fish Sauce: 7 fame stages (village → brand → fame → quality → trade → Vietnam → world) with titles in the HUD, 4 goals each, rewards, and fame-gated unlocks (Tour Office at stage 3 with a free hire; Trading Post at stage 4). Finale: enter 3 Legendary bottles in the World Fish Sauce Awards. [SIM] stage 3 at 40-70 min, title at ~3.3-4 h."
+    "Build 3.9 (founder direction D-019): Road to the World's Best Fish Sauce: 7 fame stages (village → brand → fame → quality → trade → Vietnam → world) with titles in the HUD, 4 goals each, rewards, and fame-gated unlocks (Tour Office at stage 3 with a free hire; Trading Post at stage 4). Finale: enter 3 Legendary bottles in the World Fish Sauce Awards. [SIM] stage 3 at 40-70 min, title at ~3.3-4 h.",
+    "Build 3.10 (founder feedback): Your Team screen (jobs, rates per hour, training gains, hire/train), team size that grows with Road stages and brand, '+ Hire' on production steps; ⓘ help on every requirement and disabled button; Mực fetches fish and finds coins/shells/notes/gadgets on trips; bigger glowing close buttons."
   ],
   "constraints": [
     "No real-money gambling, no randomized paid rewards (needs founder/legal approval).",

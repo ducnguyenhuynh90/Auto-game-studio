@@ -93,3 +93,8 @@ Only [PLAYER] entries count as product evidence.
   Awards entry action. Any goal that depends on something its own stage unlocks needs a sim run.
 - [PLAYER] 2026-10-26 · Founder: the Tour Office came before the income or reputation to use it, and the
   goals didn't feel like a journey. Source of D-019 / EXP-009.
+- [PLAYER] 2026-10-26 · Founder (Android): a disabled "Upgrade" that does nothing reads as a bug; "Needs 80
+  reputation" without how to earn it is a dead end; hiring was hidden inside building panels and nothing
+  said what a worker produces or why the team can't grow forever; the X was hard to hit. Rule from now on:
+  every requirement explains itself with numbers and a button (core/help.ts), and every disabled button
+  stays tappable to say why.

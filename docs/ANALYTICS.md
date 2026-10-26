@@ -28,6 +28,9 @@ first_sale → first_upgrade → third_trip_start → first_reef_trip
 | career_open / career_go | stage / goal, where | do players use the Road to decide what to do? |
 | award_entry | degrees, entries | the finale |
 | salt_rake | salt | do players make salt by hand? |
+| team_open / staff_hire (from) | size, cap, focus / role | is the Team screen how people hire now? |
+| help_open / help_go | title / action | which requirements confuse players, and do the ⓘ cards lead to action? |
+| dog_fetch / dog_find | species / kind | Mực's surprises |
 
 ## Key ratios (see SUCCESS.yaml)
 second_trip_start/first_launch · first_seal/first_catch · first_sale/first_catch (tutorial proxy) ·

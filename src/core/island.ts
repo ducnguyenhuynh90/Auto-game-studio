@@ -2,6 +2,7 @@
 // place on it, and staff who fish, make salt, brew and sell on their own. Puzzles (src/core/puzzles.ts)
 // train the staff: a role's level cap comes from the puzzle section it belongs to.
 // Pure rules + a deterministic production tick (also used for offline catch-up). No rendering here.
+import { teamCap } from './team';
 import { careerLock } from './career';
 import { BALANCE, SPECIES_BY_ID, saucePrice, type SeaId } from './data';
 import { rollShadow, speciesForSea } from './fishing';
@@ -348,6 +349,8 @@ export function hire(s: GameState, tile: number): Staff | null {
   const b = buildingAt(s, tile);
   const role = b && BUILDINGS_BY_ID[b.id].role;
   if (!b || !role || staffAt(s, tile).length >= slots(b)) return null;
+  // the team grows with fame and brand (core/team.ts); nobody is let go if an old save is over it
+  if (s.island.staff.length >= teamCap(s)) return null;
   const cost = hireCost(s, role);
   if (s.coins < cost) return null;
   if (cost === 0) s.island.freeHires--;

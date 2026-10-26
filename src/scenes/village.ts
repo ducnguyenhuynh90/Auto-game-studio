@@ -15,6 +15,8 @@ import { BusinessOverlay } from './business';
 import { ProductionOverlay } from './production';
 import { DogOverlay } from './dog';
 import { RoadOverlay, StageUpOverlay } from './career';
+import { TeamOverlay } from './team';
+import { teamCap, teamSize } from '../core/team';
 import { careerTitle, worldChampion } from '../core/career';
 import { DexOverlay } from './dex';
 import { MissionsOverlay, RelicOverlay } from './missions';
@@ -297,6 +299,9 @@ export class VillageScene implements Scene {
     // how fish sauce is made, step by step (once the first fish is in the bucket)
     if (!this.overview && s.stats.catches > 0)
       this.game.button(ctx, 'how', 10, 174, 128, 38, 'How it\'s made', () => this.game.push(new ProductionOverlay(this.game)), { color: '#e67e22', dark: '#a85a14', size: 13 });
+    // your staff: hire, train, see what each job does (once the island is open)
+    if (!this.overview && islandUnlocked(s))
+      this.game.button(ctx, 'team', 10, 218, 128, 38, `Team ${teamSize(s)}/${teamCap(s)}`, () => this.game.push(new TeamOverlay(this.game)), { color: '#5cb85c', dark: '#2f7a3b', size: 13 });
     if (!islandUnlocked(s) || !this.game.world) return;
     const overview = this.overview;
     this.game.button(ctx, 'view', W - 118, 174, 108, 38, overview ? 'Village' : 'Island view', () => this.setView(overview ? 'village' : 'island'), {
@@ -321,6 +326,7 @@ export class VillageScene implements Scene {
     const rig = this.game.world!.village;
     // selling works from the island view too (the village market label is hidden out here)
     this.game.button(ctx, 'ov_market', 10, 252, 116, 40, s.shelf.length ? `Market (${s.shelf.length})` : 'Market', () => this.game.push(new MarketOverlay(this.game)), { color: '#e67e22', dark: '#a85a14', size: 14, pulse: s.shelf.length > 0 });
+    this.game.button(ctx, 'ov_team', 10, 300, 116, 40, `Team ${teamSize(s)}/${teamCap(s)}`, () => this.game.push(new TeamOverlay(this.game)), { color: '#5cb85c', dark: '#2f7a3b', size: 14 });
     this.game.button(ctx, 'zin', W - 52, 252, 42, 40, '+', () => (rig.overviewScale = Math.max(0.35, rig.overviewScale * 0.7)), { color: '#8a7a66', dark: '#5f5244', size: 22 });
     this.game.button(ctx, 'zout', W - 52, 298, 42, 40, '−', () => (rig.overviewScale = Math.min(1.4, rig.overviewScale / 0.7)), { color: '#8a7a66', dark: '#5f5244', size: 22 });
   }

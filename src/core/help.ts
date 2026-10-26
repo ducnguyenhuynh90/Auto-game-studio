@@ -4,6 +4,7 @@
 import { BRAND_STAGES, repFor } from './brand';
 import { CAREER, career } from './career';
 import { islandLevel } from './island';
+import { nextTeamGrowth } from './team';
 import type { GameState } from './state';
 
 export type HelpAction = 'market' | 'production' | 'island' | 'road' | 'puzzles' | 'fish' | 'map' | 'brand' | 'dog' | 'missions';
@@ -117,6 +118,33 @@ export function explain(s: GameState, problem: string): Help {
     return { title: 'A better boat', lines: ['Farther seas need a stronger boat.', '• Market → Gear → Boat: buy the next boat with coins.'], actions: [{ label: 'Open Market', action: 'market' }] };
   if (/story first/.test(problem))
     return { title: 'Finish the story here first', lines: ['Each sea has 4 missions. Finish them to earn its relic and open the next sea.', 'Captain’s Log shows them, with progress.'], actions: [{ label: 'Captain’s Log', action: 'missions' }] };
+  if ((m = problem.match(/Team full \((\d+)\/(\d+)\)/)))
+    return {
+      title: 'Your team is full',
+      lines: [
+        `You have ${m[1]} staff and room for ${m[2]}. Your team grows as you get famous:`,
+        '• Start: room for 2.',
+        '• +2 for every stage of the Road to the World’s Best.',
+        '• +1 for every brand stage.',
+        `Next: ${nextTeamGrowth(s)}.`,
+      ],
+      actions: [
+        { label: 'Open the Road', action: 'road' },
+        { label: 'Brand', action: 'brand' },
+      ],
+    };
+  if ((m = problem.match(/Build a (.*) first/)))
+    return {
+      title: `First, build a ${m[1]}`,
+      lines: [`Staff need a place to work. Build a ${m[1]} on your island, then hire here.`, 'Each building has places for staff: 1 at Lv 1, one more for every upgrade.'],
+      actions: [{ label: 'Go to the island', action: 'island' }],
+    };
+  if ((m = problem.match(/Every place at your (.*) is taken/)))
+    return {
+      title: `Your ${m[1]} is full`,
+      lines: [`Each building has room for as many staff as its level. Upgrade your ${m[1]} (tap it on the island) or build a second one.`],
+      actions: [{ label: 'Go to the island', action: 'island' }],
+    };
   if (/Top level/.test(problem)) return { title: 'Top level', lines: ['This staff member is fully trained. More levels come with more puzzle levels.'], actions: [] };
   return { title: 'What’s needed', lines: [problem], actions: [] };
 }

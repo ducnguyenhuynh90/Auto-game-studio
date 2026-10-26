@@ -285,7 +285,17 @@ export class Game {
     }
     if (o.sub) text(ctx, o.sub, w / 2, cy + size * 0.85, size * 0.5, 'rgba(255,255,255,0.95)');
     ctx.restore();
-    if (!o.disabled) this.hits.push({ id, x, y, w, h, fn });
+    // close buttons ("x") get a generous tap area: a thumb on a phone should never miss them
+    const pad = label === 'x' ? 14 : 0;
+    if (label === 'x' && !o.disabled) {
+      ctx.save();
+      ctx.strokeStyle = `rgba(255,255,255,${0.55 + 0.25 * Math.sin(this.time * 4)})`;
+      ctx.lineWidth = 3;
+      rr(ctx, x - 3, y - 3, w + 6, h + 6, 14);
+      ctx.stroke();
+      ctx.restore();
+    }
+    if (!o.disabled) this.hits.push({ id, x: x - pad, y: y - pad, w: w + pad * 2, h: h + pad * 2, fn });
     else if (o.whyNot) {
       this.hits.push({ id, x, y, w, h, fn: o.whyNot });
       // a little ⓘ in the corner says "tap me to find out how"

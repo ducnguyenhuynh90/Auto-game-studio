@@ -267,3 +267,18 @@ top bar (tap it, or the banner, for the Road screen with a "Go ›" button per g
 - [SIM] pacing (tools/sim.ts --island): stage 1 at 20-60 min, Tour Office (stage 3) at 40-70 min,
   the title at ~3.3-4 h of play. Stage 4 often lands with stage 3 in the sim because the sim trains
   staff and clears puzzles faster than people do; watch it in real play.
+
+## Your Team, help everywhere, Mực's surprises (build 3.10, founder feedback)
+- **Team screen** (village "Team 3/4", island overview, "+ Hire" on every hand-done production step):
+  one card per job with what it does, its rate in plain numbers (Fisher Lv 1: 48 fish/h), what training
+  adds, who you have, and Hire / Train buttons.
+- **Team size grows with progress** (`core/team.ts`): room for 2 at the start, +2 per Road stage, +1 per
+  brand stage. Building level still sets places per building. Old saves over the limit keep everyone.
+- **ⓘ on every requirement** (`core/help.ts`, `scenes/info.ts`): disabled buttons stay tappable and
+  explain what is missing with the player's numbers and a button to the fix (coins, reputation, island
+  level, shore/pier plots, fame stage, puzzle-gated training, team full, sea locks, export orders).
+  The Brand "Upgrade" button says "How? ⓘ" until it can be bought.
+- **Mực on the boat**: 20% after a catch he fetches a small common fish (≤2 per trip); 40% of trips he
+  finds something once (coins 45%, cowrie shell +20 XP 20%, message in a bottle +15 15%, Magic Salt 10%,
+  Sonar 10%). Free and honest: rolled when it happens, never paid for.
+- Close buttons ("x") have a 14 px larger tap area and a soft glow.
