@@ -69,7 +69,8 @@ jobs:
       - name: Build for the iOS simulator (no signing)
         run: |
           WS=$(ls -d ios/*.xcworkspace | head -1)
-          SCHEME=$(xcodebuild -list -json -workspace "$WS" | python3 -c 'import json,sys; print(json.load(sys.stdin)["workspace"]["schemes"][0])')
+          # the app's scheme is named after its workspace (the first listed scheme can be a library pod)
+          SCHEME=$(basename "$WS" .xcworkspace)
           echo "workspace $WS scheme $SCHEME"
           xcodebuild -workspace "$WS" -scheme "$SCHEME" -configuration Release -sdk iphonesimulator \
             -destination 'generic/platform=iOS Simulator' -derivedDataPath build CODE_SIGNING_ALLOWED=NO build
