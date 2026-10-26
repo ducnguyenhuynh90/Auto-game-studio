@@ -23,9 +23,18 @@ await p.evaluate(() => {
   g.commit();
 });
 const id = (x) => p.locator(`[data-testid="${x}"]`).first();
+// story scenes (the intro, Mực's arrival…) are covered by web-e2e.mjs; skip them here
+const skipStory = async () => {
+  while (await p.evaluate(() => globalThis.__mamApp.story.length > 0)) {
+    await id('story_skip').click();
+    await p.waitForTimeout(150);
+  }
+};
 const click = async (x, wait = 350) => {
+  await skipStory();
   await id(x).click();
   await p.waitForTimeout(wait);
+  await skipStory();
 };
 const st = () => p.evaluate(() => { const s = globalThis.__mamApp.state; return { coins: s.coins, owned: s.island.owned.length, buildings: s.island.buildings.map((b) => b.id), staff: s.island.staff.map((x) => x.role), salt: s.island.salt, fed: s.dog.fed, puzzles: s.puzzles }; });
 const shot = (n) => p.screenshot({ path: `${shots}/rnb_${n}.png` });

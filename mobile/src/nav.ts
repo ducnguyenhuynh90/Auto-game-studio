@@ -1,7 +1,9 @@
 // The app's screens: a tiny stack (no router needed for a game's handful of scenes).
 export type Screen =
   | { name: 'village' }
-  | { name: 'fishing' }
+  | { name: 'fishing'; puzzle?: number }
+  | { name: 'seas' }
+  | { name: 'settings' }
   | { name: 'fill'; jar: number }
   | { name: 'reveal'; jar: number }
   | { name: 'market' }

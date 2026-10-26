@@ -1,7 +1,7 @@
 // Puzzles (core/puzzles.ts): clearing level N lets that section's staff train to level N+1.
 // Salt Field: turn channels until sea water reaches every pan. Shop: give every customer a bottle they
-// accept, for the best total. (Fishing puzzles come with the sea chart in the next phase.)
-import { useMemo, useState } from 'react';
+// accept, for the best total. Fishing: a fixed school and a goal (the trip screen in puzzle mode).
+import { useEffect, useMemo, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { analytics } from '@core/analytics';
 import { RECIPES_BY_ID } from '@core/data';
@@ -40,7 +40,7 @@ export function PuzzleHubScreen({ nav }: { nav: Nav }) {
       </View>
       <Text style={styles.small}>Staff do the routine. You solve the hard problems: each level you clear lets staff train one level higher.</Text>
       <ScrollView contentContainerStyle={{ gap: 10, paddingVertical: 10 }}>
-        {(['salt', 'shop'] as const).map((sec) => (
+        {(['fishing', 'salt', 'shop'] as const).map((sec) => (
           <Panel key={sec} style={{ gap: 8 }}>
             <Text style={[styles.h2, { color: SECTION_INFO[sec].dark }]}>
               {SECTION_INFO[sec].title} · {SECTION_INFO[sec].local}
@@ -53,7 +53,7 @@ export function PuzzleHubScreen({ nav }: { nav: Nav }) {
                 const open = levelOpen(s, sec, i);
                 const st = stars(s, sec, i);
                 return (
-                  <Pressable key={i} testID={`level_${sec}_${i + 1}`} disabled={!open} onPress={() => nav.go({ name: sec, level: i })} style={[styles.level, { backgroundColor: open ? SECTION_INFO[sec].color : '#d6cdbd' }]}>
+                  <Pressable key={i} testID={`level_${sec}_${i + 1}`} disabled={!open} onPress={() => nav.go(sec === 'fishing' ? { name: 'fishing', puzzle: i } : { name: sec, level: i })} style={[styles.level, { backgroundColor: open ? SECTION_INFO[sec].color : '#d6cdbd' }]}>
                     <Text style={styles.levelNum}>{open ? i + 1 : '🔒'}</Text>
                     <Text style={styles.levelStars}>{'★'.repeat(st)}{'☆'.repeat(3 - st)}</Text>
                   </Pressable>
@@ -95,6 +95,7 @@ function Cell({ mask, wet, kind, size }: { mask: number; wet: boolean; kind: str
 
 export function SaltPuzzleScreen({ nav, level }: { nav: Nav; level: number }) {
   const { width } = useWindowDimensions();
+  useEffect(() => analytics.track('puzzle_start', { section: 'salt', level: level + 1, app: 'react-native' }), [level]);
   const [board, setBoard] = useState<SaltBoard>(() => saltBoard(level));
   const [taps, setTaps] = useState(0);
   const [done, setDone] = useState<{ stars: number; reward: string } | null>(null);
@@ -154,6 +155,7 @@ export function SaltPuzzleScreen({ nav, level }: { nav: Nav; level: number }) {
 // ---------- Shop orders ----------
 export function ShopPuzzleScreen({ nav, level }: { nav: Nav; level: number }) {
   const l = SHOP_LEVELS[level];
+  useEffect(() => analytics.track('puzzle_start', { section: 'shop', level: level + 1, app: 'react-native' }), [level]);
   const [sel, setSel] = useState<number | null>(null);
   const [given, setGiven] = useState<Map<number, number>>(new Map());
   const [done, setDone] = useState<{ stars: number; reward: string; total: number; best: number } | null>(null);

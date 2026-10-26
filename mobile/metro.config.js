@@ -5,8 +5,10 @@ const { getDefaultConfig } = require('expo/metro-config');
 
 const config = getDefaultConfig(__dirname);
 const core = path.resolve(__dirname, '../src/core');
-config.watchFolders = [...(config.watchFolders ?? []), core];
-config.resolver.extraNodeModules = { ...(config.resolver.extraNodeModules ?? {}), '@core': core };
+// the web game's sound engine (src/render/audio.ts + ambience.ts) runs on react-native-audio-api
+const web = path.resolve(__dirname, '../src');
+config.watchFolders = [...(config.watchFolders ?? []), web];
+config.resolver.extraNodeModules = { ...(config.resolver.extraNodeModules ?? {}), '@core': core, '@web': web };
 // files outside mobile/ still resolve their packages from mobile/node_modules
 config.resolver.nodeModulesPaths = [path.resolve(__dirname, 'node_modules')];
 module.exports = config;

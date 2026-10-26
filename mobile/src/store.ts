@@ -12,6 +12,7 @@ import { checkMissions, type GameState } from '@core/state';
 
 import type { Help } from '@core/help';
 import type { StageUp } from '@core/career';
+import { markSeen, pendingScene, type StoryScene } from '@core/story';
 
 export interface Toast {
   id: number;
@@ -26,6 +27,8 @@ class GameStore {
   toasts: Toast[] = [];
   /** The open ⓘ card (core/help.ts), shown by App over any screen. */
   help: Help | null = null;
+  /** Story scenes waiting to play (core/story.ts), shown by App one at a time. */
+  story: StoryScene[] = [];
   /** Road stages just finished, celebrated by App (one at a time). */
   stageUps: StageUp[] = [];
   private version = 0;
@@ -85,6 +88,28 @@ class GameStore {
       this.stageUps.push(up);
     }
     saveState(s);
+    this.changed();
+  }
+
+  /** Plays the story beat whose moment has come here ('village' hub or a trip start), once. */
+  checkStory(where: 'village' | 'fishing'): void {
+    const sc = pendingScene(this.state, where);
+    if (sc) this.playStory(sc);
+  }
+
+  playStory(sc: StoryScene): void {
+    if (this.state.storySeen.includes(sc.id) || this.story.some((x) => x.id === sc.id)) return;
+    this.story.push(sc);
+    this.changed();
+  }
+
+  /** The player finished or skipped the scene at the front. */
+  storyDone(skipped: boolean): void {
+    const sc = this.story.shift();
+    if (!sc) return;
+    markSeen(this.state, sc.id);
+    analytics.track('story_view', { id: sc.id, skipped, app: 'react-native' });
+    saveState(this.state);
     this.changed();
   }
 

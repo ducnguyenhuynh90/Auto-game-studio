@@ -2,7 +2,20 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
-    "paths": { "@core/*": ["./../src/core/*"] }
+    "paths": {
+      "@core/*": [
+        "./../src/core/*"
+      ],
+      "@web/*": [
+        "./../src/*"
+      ]
+    }
   },
-  "include": ["**/*.ts", "**/*.tsx", "../src/core/**/*.ts"]
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "../src/core/**/*.ts",
+    "../src/render/audio.ts",
+    "../src/render/ambience.ts"
+  ]
 }

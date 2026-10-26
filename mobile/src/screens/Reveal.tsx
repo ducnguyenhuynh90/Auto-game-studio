@@ -8,6 +8,7 @@ import { jarDegrees, openJar, productPrice, sellProduct, type Product } from '@c
 import { C, TIER_COLOR } from '../theme';
 import { game, useGame } from '../store';
 import { GameButton, tap } from '../ui';
+import { sfx } from '../audio';
 import type { Nav } from '../nav';
 
 export function RevealScreen({ nav, jar }: { nav: Nav; jar: number }) {
@@ -31,6 +32,8 @@ export function RevealScreen({ nav, jar }: { nav: Nav; jar: number }) {
         if (!res) return;
         delete res.product.auto;
         setProduct(res.product);
+        if (tierFor(degrees).id === 'legendary' || tierFor(degrees).id === 'premium') sfx.rare();
+        else sfx.catch();
         analytics.track('jar_open', { recipe: res.product.recipe, degrees, tier: tierFor(degrees).id, app: 'react-native' });
         analytics.funnelStep('first_reveal', { tier: tierFor(degrees).id });
         game.commit();
@@ -46,6 +49,8 @@ export function RevealScreen({ nav, jar }: { nav: Nav; jar: number }) {
       onPress={() => {
         if (knocks >= 3) return;
         tap();
+        sfx.knock(knocks + 1);
+        if (knocks === 2) sfx.pop();
         setKnocks((k) => k + 1);
       }}
     >
@@ -63,6 +68,7 @@ export function RevealScreen({ nav, jar }: { nav: Nav; jar: number }) {
             style={{ flex: 1.3 }}
             onPress={() => {
               const price = sellProduct(s, product.uid);
+              sfx.coin();
               analytics.track('sell_product', { recipe: product.recipe, degrees: product.degrees, price, where: 'reveal' });
               analytics.funnelStep('first_sale');
               game.commit();

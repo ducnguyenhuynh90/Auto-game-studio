@@ -16,6 +16,10 @@ import { BrandScreen, BusinessScreen, DogScreen, ProductionScreen, RoadScreen, S
 import { PuzzleHubScreen, SaltPuzzleScreen, ShopPuzzleScreen } from './src/screens/Puzzles';
 import type { HelpAction } from '@core/help';
 import { game, useGame } from './src/store';
+import { startAudio } from './src/audio';
+import { SeaChartScreen } from './src/screens/SeaChart';
+import { SettingsScreen } from './src/screens/Settings';
+import { StoryCard } from './src/screens/Story';
 
 export default function App() {
   const [stack, setStack] = useState<Screen[]>([{ name: 'village' }]);
@@ -47,7 +51,7 @@ export default function App() {
       road: { name: 'road' },
       puzzles: { name: 'puzzles' },
       fish: { name: 'fishing' },
-      map: null,
+      map: { name: 'seas' },
       brand: { name: 'brand' },
       missions: null,
       dog: { name: 'dog' },
@@ -58,13 +62,15 @@ export default function App() {
   const stageUp = game.stageUps[0];
   return (
     <SafeAreaProvider>
-      <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
+      <SafeAreaView style={styles.root} edges={['top', 'bottom']} onTouchStart={startAudio}>
         <StatusBar style="dark" hidden />
         <View style={{ flex: 1 }}>
           {top.name === 'village' ? <VillageScreen nav={nav} /> : null}
-          {top.name === 'fishing' ? <FishingScreen nav={nav} /> : null}
+          {top.name === 'fishing' ? <FishingScreen nav={nav} puzzle={top.puzzle} key={`fish${top.puzzle ?? ''}`} /> : null}
           {top.name === 'fill' ? <JarFillScreen nav={nav} jar={top.jar} /> : null}
           {top.name === 'reveal' ? <RevealScreen nav={nav} jar={top.jar} /> : null}
+          {top.name === 'seas' ? <SeaChartScreen nav={nav} /> : null}
+          {top.name === 'settings' ? <SettingsScreen nav={nav} /> : null}
           {top.name === 'market' ? <MarketScreen nav={nav} /> : null}
           {top.name === 'island' ? <IslandScreen nav={nav} tile={top.tile} /> : null}
           {top.name === 'team' ? <TeamScreen nav={nav} focus={top.focus} /> : null}
@@ -78,7 +84,8 @@ export default function App() {
           {top.name === 'shop' ? <ShopPuzzleScreen nav={nav} level={top.level} key={`shop${top.level}`} /> : null}
           <Toasts />
           <HelpSheet go={helpGo} />
-          {stageUp && top.name !== 'fishing' ? (
+          <StoryCard />
+          {stageUp && top.name !== 'fishing' && !game.story.length ? (
             <StageUpCard
               up={stageUp}
               onClose={() => (game.stageUps.shift(), game.changed())}

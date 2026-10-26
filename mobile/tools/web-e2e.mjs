@@ -17,19 +17,45 @@ p.on('console', (m) => m.type() === 'error' && !/favicon/.test(m.text()) && fail
 await p.goto(base);
 await p.waitForFunction(() => !!globalThis.__mamApp, null, { timeout: 30000 });
 await p.waitForTimeout(800);
+const byId = (id) => p.locator(`[data-testid="${id}"]`).first();
+const storyLen = () => p.evaluate(() => globalThis.__mamApp.story.length);
+/** Reads a story scene to its end, a tap per line (the intro must play, then go away). */
+async function readStory(tag) {
+  let taps = 0;
+  while ((await storyLen()) > 0 && taps < 40) {
+    if (tag && taps === 1) await p.screenshot({ path: `${shots}/rn_story_${tag}.png` });
+    await byId('story_next').click({ position: { x: 40, y: 200 } });
+    await p.waitForTimeout(150);
+    taps++;
+  }
+  return taps;
+}
+/** Taps a button the way a player would: any story scene in the way is read first. */
+async function press(id) {
+  await readStory('');
+  await byId(id).click();
+}
+if ((await storyLen()) === 0) fail.push('the intro story did not start');
+await readStory('intro');
 await p.screenshot({ path: `${shots}/rn_village.png` });
 const st = () => p.evaluate(() => { const s = globalThis.__mamApp.state; return { coins: s.coins, bucket: s.bucket.length, catches: s.stats.catches, trips: s.stats.trips, jars: s.jars.map((j) => j.sealed), shelf: s.shelf.length, sold: s.stats.sold }; });
-const byId = (id) => p.locator(`[data-testid="${id}"]`).first();
 
 /** One fishing trip, played like a person: hold to cast, tap the bite, reel by watching the tension. */
 async function fishTrip(tag) {
-  await byId('go_fishing').click();
+  await press('go_fishing');
   await p.waitForFunction(() => !!globalThis.__mamTrip, null, { timeout: 10000 });
+  await p.waitForTimeout(200);
+  await readStory(tag === '1' ? 'sea' : '');
   const water = await byId('water').boundingBox();
   const cx = water.x + water.width / 2;
   const cy = water.y + water.height * 0.55;
   let shot = false;
   for (let guard = 0; guard < 400; guard++) {
+    if ((await storyLen()) > 0) {
+      await p.mouse.up();
+      await readStory('chain');
+      continue;
+    }
     const ph = await p.evaluate(() => globalThis.__mamTrip.phase);
     if (ph === 'done') break;
     if (ph === 'aim') {
@@ -59,44 +85,74 @@ async function fishTrip(tag) {
   }
   await p.mouse.up();
   await p.screenshot({ path: `${shots}/rn_trip_${tag}.png` });
-  await byId('dock').click();
+  await press('dock');
   await p.waitForTimeout(500);
+  await readStory('');
 }
 
 await fishTrip('1');
 let s1 = await st();
 if (s1.catches < 3) fail.push(`trip 1 caught only ${s1.catches}`);
 // fill the first jar with the best 3 and seal it
-await byId('fill_0').click();
+await press('fill_0');
 await p.waitForTimeout(400);
 await p.screenshot({ path: `${shots}/rn_fill.png` });
-await byId('best3').click();
-await byId('seal').click();
+await press('best3');
+await press('seal');
 await p.waitForTimeout(400);
 if (!(await st()).jars[0]) fail.push('jar not sealed');
 await fishTrip('2'); // a full trip ages the jar
-await byId('open_0').click();
+await press('open_0');
 await p.waitForTimeout(300);
 for (let i = 0; i < 3; i++) {
-  await byId('knock').click();
+  await press('knock');
   await p.waitForTimeout(200);
 }
 await p.waitForTimeout(2800);
 await p.screenshot({ path: `${shots}/rn_reveal.png` });
-await byId('sell').click();
+await press('sell');
 await p.waitForTimeout(400);
 const s2 = await st();
 if (s2.sold < 1) fail.push('bottle not sold');
 // the save survives a reload (SQLite-backed localStorage on phones; the browser's here)
 await p.reload();
 await p.waitForFunction(() => !!globalThis.__mamApp, null, { timeout: 30000 });
+await p.waitForTimeout(500);
+await readStory('sale'); // Bà Năm's line about the first sale plays back in the village
 const s3 = await st();
 if (s3.coins !== s2.coins || s3.catches !== s2.catches) fail.push(`save lost on reload: ${JSON.stringify(s2)} vs ${JSON.stringify(s3)}`);
-await byId('market').click();
+await press('market');
 await p.waitForTimeout(300);
-await byId('tab_gear').click();
+await press('tab_gear');
 await p.waitForTimeout(300);
 await p.screenshot({ path: `${shots}/rn_market.png` });
+await press('close');
+await p.waitForTimeout(300);
+// the sea chart: the home sea is open, the next one explains why it's locked
+await press('seas');
+await p.waitForTimeout(300);
+await p.screenshot({ path: `${shots}/rn_seas.png` });
+await press('sail_reef');
+await p.waitForTimeout(300);
+if (!(await p.evaluate(() => !!globalThis.__mamApp.help))) fail.push('a locked sea did not explain itself');
+await press('help_ok');
+await press('close');
+await p.waitForTimeout(300);
+// settings: sound toggles are remembered
+await press('settings');
+await press('set_sound');
+if ((await p.evaluate(() => localStorage.getItem('mam_muted'))) !== '1') fail.push('sound toggle not saved');
+await press('set_sound');
+await p.screenshot({ path: `${shots}/rn_settings.png` });
+await press('close');
+await p.waitForTimeout(300);
+// fishing puzzle 1 opens from the puzzle hub and plays in the trip screen
+await press('puzzles');
+await p.waitForTimeout(300);
+await press('level_fishing_1');
+await p.waitForFunction(() => !!globalThis.__mamTrip?.puzzle, null, { timeout: 10000 });
+await p.waitForTimeout(400);
+await p.screenshot({ path: `${shots}/rn_fishing_puzzle.png` });
 console.log(JSON.stringify({ afterTrip1: s1, afterSale: s2, afterReload: s3 }));
 console.log(fail.length ? 'FAIL\n' + fail.join('\n') : 'react native web e2e passed');
 await b.close();

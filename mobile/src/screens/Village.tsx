@@ -1,6 +1,7 @@
 // The village hub: goal banner, the jars (fill / ageing / open), the bucket, and the way out to sea.
 import { Canvas, Circle, LinearGradient, Oval, Path, Rect, vec } from '@shopify/react-native-skia';
-import { ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { useEffect } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { careerTitle } from '@core/career';
 import { BALANCE } from '@core/data';
 import { goalPair, progressLabel } from '@core/goals';
@@ -11,7 +12,7 @@ import { islandUnlocked } from '@core/island';
 import { teamCap, teamSize } from '@core/team';
 import { dogPresent } from '@core/dog';
 import { C } from '../theme';
-import { useGame } from '../store';
+import { game, useGame } from '../store';
 import { CoinChip, GameButton, Panel } from '../ui';
 import type { Nav } from '../nav';
 
@@ -51,6 +52,8 @@ export function VillageScreen({ nav }: { nav: Nav }) {
   const { current, next } = goalPair(s);
   const lvl = levelForXp(s.xp);
   const fermentable = s.bucket.filter(canFerment).length;
+  // story beats that belong to the hub (the intro, first sale, chapters) play when you're back here
+  useEffect(() => game.checkStory('village'), [s.stats.casts, s.stats.sold, s.stats.trips]);
   return (
     <View style={{ flex: 1 }}>
       <Scenery w={width} h={height} />
@@ -69,6 +72,9 @@ export function VillageScreen({ nav }: { nav: Nav }) {
             </View>
           </View>
         </View>
+        <Pressable testID="settings" accessibilityLabel="Settings" hitSlop={10} onPress={() => nav.go({ name: 'settings' })} style={styles.gear}>
+          <Text style={{ fontSize: 20 }}>⚙</Text>
+        </Pressable>
       </View>
       {current ? (
         <Panel style={styles.goal}>
@@ -77,15 +83,19 @@ export function VillageScreen({ nav }: { nav: Nav }) {
           {next ? <Text style={styles.goalNext}>Next: {next.text}</Text> : null}
         </Panel>
       ) : null}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={styles.tools}>
+        <GameButton testID="seas" label="🧭 Seas" size={13} color={C.sea} onPress={() => nav.go({ name: 'seas' })} />
+        {s.stats.trips >= 1 ? <GameButton testID="puzzles" label="🧩 Puzzles" size={13} color={C.purple} onPress={() => nav.go({ name: 'puzzles' })} /> : null}
       {islandUnlocked(s) ? (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={styles.tools}>
+        <>
           <GameButton testID="island" label="🏝 Island" size={13} color={C.good} onPress={() => nav.go({ name: 'island' })} />
           <GameButton testID="team" label={`Team ${teamSize(s)}/${teamCap(s)}`} size={13} color={C.good} onPress={() => nav.go({ name: 'team' })} />
           <GameButton testID="how" label="How it’s made" size={13} color={C.accent} onPress={() => nav.go({ name: 'production' })} />
           <GameButton testID="road" label="Road" size={13} color="#d4a017" onPress={() => nav.go({ name: 'road' })} />
           {dogPresent(s) ? <GameButton testID="dog" label="🐕 Mực" size={13} color="#6b4a2a" onPress={() => nav.go({ name: 'dog' })} /> : null}
-        </ScrollView>
+        </>
       ) : null}
+      </ScrollView>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.jars}>
         {s.jars.map((j, i) => {
           const st = jarState(s, j, now);
@@ -125,6 +135,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 11, fontWeight: '800', color: 'rgba(43,33,24,0.7)' },
   xpBar: { height: 7, borderRadius: 4, backgroundColor: 'rgba(43,33,24,0.12)', marginTop: 3, overflow: 'hidden' },
   xpFill: { height: 7, backgroundColor: C.purple },
+  gear: { width: 44, height: 44, borderRadius: 22, backgroundColor: C.paper, borderWidth: 3, borderColor: C.ink, alignItems: 'center', justifyContent: 'center' },
   goal: { marginHorizontal: 12, marginTop: 8 },
   tools: { gap: 6, paddingHorizontal: 12, paddingTop: 8 },
   goalText: { fontSize: 17, fontWeight: '900', color: C.ink },
