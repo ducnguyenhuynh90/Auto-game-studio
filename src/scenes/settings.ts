@@ -134,9 +134,17 @@ export class SettingsOverlay implements Scene {
 
     // ----- Privacy -----
     text(ctx, 'PRIVACY', 30, y, 12, 'rgba(43,33,24,0.6)', 'left', 900);
+    const ga = this.game.ga;
+    if (ga) {
+      // Google Analytics: the player's choice, changeable any time
+      text(ctx, 'Share play stats (Google Analytics)', 30, y + 22, 12, COLORS.ink, 'left', 800);
+      this.game.button(ctx, 'ga_toggle', W - 120, y + 6, 90, 32, ga.enabled ? 'On' : 'Off', () => ga.setConsent(!ga.enabled), { color: ga.enabled ? COLORS.good : '#8a7a66', dark: ga.enabled ? '#2f7a3b' : '#5f5244', size: 14 });
+      y += 40;
+    }
     const lines = [
       'We keep your game save and anonymous play statistics',
-      '(which screens, how far you got) to improve the game.',
+      `(which screens, how far you got) to improve the game.${ga ? ' With' : ''}`,
+      ...(ga ? ['your OK they go to Google Analytics (no cookies, no name).'] : []),
       'Accounts store a player id, your first name and how you sign in.',
       'No ads. We never use or sell your email (the login keeps it).',
     ];

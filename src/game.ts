@@ -84,6 +84,8 @@ export class Game {
   private floats: FloatText[] = [];
   /** Accounts and cloud save (null until boot wires it). */
   account: AccountManager | null = null;
+  /** Google Analytics, on builds that have it (analytics/ga.ts); the player decides once. */
+  ga: { askNeeded: boolean; enabled: boolean; setConsent(yes: boolean): void } | null = null;
   /** 3D world layer; null in headless tests. */
   world: World | null = null;
   coinPulse = 0;

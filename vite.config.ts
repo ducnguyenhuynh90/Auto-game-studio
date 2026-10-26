@@ -26,10 +26,12 @@ const artifact = process.env.ARTIFACT === '1';
 // Supabase is preferred; Firebase is only used when Supabase isn't configured.
 const supabase = !artifact && !!process.env.VITE_SUPABASE_URL && !!process.env.VITE_SUPABASE_ANON_KEY;
 const firebase = !artifact && !supabase && !!process.env.VITE_FIREBASE_API_KEY;
+// Google Analytics 4: self-hosted builds with a Measurement ID (docs/ANALYTICS.md)
+const ga = !artifact && !!process.env.VITE_GA_MEASUREMENT_ID;
 
 export default defineConfig({
   base: './',
-  define: { __FIREBASE__: JSON.stringify(firebase), __SUPABASE__: JSON.stringify(supabase) },
+  define: { __FIREBASE__: JSON.stringify(firebase), __SUPABASE__: JSON.stringify(supabase), __GA__: JSON.stringify(ga) },
   plugins: artifact ? [] : [serviceWorker()],
   build: {
     outDir: artifact ? 'dist-artifact/build' : 'dist',

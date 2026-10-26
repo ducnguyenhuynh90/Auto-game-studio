@@ -26,6 +26,8 @@ jobs:
           # player accounts + cloud saves (see docs/TECHNICAL.md); empty = guest-only build
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          # Google Analytics 4 (docs/ANALYTICS.md); empty = no GA
+          VITE_GA_MEASUREMENT_ID: ${{ secrets.VITE_GA_MEASUREMENT_ID }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

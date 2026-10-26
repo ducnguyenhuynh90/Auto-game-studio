@@ -72,6 +72,8 @@ button rules, safe areas, account deletion, sign-in flow) is covered by `npm tes
 4. **Supabase:** Auth → URL Configuration → Redirect URLs: add `com.mamvillage.app://auth/callback`.
    Apply the new migration (`20261026000000_delete_account.sql`) in the SQL editor.
 5. **Store forms** (both stores ask; answers come from what the code really does):
+   - Google Analytics (if the GA secret is set): anonymous app-activity and game-progress events shared
+     with Google for analytics, only after the player agrees; no advertising, no cross-app tracking.
    - Data collected: a player id (Supabase user id), first name from a linked social login, sign-in
      method, the game save and progress summary, anonymous gameplay events (screens, funnel steps,
      errors) tied to a random install id. No location, contacts, photos, ads or tracking across apps.

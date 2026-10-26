@@ -172,3 +172,11 @@ built, but as ONE connected system rather than separate features:
   Existing buildings are never taken away; the founder's own save keeps what it built.
 - The Tour Office arrives with a free hire and an explicit "why": tourists come because you are known.
 - The World Fish Sauce Awards are fictional; the title is decided by three entries, no random judging.
+
+## D-020 · 2026-10-26 · Founder request: Google Analytics for the full funnel and every event
+- GA4 as a second sink of the existing analytics bus: every event, the funnel, GA's game events and
+  player progress properties. Web on Pages and the native apps; not the claude.ai artifact.
+- Privacy defaults chosen by the studio, **open for founder/legal review**: ask once (opt-in), no cookies,
+  install id as client id, ad features off. `VITE_GA_CONSENT=granted` exists if legal advice says a prompt
+  isn't needed in the target markets; EU/UK players need consent for analytics cookies/identifiers.
+- Store privacy labels and the privacy policy must mention Google Analytics before launch.

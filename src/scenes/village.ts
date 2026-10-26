@@ -16,6 +16,7 @@ import { ProductionOverlay } from './production';
 import { DogOverlay } from './dog';
 import { RoadOverlay, StageUpOverlay } from './career';
 import { TeamOverlay } from './team';
+import { ConsentOverlay } from './consent';
 import { teamCap, teamSize } from '../core/team';
 import { careerTitle, worldChampion } from '../core/career';
 import { DexOverlay } from './dex';
@@ -156,6 +157,8 @@ export class VillageScene implements Scene {
     const id = g?.id ?? '';
     // Relics earned anywhere get their big moment back in the village.
     if (this.game.relicQueue.length && this.game.overlays.length === 0) this.game.push(new RelicOverlay(this.game, this.game.relicQueue.shift()!));
+    // builds with Google Analytics ask once, after the first catch (scenes/consent.ts)
+    if (this.game.ga?.askNeeded && this.game.state.stats.catches > 0 && this.game.overlays.length === 0 && this.t > 1) this.game.push(new ConsentOverlay(this.game));
     // a finished career stage gets its own moment: new title, reward, what it unlocks
     if (this.game.careerQueue.length && this.game.overlays.length === 0) this.game.push(new StageUpOverlay(this.game, this.game.careerQueue.shift()!));
     // story beats play in the village once their moment has come (after any relic celebration)
