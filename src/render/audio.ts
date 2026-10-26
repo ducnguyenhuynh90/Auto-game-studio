@@ -1,8 +1,26 @@
 // Procedural WebAudio sound effects: no asset pipeline needed while we iterate on feel.
-let ctx: AudioContext | null = null;
-let muted = false;
+import { Ambience } from './ambience';
 
-let ambientGain: GainNode | null = null;
+let ctx: AudioContext | null = null;
+let ambience: Ambience | null = null;
+
+const read = (k: string, fallback: boolean): boolean => {
+  try {
+    const v = localStorage.getItem(k);
+    return v === null ? fallback : v === '1';
+  } catch {
+    return fallback;
+  }
+};
+const write = (k: string, v: boolean): void => {
+  try {
+    localStorage.setItem(k, v ? '1' : '0');
+  } catch {
+    /* private mode: the choice lasts this session */
+  }
+};
+let muted = read('mam_muted', false);
+let music = read('mam_music', true);
 
 export function unlockAudio(): void {
   if (ctx) {
@@ -17,52 +35,40 @@ export function unlockAudio(): void {
   }
 }
 
-/** Soft looping surf (filtered noise with a slow swell) plus an occasional gull. */
+/** The beach: surf, breeze, a far gull and a slow melody (render/ambience.ts). */
 function startAmbient(): void {
   if (!ctx) return;
-  const len = ctx.sampleRate * 4;
-  const buf = ctx.createBuffer(1, len, ctx.sampleRate);
-  const d = buf.getChannelData(0);
-  let last = 0;
-  for (let i = 0; i < len; i++) {
-    last = last * 0.97 + (Math.random() * 2 - 1) * 0.03; // brown-ish noise
-    d[i] = last * 6;
-  }
-  const src = ctx.createBufferSource();
-  src.buffer = buf;
-  src.loop = true;
-  const filter = ctx.createBiquadFilter();
-  filter.type = 'lowpass';
-  filter.frequency.value = 700;
-  ambientGain = ctx.createGain();
-  ambientGain.gain.value = muted ? 0 : 0.05;
-  // the swell modulates its own stage so muting (ambientGain → 0) silences it completely
-  const swellStage = ctx.createGain();
-  swellStage.gain.value = 1;
-  const swell = ctx.createOscillator();
-  swell.frequency.value = 0.12;
-  const swellDepth = ctx.createGain();
-  swellDepth.gain.value = 0.5;
-  swell.connect(swellDepth).connect(swellStage.gain);
-  src.connect(filter).connect(swellStage).connect(ambientGain).connect(ctx.destination);
-  src.start();
-  swell.start();
-  const gull = () => {
-    if (!muted && ctx && ctx.state === 'running') {
-      tone(1400, 0.18, 'sine', 0.025, 900);
-      tone(1500, 0.22, 'sine', 0.02, 1000, 0.22);
-    }
-    setTimeout(gull, 9000 + Math.random() * 14000);
+  ambience = new Ambience(ctx, ctx.destination, { sea: muted ? 0 : 1, music: muted || !music ? 0 : 1 });
+  const pump = () => {
+    // look 3 s ahead on the audio clock; a suspended context (app in background) just waits
+    if (ctx && ctx.state === 'running') ambience?.scheduleUntil(ctx.currentTime + 3);
   };
-  setTimeout(gull, 6000);
+  pump();
+  setInterval(pump, 1000);
+}
+
+function applyLevels(): void {
+  if (!ambience || !ctx) return;
+  ambience.sea.gain.setTargetAtTime(muted ? 0 : 1, ctx.currentTime, 0.3);
+  ambience.music.gain.setTargetAtTime(muted || !music ? 0 : 1, ctx.currentTime, 0.6);
 }
 
 export function setMuted(m: boolean): void {
   muted = m;
-  if (ambientGain && ctx) ambientGain.gain.setTargetAtTime(m ? 0 : 0.05, ctx.currentTime, 0.2);
+  write('mam_muted', m);
+  applyLevels();
 }
 export function isMuted(): boolean {
   return muted;
+}
+/** The calm melody over the waves (Settings → Music). */
+export function setMusic(on: boolean): void {
+  music = on;
+  write('mam_music', on);
+  applyLevels();
+}
+export function isMusicOn(): boolean {
+  return music;
 }
 
 function tone(freq: number, dur: number, type: OscillatorType = 'sine', vol = 0.15, slideTo?: number, delay = 0): void {

@@ -33,7 +33,11 @@ import {
   makeMarket,
   makePalm,
   makeSaltPile,
+  makeJunk,
+  makeKarst,
+  makeRaftHouse,
   makeSunburst,
+  makeTrongMai,
   mesh,
   outline,
   toon,
@@ -305,28 +309,57 @@ class FishingRig {
       tree.position.x = x * 1.08;
       delta.add(tree);
     });
-    // Dragon Bay: limestone karst towers (inspired by Hạ Long Bay)
+    // Hạ Long Bay: emerald water between limestone islands, red-sailed junks and a floating village
     const bay = group('bay');
-    const karst = (x: number, z: number, h: number) => {
-      const g = new THREE.Group();
-      const rock = mesh(new THREE.CylinderGeometry(0.5 * h * 0.35, 0.75 * h * 0.35, h, 7), toon('#9aa59a'), false);
-      rock.position.y = h / 2 - 0.2;
-      g.add(rock);
-      const cap = mesh(new THREE.SphereGeometry(0.55 * h * 0.35, 8, 6), toon('#5f9a52'), false);
-      cap.position.y = h - 0.2;
-      cap.scale.y = 0.6;
-      g.add(cap);
-      g.position.set(x, 0, z);
-      return g;
-    };
-    sides.forEach(([x, z], i) => bay.add(karst(x * 1.15, z, 1.1 + (i % 3) * 0.6)));
-    for (const [x, z, h] of [
-      [-9, -30, 9],
-      [-3, -36, 6],
-      [6, -33, 11],
-      [13, -28, 7],
-    ] as const)
-      bay.add(karst(x, z, h));
+    // edges of the casting lane: karst islands, Hòn Trống Mái and a floating village
+    sides.forEach(([x, z], i) => {
+      if (i === 3) {
+        // a little floating village on the right
+        for (const [dx, dz, r, k] of [
+          [0, 0, 0.3, 0],
+          [0.6, -1.5, -0.2, 1],
+        ] as const) {
+          const raft = makeRaftHouse(k);
+          raft.position.set(x + dx, 0, z + dz);
+          raft.rotation.y = r;
+          raft.scale.setScalar(0.8);
+          raft.name = 'raft';
+          bay.add(raft);
+        }
+        return;
+      }
+      if (i === 4) {
+        const tm = makeTrongMai();
+        tm.position.set(x * 1.05, 0, z);
+        tm.scale.setScalar(0.75);
+        tm.rotation.y = 0.5;
+        bay.add(tm);
+        return;
+      }
+      const k = makeKarst(1.3 + (i % 3) * 0.55, i);
+      k.position.set(x * 1.18, 0, z);
+      bay.add(k);
+    });
+    // far islands fading into the haze
+    for (const [x, z, h, k] of [
+      [-12, -26, 7, 1],
+      [-6, -34, 10, 2],
+      [0.5, -40, 6, 3],
+      [7, -31, 12, 4],
+      [14, -25, 8, 5],
+    ] as const) {
+      const isle = makeKarst(h, k);
+      isle.position.set(x, 0, z);
+      bay.add(isle);
+    }
+    // a junk sailing slowly across the top of the bay
+    const junk = makeJunk();
+    junk.position.set(-1.5, 0, -14.5);
+    junk.rotation.y = 0.25;
+    junk.scale.setScalar(0.7);
+    junk.name = 'junk';
+    junk.userData.home = -1.5;
+    bay.add(junk);
     // The Abyss: dark spires and glowing jellyfish
     const trench = group('trench');
     sides.forEach(([x, z], i) => {
@@ -386,6 +419,16 @@ class FishingRig {
     if (home?.visible) for (const b of home.children) if (b.name === 'buoy') b.position.y = 0.06 + Math.sin(t * 2 + b.position.z) * 0.04;
     const jellies = this.props.get('trench');
     if (jellies?.visible) for (const j of jellies.children) if (j.name === 'jelly') j.position.y = -0.05 + Math.sin(t * 1.5 + j.position.x) * 0.12;
+    const bayProps = this.props.get('bay');
+    if (bayProps?.visible)
+      for (const o of bayProps.children) {
+        if (o.name === 'junk') {
+          // drift a few metres back and forth, rocking on the swell
+          o.position.x = (o.userData.home as number) + Math.sin(t * 0.05 + o.position.z) * 3;
+          o.position.y = Math.sin(t * 1.1 + o.position.z) * 0.06;
+          o.rotation.z = Math.sin(t * 0.9 + o.position.z) * 0.04;
+        } else if (o.name === 'raft') o.position.y = Math.sin(t * 1.3 + o.position.x) * 0.03;
+      }
     this.setBoat(game.state.upgrades.boat);
     this.setRod(game.state.upgrades.rod);
     // Rùa rides along once the Lagoon story is done

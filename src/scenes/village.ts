@@ -207,10 +207,11 @@ export class VillageScene implements Scene {
     const canAfford = (ids: UpgradeId[]) => ids.some((id) => s.coins >= (upgradeCost(s, id) ?? Infinity));
     const dogPt = this.game.world?.village.dogScreen();
     switch (g.id) {
+      // the hand shows players where Mực is once; after that his "Hungry!" tag is enough
       case 'dog_feed':
-        return s.bucket.length && dogPt ? { x: dogPt.x, y: dogPt.y - 70 } : fishBtn;
+        return s.bucket.length && dogPt ? (s.dog.met ? null : { x: dogPt.x, y: dogPt.y - 70 }) : fishBtn;
       case 'dog_home':
-        return dogPt && s.coins >= 60 ? { x: dogPt.x, y: dogPt.y - 70 } : fishBtn;
+        return dogPt && s.coins >= 60 ? (s.dog.met ? null : { x: dogPt.x, y: dogPt.y - 70 }) : fishBtn;
       case 'dog_boat':
         return fishBtn;
       case 'seal1': {
@@ -268,7 +269,13 @@ export class VillageScene implements Scene {
     const p = this.game.world?.village.dogScreen();
     if (!p) return;
     const s = this.game.state;
-    this.game.hitArea('dog', p.x - 40, p.y - 50, 80, 80, () => this.game.push(new DogOverlay(this.game)));
+    this.game.hitArea('dog', p.x - 40, p.y - 50, 80, 80, () => {
+      if (!s.dog.met) {
+        s.dog.met = true;
+        this.game.commit();
+      }
+      this.game.push(new DogOverlay(this.game));
+    });
     const wants = s.dog.fed < 3 ? (s.bucket.length ? 'Hungry!' : '') : !s.dog.house ? 'Home?' : '';
     if (wants) {
       const b = 1 + Math.sin(this.t * 5) * 0.06;

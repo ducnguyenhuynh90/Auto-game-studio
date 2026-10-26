@@ -36,7 +36,7 @@ Gameplay mirror: the overcast **tangle** is Lan's flaw made tactile; **aging sta
 | **Rùa** (Old Turtle) | Sidekick | Ancient sea turtle who joins Lan's boat after the Phú Quốc story (the Turtle Buddy relic). Never speaks; blinks. Secretly the guardian of the five seas. | Mossy shell, a barnacle "crown". Comic timing: slow blink after Lan rushes. |
 | **Ông Tốc** (Mr. Tốc, "Speed") | Rival / mirror | Owner of **InstaMắm Co.**, factory fish sauce in 3 minutes. Wants to buy the village jars. Not evil: grew up poor and believes speed is the only way out. **He is Lan's flaw grown up.** | Shiny suit, sunglasses, a stopwatch he checks constantly. |
 | **Chú Tư** (Uncle Tư) | Delta guide | Prawn fisherman who loves mắm tôm and jokes about its smell. Teaches humility: good things can smell bad. | Muddy boots, laughs at his own jokes. |
-| **Cô Hạnh** (Ms. Hạnh) | Dragon Bay guide | Lighthouse keeper who tells the legend of **cá chép hóa rồng**, the carp that leaps the Dragon Gate and becomes a dragon. | Lantern, calm voice, knows every tide. |
+| **Cô Hạnh** (Ms. Hạnh) | Hạ Long Bay guide | Lighthouse keeper who tells the legend of **cá chép hóa rồng**, the carp that leaps the Dragon Gate and becomes a dragon. | Lantern, calm voice, knows every tide. |
 
 ## 3 · The Story Spine (Pixar)
 
@@ -58,7 +58,7 @@ Gameplay mirror: the overcast **tangle** is Lan's flaw made tactile; **aging sta
 | 1 · Phú Quốc | *Fresh Hands of Phú Quốc* | Care: fresh fish, gentle line. | Bà Năm | "The recipe begins with care." (Turtle Buddy joins) |
 | 2 · Coral Reef | *Into the Deep* | Courage: go where it's scary. | Rùa | "Rare fish from deep water." (Ancient Compass) |
 | 3 · Mangrove Delta | *Muddy Roots* | Humility: the smelliest jar can be the best. | Chú Tư | "The jar must breathe." (Dragon Jar Glaze) |
-| 4 · Dragon Bay | *The Dragon Gate* | Perseverance: the carp leaps a thousand times. | Cô Hạnh | "Wait for the right moment." (Storm Kite) |
+| 4 · Hạ Long Bay | *The Dragon Gate* | Perseverance: the carp leaps a thousand times. | Cô Hạnh | "Wait for the right moment." (Storm Kite) |
 | 5 · The Abyss | *The Longest Fish* | Patience: let go of shortcuts. | Rùa + Bà Năm | "The secret is time." (Heart of the Sea) |
 
 ## 5 · Mission framing

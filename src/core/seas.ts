@@ -87,9 +87,9 @@ export const SEAS: Sea[] = [
   },
   {
     id: 'bay',
-    name: 'Dragon Bay',
-    local: 'Vịnh Rồng',
-    blurb: 'Limestone towers. Legends swim here.',
+    name: 'Hạ Long Bay',
+    local: 'Vịnh Hạ Long · where the dragon came down',
+    blurb: 'Emerald water, a thousand limestone islands. Legends swim here.',
     boat: 2,
     after: 'delta',
     gadgets: ['rocket', 'octo', 'pearl'],

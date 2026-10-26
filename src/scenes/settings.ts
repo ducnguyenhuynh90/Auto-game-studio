@@ -1,6 +1,6 @@
 // Settings & account: sign-in for cloud save, save-conflict choice, sound, graphics quality, privacy.
 import { AccountManager, type SocialProvider } from '../auth/account';
-import { isMuted, setMuted } from '../render/audio';
+import { isMusicOn, isMuted, setMusic, setMuted } from '../render/audio';
 import { loadQualitySetting, type QualitySetting } from '../render3d/quality';
 import { COLORS, H, W, clamp01, ease, outlinedText, panel, rr, text, type Ctx } from '../render/draw';
 import type { Game, Scene } from '../game';
@@ -101,6 +101,12 @@ export class SettingsOverlay implements Scene {
     // ----- Sound -----
     text(ctx, 'SOUND', 30, y, 12, 'rgba(43,33,24,0.6)', 'left', 900);
     this.game.button(ctx, 'sound', W - 150, y - 16, 120, 34, isMuted() ? 'Off' : 'On', () => setMuted(!isMuted()), { color: isMuted() ? '#8a7a66' : COLORS.good, dark: isMuted() ? '#5f5244' : '#2f7a3b', size: 15 });
+    y += 46;
+    // the slow melody over the waves; the surf stays with Sound
+    const mus = isMusicOn() && !isMuted();
+    text(ctx, 'MUSIC', 30, y, 12, 'rgba(43,33,24,0.6)', 'left', 900);
+    text(ctx, 'calm melody over the waves', 84, y, 10.5, 'rgba(43,33,24,0.5)', 'left', 600);
+    this.game.button(ctx, 'music', W - 150, y - 16, 120, 34, mus ? 'On' : 'Off', () => setMusic(!isMusicOn()), { color: mus ? COLORS.good : '#8a7a66', dark: mus ? '#2f7a3b' : '#5f5244', size: 15, disabled: isMuted() });
     y += 46;
 
     // ----- Graphics -----

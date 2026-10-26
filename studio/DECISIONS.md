@@ -155,3 +155,12 @@ built, but as ONE connected system rather than separate features:
 - App id `com.mamvillage.app` (permanent after the first upload): founder confirms.
 - Founder decisions and money: Google Play (US$25 once), Apple Developer (US$99/yr), privacy policy text,
   store data-safety answers, encryption declaration. Nothing is submitted to a store without approval.
+
+## D-018 · 2026-10-26 · Founder request: Hạ Long Bay or Hoàng Sa / Trường Sa
+- Chose Hạ Long Bay: the existing "Dragon Bay" sea was already modelled on it, so it became Hạ Long by
+  name, scenery and legend, and every save keeps working (id `bay` unchanged).
+- Hoàng Sa / Trường Sa not added: they are subject to an active sovereignty dispute, and showing them
+  on a map in a game has led to store removals and bans in some markets. That is a legal / market
+  decision for the founder (studio rule: legal/compliance-sensitive changes need approval).
+- Ambience is procedural (no audio files, no licences), quiet under the sound effects (surf ≈ -39 dB RMS,
+  melody ≈ -42 dB), and the melody has its own switch.

@@ -569,7 +569,7 @@ export function makeBoat(level: number): THREE.Group {
 }
 
 /** Junk with battened red sails, the classic silhouette of the Gulf of Tonkin. */
-function makeJunk(): THREE.Group {
+export function makeJunk(): THREE.Group {
   const g = makeWoodenBoat();
   const oldSail = g.children.filter((c) => (c as THREE.Mesh).geometry?.type === 'ShapeGeometry');
   for (const c of oldSail) g.remove(c);
@@ -1305,5 +1305,101 @@ export function makeDogHouse(): THREE.Group {
   const bowl = mesh(new THREE.CylinderGeometry(0.12, 0.09, 0.07, 12), toon('#3a8fd9'), false);
   bowl.position.set(0.5, 0.04, 0.35);
   g.add(bowl);
+  return g;
+}
+
+// ---------- Hạ Long Bay ----------
+const KARST_ROCK = ['#aab4a6', '#9ea99b', '#b3b9ac'];
+
+/**
+ * A Hạ Long limestone island: a tall, slightly leaning stack, undercut at the waterline by the waves
+ * (the famous notch), with jungle draped over its shoulders and crown. `k` varies the shape.
+ */
+export function makeKarst(h: number, k = 0): THREE.Group {
+  const g = new THREE.Group();
+  const r = h * 0.3;
+  const rock = toon(KARST_ROCK[k % KARST_ROCK.length]);
+  // the wave-cut notch: a narrow, darker waist just above the water
+  const notch = mesh(new THREE.CylinderGeometry(r * 0.72, r * 0.8, h * 0.12, 8), toon('#6f7a70'), false);
+  notch.position.y = h * 0.06 - 0.15;
+  g.add(notch);
+  // stacked, slightly offset blocks read as weathered limestone
+  const blocks = 3 + (k % 2);
+  let y = h * 0.12 - 0.15;
+  for (let i = 0; i < blocks; i++) {
+    const bh = (h * 0.88) / blocks;
+    const top = r * (0.95 - i * 0.14 - (k % 3) * 0.03);
+    const bottom = r * (1.05 - i * 0.12);
+    const b = mesh(new THREE.CylinderGeometry(top, bottom, bh, 7), rock, false);
+    b.position.set(Math.sin(i * 1.7 + k) * r * 0.08, y + bh / 2, Math.cos(i * 2.3 + k) * r * 0.06);
+    b.rotation.y = i * 0.6 + k;
+    g.add(b);
+    y += bh;
+  }
+  // jungle: a crown and a few clumps clinging to ledges
+  const green = toon(k % 2 ? '#4f8f46' : '#5c9a4c');
+  const crown = mesh(new THREE.SphereGeometry(r * 0.78, 8, 6), green, false);
+  crown.position.y = y - r * 0.12;
+  crown.scale.y = 0.55;
+  g.add(crown);
+  for (let i = 0; i < 3; i++) {
+    const a = i * 2.1 + k;
+    const clump = mesh(new THREE.SphereGeometry(r * (0.32 - i * 0.04), 7, 5), green, false);
+    clump.position.set(Math.cos(a) * r * 0.85, h * (0.45 + i * 0.15), Math.sin(a) * r * 0.85);
+    clump.scale.y = 0.7;
+    g.add(clump);
+  }
+  g.rotation.z = ((k % 5) - 2) * 0.03; // a gentle lean
+  return g;
+}
+
+/** Hòn Trống Mái, the "rooster and hen" rocks: two stones balanced on narrow feet, leaning together. */
+export function makeTrongMai(): THREE.Group {
+  const g = new THREE.Group();
+  const rock = toon('#a3ad9f');
+  for (const [x, h, lean] of [
+    [-0.55, 2.4, 0.22],
+    [0.55, 1.9, -0.2],
+  ] as const) {
+    const stone = mesh(new THREE.SphereGeometry(0.55, 9, 8), rock, false);
+    stone.scale.set(0.9, h / 1.1, 0.8);
+    stone.position.set(x, h / 2 + 0.25, 0);
+    stone.rotation.z = lean;
+    g.add(stone);
+    const foot = mesh(new THREE.CylinderGeometry(0.16, 0.3, 0.45, 7), toon('#7a857a'), false);
+    foot.position.set(x * 0.9, 0.05, 0);
+    g.add(foot);
+  }
+  const ledge = mesh(new THREE.CylinderGeometry(1.4, 1.6, 0.3, 9), toon('#8d978a'), false);
+  ledge.position.y = -0.1;
+  g.add(ledge);
+  return g;
+}
+
+/** A floating fisher home (nhà bè): a plank raft, a little house, nets drying on a pole. */
+export function makeRaftHouse(k = 0): THREE.Group {
+  const g = new THREE.Group();
+  const raft = mesh(new THREE.BoxGeometry(1.6, 0.12, 1.1), toon('#8a6438'), false);
+  raft.position.y = 0.02;
+  g.add(raft);
+  for (const z of [-0.5, 0.5]) {
+    const drum = mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.5, 8), toon('#3f6f9f'), false);
+    drum.rotation.z = Math.PI / 2;
+    drum.position.set(0, -0.06, z);
+    g.add(drum);
+  }
+  const house = mesh(new THREE.BoxGeometry(0.8, 0.55, 0.7), toon(['#e8d8b8', '#f0e2c8', '#dfe8ea'][k % 3]), false);
+  house.position.set(-0.25, 0.36, 0);
+  g.add(house);
+  const roof = mesh(new THREE.ConeGeometry(0.62, 0.38, 4), toon(k % 2 ? '#3f7fae' : '#c0392b'), false);
+  roof.position.set(-0.25, 0.82, 0);
+  roof.rotation.y = Math.PI / 4;
+  g.add(roof);
+  const pole = mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.9), toon('#6e4423'), false);
+  pole.position.set(0.55, 0.5, 0.3);
+  g.add(pole);
+  const net = mesh(new THREE.BoxGeometry(0.02, 0.45, 0.5), new THREE.MeshBasicMaterial({ color: '#d9cba8', transparent: true, opacity: 0.6 }), false);
+  net.position.set(0.55, 0.6, 0.05);
+  g.add(net);
   return g;
 }

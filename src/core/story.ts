@@ -199,7 +199,7 @@ export const SCENES: StoryScene[] = [
       { who: 'toc', text: 'Strange. My factory sauce tastes… flat this year. Customers noticed.' },
       { who: 'lan', text: 'Maybe it needs time, Mr. Tốc. Jars have to breathe.' },
       { who: 'toc', text: 'Time is money, kid. …Isn\'t it?' },
-      { who: 'nam', text: 'Go to Dragon Bay. Ask Cô Hạnh about the carp who would not give up.' },
+      { who: 'nam', text: 'Go to Hạ Long Bay. Ask Cô Hạnh about the carp who would not give up.' },
     ],
   },
   {
@@ -208,7 +208,9 @@ export const SCENES: StoryScene[] = [
     chapter: { number: 'Chapter 4', title: 'The Dragon Gate' },
     when: (s) => s.sea === 'bay',
     lines: [
-      { who: 'hanh', text: 'Do you know the legend? A carp swam upriver to the Dragon Gate falls.' },
+      { who: 'hanh', text: 'Welcome to Hạ Long, "where the dragon came down". Look at all these islands.' },
+      { who: 'hanh', text: 'Long ago, dragons came to guard this coast. The jewels they spat became these islands.' },
+      { who: 'hanh', text: 'And do you know the other legend? A carp swam upriver to the Dragon Gate falls.' },
       { who: 'hanh', text: 'It leapt and fell a thousand times. On the last leap, it became a dragon.' },
       { who: 'lan', text: 'A thousand times? I get grumpy after three missed bites…' },
       { who: 'hanh', text: 'Then this bay will teach you. The Dragon Carp only bites for the patient.' },

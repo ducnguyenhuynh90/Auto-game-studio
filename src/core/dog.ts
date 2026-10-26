@@ -9,6 +9,8 @@ export interface DogState {
   house: boolean;
   /** Fish caught with Mực on board. */
   catches: number;
+  /** The player has tapped Mực once: the tutorial hand stops pointing at him. */
+  met?: boolean;
 }
 
 export function newDog(): DogState {

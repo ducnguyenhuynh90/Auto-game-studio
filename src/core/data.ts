@@ -51,7 +51,7 @@ export const SPECIES: Species[] = [
   { id: 'prawn', name: 'Giant River Prawn', local: 'Tôm càng xanh', rarity: 2, seas: ['delta'], weight: 20, size: [15, 30], sauce: 17, raw: 18, difficulty: 0.35, color: '#5f8fc9', belly: '#d8e6f5', fin: '#f08a3a', depth: 0.3, food: 1, shape: 'prawn' },
   { id: 'mudskipper', name: 'Mudskipper', local: 'Cá thòi lòi', rarity: 2, seas: ['delta'], weight: 12, size: [10, 20], sauce: 0, raw: 25, difficulty: 0.25, color: '#9a8a5a', belly: '#e6dcb8', fin: '#5aa0d8', depth: 0.1, food: 1 },
   { id: 'snakehead', name: 'Snakehead', local: 'Cá lóc', rarity: 3, seas: ['delta'], weight: 9, size: [35, 80], sauce: 19, raw: 45, difficulty: 0.6, color: '#4b5a3a', belly: '#c9c2a0', fin: '#2f3a22', depth: 0.65, food: 3 },
-  // Dragon Bay
+  // Hạ Long Bay
   { id: 'cuttlefish', name: 'Cuttlefish', local: 'Mực nang', rarity: 2, seas: ['bay'], weight: 16, size: [20, 35], sauce: 19, raw: 24, difficulty: 0.4, color: '#c9a07a', belly: '#f2e2cc', fin: '#a07850', depth: 0.5, food: 2 },
   { id: 'barracuda', name: 'Barracuda', local: 'Cá nhồng', rarity: 3, seas: ['bay'], weight: 10, size: [50, 120], sauce: 18, raw: 50, difficulty: 0.7, color: '#7f97a8', belly: '#e8eef2', fin: '#4d6170', depth: 0.7, food: 3, shape: 'eel' },
   { id: 'lobster', name: 'Spiny Lobster', local: 'Tôm hùm', rarity: 3, seas: ['bay'], weight: 7, size: [25, 45], sauce: 0, raw: 90, difficulty: 0.55, color: '#3f8f8a', belly: '#e8a060', fin: '#c46a3a', depth: 0.85, food: 2, shape: 'lobster' },
@@ -173,7 +173,7 @@ export const UPGRADES: UpgradeDef[] = [
     levels: [
       { name: 'Basket Boat', cost: 0, desc: 'A round thúng chai. Phú Quốc waters only.' },
       { name: 'Wooden Boat', cost: 220, desc: 'Sail to the Coral Reef.' },
-      { name: 'Junk Sailboat', cost: 1500, desc: 'Sail to the Mangrove Delta and Dragon Bay.' },
+      { name: 'Junk Sailboat', cost: 1500, desc: 'Sail to the Mangrove Delta and Hạ Long Bay.' },
       { name: 'Iron Trawler', cost: 12000, desc: 'Brave the Abyss.' },
     ],
   },
