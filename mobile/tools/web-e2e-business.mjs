@@ -153,6 +153,13 @@ for (let ci = 0; ci < plan.length; ci++) {
 }
 await click('serve', 500);
 await shot('shop_done');
+// back to the hub: the living village shows the buildings, the workers and Mực
+await click('puzzle_done');
+while (await id('close').count()) await click('close', 400);
+await p.waitForTimeout(600);
+const fps = await p.evaluate(() => new Promise((res) => { let n = 0; const t0 = performance.now(); const f = () => (++n, performance.now() - t0 < 1000 ? requestAnimationFrame(f) : res(n)); requestAnimationFrame(f); }));
+if (fps < 20) fail.push(`village scene runs at ${fps} fps`);
+await shot('village_living');
 const s2 = await st();
 if (!(s2.puzzles.salt[0] > 0)) fail.push('salt 1 not recorded');
 if (!(s2.puzzles.shop[0] === 3)) fail.push(`shop 1 stars ${s2.puzzles.shop[0]}`);

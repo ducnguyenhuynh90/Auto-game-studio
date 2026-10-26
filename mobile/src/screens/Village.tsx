@@ -1,5 +1,4 @@
 // The village hub: goal banner, the jars (fill / ageing / open), the bucket, and the way out to sea.
-import { Canvas, Circle, LinearGradient, Oval, Path, Rect, vec } from '@shopify/react-native-skia';
 import { useEffect } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { careerTitle } from '@core/career';
@@ -12,6 +11,7 @@ import { islandUnlocked } from '@core/island';
 import { teamCap, teamSize } from '@core/team';
 import { dogPresent } from '@core/dog';
 import { C } from '../theme';
+import { LivingVillage } from '../scene/LivingVillage';
 import { game, useGame } from '../store';
 import { CoinChip, GameButton, Panel } from '../ui';
 import type { Nav } from '../nav';
@@ -19,30 +19,6 @@ import type { Nav } from '../nav';
 function jarState(s: ReturnType<typeof useGame>, j: Jar, now: number): 'empty' | 'ageing' | 'ready' {
   if (!j.sealed) return 'empty';
   return agingLevel(s, j, now) >= 1 ? 'ready' : 'ageing';
-}
-
-/** The scenery behind the hub: sky, sea, beach, a palm and Bà Năm's hut (Skia). */
-function Scenery({ w, h }: { w: number; h: number }) {
-  const beach = h * 0.52;
-  return (
-    <Canvas style={StyleSheet.absoluteFill}>
-      <Rect x={0} y={0} width={w} height={h}>
-        <LinearGradient start={vec(0, 0)} end={vec(0, h)} colors={['#ffc98f', '#ffeccc', '#2aa3b9', '#1b6f8a']} positions={[0, 0.28, 0.3, 0.5]} />
-      </Rect>
-      <Circle cx={w * 0.78} cy={h * 0.12} r={34} color="#fff3c4" />
-      <Oval x={-w * 0.2} y={beach - 30} width={w * 1.4} height={h} color={C.sand} />
-      <Oval x={-w * 0.1} y={beach + 40} width={w * 1.2} height={h} color={C.grass} />
-      <Path path={`M ${w * 0.16} ${beach + 60} Q ${w * 0.2} ${beach - 40} ${w * 0.26} ${beach - 90}`} color="#7a5230" style="stroke" strokeWidth={9} />
-      {[0, 1, 2, 3, 4].map((k) => {
-        const a = -Math.PI / 2 + (k - 2) * 0.55;
-        const x0 = w * 0.26;
-        const y0 = beach - 90;
-        return <Path key={k} path={`M ${x0} ${y0} Q ${x0 + Math.cos(a) * 40} ${y0 + Math.sin(a) * 40 - 10} ${x0 + Math.cos(a) * 70} ${y0 + Math.sin(a) * 70 + 18}`} color="#4f9a48" style="stroke" strokeWidth={10} strokeCap="round" />;
-      })}
-      <Rect x={w * 0.6} y={beach - 10} width={w * 0.28} height={60} color="#e8c58a" />
-      <Path path={`M ${w * 0.56} ${beach - 6} L ${w * 0.74} ${beach - 60} L ${w * 0.92} ${beach - 6} Z`} color="#c0392b" />
-    </Canvas>
-  );
 }
 
 export function VillageScreen({ nav }: { nav: Nav }) {
@@ -56,7 +32,7 @@ export function VillageScreen({ nav }: { nav: Nav }) {
   useEffect(() => game.checkStory('village'), [s.stats.casts, s.stats.sold, s.stats.trips]);
   return (
     <View style={{ flex: 1 }}>
-      <Scenery w={width} h={height} />
+      <LivingVillage w={width} h={height} s={s} />
       <View style={styles.top}>
         <CoinChip />
         <View style={styles.level}>
