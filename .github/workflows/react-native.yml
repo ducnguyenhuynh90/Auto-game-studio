@@ -1,0 +1,80 @@
+name: React Native app (mobile/)
+# The React Native version of the game (Expo SDK 58, React Native 0.88). The rules are the web game's
+# src/core, shared through Metro, so a change to either triggers this. Native projects are generated
+# fresh on every run (expo prebuild): nothing generated is committed. docs/REACT_NATIVE.md.
+on:
+  push:
+    paths: ['mobile/**', 'src/core/**', '.github/workflows/react-native.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: rn-${{ github.ref }}
+  cancel-in-progress: true
+defaults:
+  run:
+    working-directory: mobile
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - run: npm ci
+      - run: npx tsc --noEmit
+      # the same JS the phones run, bundled with Hermes for both platforms
+      - run: npx expo export --platform android --platform ios --output-dir dist-check
+
+  android:
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - run: npm ci
+      - run: npx expo prebuild --platform android --no-install
+      - name: Build release APK (debug-signed, installable on any phone)
+        working-directory: mobile/android
+        run: ./gradlew --no-daemon assembleRelease
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mam-village-rn-android-${{ github.run_number }}
+          path: mobile/android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+
+  ios:
+    needs: check
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - run: npm ci
+      - run: npx expo prebuild --platform ios
+      - name: Build for the iOS simulator (no signing)
+        run: |
+          WS=$(ls -d ios/*.xcworkspace | head -1)
+          SCHEME=$(xcodebuild -list -json -workspace "$WS" | python3 -c 'import json,sys; print(json.load(sys.stdin)["workspace"]["schemes"][0])')
+          echo "workspace $WS scheme $SCHEME"
+          xcodebuild -workspace "$WS" -scheme "$SCHEME" -configuration Release -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' -derivedDataPath build CODE_SIGNING_ALLOWED=NO build
+          cd build/Build/Products/Release-iphonesimulator && zip -qr "$GITHUB_WORKSPACE/MamVillage-RN-simulator.zip" *.app
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mam-village-rn-ios-simulator-${{ github.run_number }}
+          path: MamVillage-RN-simulator.zip

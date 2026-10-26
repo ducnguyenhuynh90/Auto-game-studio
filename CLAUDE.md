@@ -18,6 +18,8 @@ the biggest problem and the next action. Then read PRODUCT.md and SUCCESS.yaml.
 - `node tools/build-artifact.mjs`: single-file build for the claude.ai playtest artifact (then publish it).
 - `npm run cap:sync`: build + copy the game into the native apps (`android/`, `ios/`); see docs/NATIVE.md.
   CI (`.github/workflows/native.yml`) builds the Android APK/AAB and an iOS simulator build.
+- `mobile/`: the React Native app (Expo 58, RN 0.88) sharing `src/core`; see docs/REACT_NATIVE.md.
+  `cd mobile && npx tsc --noEmit && node tools/web-e2e.mjs <url>` (CI: react-native.yml).
 - Player data: see docs/ANALYTICS.md ("Pull & analyse").
 
 ## Architecture

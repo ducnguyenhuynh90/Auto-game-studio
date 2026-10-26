@@ -1,0 +1,35 @@
+{
+  "name": "mam-village-mobile",
+  "version": "1.0.0",
+  "main": "index",
+  "dependencies": {
+    "@expo/metro-runtime": "~58.0.15",
+    "@shopify/react-native-skia": "^2.14.0",
+    "expo": "~58.0.19",
+    "expo-haptics": "~58.0.7",
+    "expo-sqlite": "~58.0.13",
+    "expo-status-bar": "~58.0.4",
+    "react": "19.3.0",
+    "react-dom": "^19.3.0",
+    "react-native": "0.88.0",
+    "react-native-gesture-handler": "~3.3.0",
+    "react-native-reanimated": "^4.7.1",
+    "react-native-safe-area-context": "~5.10.1",
+    "react-native-web": "^0.21.4",
+    "react-native-worklets": "^0.13.0"
+  },
+  "devDependencies": {
+    "@types/react": "~19.3.0",
+    "typescript": "~6.0.3"
+  },
+  "scripts": {
+    "start": "expo start",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "web": "expo start --web",
+    "web:setup": "mkdir -p public && cp node_modules/canvaskit-wasm/bin/full/canvaskit.wasm public/",
+    "typecheck": "tsc --noEmit",
+    "bundle:check": "expo export --platform android --platform ios --output-dir dist-check"
+  },
+  "private": true
+}

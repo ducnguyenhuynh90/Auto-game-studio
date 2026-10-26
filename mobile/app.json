@@ -1,0 +1,18 @@
+{
+  "expo": {
+    "name": "Mắm Village",
+    "slug": "mam-village",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "backgroundColor": "#0e3d4f",
+    "splash": { "image": "./assets/splash-icon.png", "resizeMode": "contain", "backgroundColor": "#0e3d4f" },
+    "ios": { "supportsTablet": false, "bundleIdentifier": "com.mamvillage.rn" },
+    "android": {
+      "package": "com.mamvillage.rn",
+      "adaptiveIcon": { "foregroundImage": "./assets/android-icon-foreground.png", "backgroundImage": "./assets/android-icon-background.png", "monochromeImage": "./assets/android-icon-monochrome.png" }
+    },
+    "web": { "favicon": "./assets/favicon.png" },
+    "plugins": ["expo-sqlite"]
+  }
+}

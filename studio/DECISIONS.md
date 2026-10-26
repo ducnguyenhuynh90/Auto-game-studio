@@ -180,3 +180,11 @@ built, but as ONE connected system rather than separate features:
   install id as client id, ad features off. `VITE_GA_CONSENT=granted` exists if legal advice says a prompt
   isn't needed in the target markets; EU/UK players need consent for analytics cookies/identifiers.
 - Store privacy labels and the privacy policy must mention Google Analytics before launch.
+
+## D-021 · 2026-10-26 · Founder decision: React Native (latest stable) for the apps, in a new folder
+- Expo SDK 58 + React Native 0.88 (Expo's pinned, most-tested pairing), in `mobile/` so nothing existing
+  changes. Flutter was ruled out: it would mean rewriting the 4,290 lines of tested rules in Dart.
+- The rules stay in `src/core` and are imported by both apps; only the drawing is per platform.
+- Built in phases: 1) the core loop (done, tested in a browser play-through), 2) the island business
+  screens, 3) the 3D world, story, audio, accounts and analytics. The Capacitor apps keep working until
+  the React Native app reaches parity; then the founder picks one for the stores.
