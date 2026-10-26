@@ -2,6 +2,7 @@
 // place on it, and staff who fish, make salt, brew and sell on their own. Puzzles (src/core/puzzles.ts)
 // train the staff: a role's level cap comes from the puzzle section it belongs to.
 // Pure rules + a deterministic production tick (also used for offline catch-up). No rendering here.
+import { careerLock } from './career';
 import { BALANCE, SPECIES_BY_ID, saucePrice, type SeaId } from './data';
 import { rollShadow, speciesForSea } from './fishing';
 import type { Rng } from './rng';
@@ -298,6 +299,8 @@ export function placeProblem(s: GameState, tile: number, id: BuildingId): string
   if (!s.island.owned.includes(tile)) return 'Buy this plot first';
   if (t === 'H') return 'The village is here';
   if (buildingAt(s, tile)) return 'Something is already here';
+  const fame = careerLock(s, id);
+  if (fame) return fame;
   if (islandLevel(s) < def.minLevel) return `Needs island level ${def.minLevel}`;
   if (def.needs === 'pier' && t !== 'p') return 'Needs the Old Pier';
   if (def.needs === 'shore' && !isShore(t)) return 'Needs a shore plot';

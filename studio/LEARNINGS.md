@@ -87,3 +87,9 @@ Only [PLAYER] entries count as product evidence.
   the bottom of "Go fishing". Fixes: render only visible layers, a Rake salt button, 32 px buttons, and
   a 10 px tap tolerance on every button. Lesson: every "You do this" needs a button, and every new
   overlay path into the reveal needs a QA shot.
+- [SIM] 2026-10-26 · The career sim caught two dead ends before any player saw them: stage 1 asked for
+  staff-made *bottles*, which only count once sold by a Shopkeeper (a shop the same stage unlocks), and a
+  "keep 3 Legendary bottles" finale was rarely met at once. Fixed with "Brewers seal 3 jars" and an
+  Awards entry action. Any goal that depends on something its own stage unlocks needs a sim run.
+- [PLAYER] 2026-10-26 · Founder: the Tour Office came before the income or reputation to use it, and the
+  goals didn't feel like a journey. Source of D-019 / EXP-009.

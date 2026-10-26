@@ -1,6 +1,7 @@
 // Game shell: scene stack, immediate-mode buttons, toasts, persistence glue.
 import { analytics } from './core/analytics';
 import { checkGoals } from './core/goals';
+import { checkCareer, type StageUp } from './core/career';
 import { makeRng, type Rng } from './core/rng';
 import { loadState, saveState } from './core/save';
 import type { SeaId } from './core/data';
@@ -147,11 +148,18 @@ export class Game {
         this.relicQueue.push(m.relic);
       }
     }
+    for (const up of checkCareer(this.state)) {
+      analytics.track('career_stage', { stage: up.index + 1, title: up.stage.title });
+      this.careerQueue.push(up);
+      this.coinPulse = 1;
+    }
     saveState(this.state);
   }
 
   /** Relics waiting to be presented with a full-screen moment (shown by the village). */
   relicQueue: RelicId[] = [];
+  /** Career stages just finished, celebrated by the village (scenes/career.ts). */
+  careerQueue: StageUp[] = [];
 
   levelUp(): void {
     const lvl = levelForXp(this.state.xp);

@@ -10,6 +10,8 @@ import { upgradeBrand } from '../src/core/brand';
 import { buildDogHouse, feedDog } from '../src/core/dog';
 import { HUNGRY_DIFFICULTY, addChainLink, foodLevel, rollHungry } from '../src/core/chain';
 import { checkGoals } from '../src/core/goals';
+import { careerLock, checkCareer, enterAwards, nextCareerGoal } from '../src/core/career';
+import { deliverContract, refreshContracts } from '../src/core/business';
 import { levelForXp } from '../src/core/progression';
 import { makeRng } from '../src/core/rng';
 import { SEAS, seaComplete, seaLock } from '../src/core/seas';
@@ -29,7 +31,7 @@ const mark = (k: string, trip: number) => {
 const useIsland = process.argv.includes('--island');
 const SECONDS_PER_TRIP_REAL = 90; // a trip plus village time; staff work during it
 let clock = 1_000_000;
-const islandPlan: BuildingId[] = ['dock', 'saltfield', 'brewhouse', 'shop', 'touroffice', 'dock', 'warehouse', 'lantern', 'brewhouse'];
+const islandPlan: BuildingId[] = ['dock', 'saltfield', 'brewhouse', 'shop', 'touroffice', 'dock', 'warehouse', 'lantern', 'brewhouse', 'tradepost', 'shrine'];
 function runIsland(trip: number): void {
   if (!useIsland || s.stats.sold < 1) return;
   // staff work while the player fishes
@@ -40,10 +42,11 @@ function runIsland(trip: number): void {
   // the player solves about one puzzle per section every 4 trips (5 built per section)
   if (trip % 4 === 0) for (const sec of ['fishing', 'salt', 'shop'] as const) {
     const i = s.puzzles[sec].filter((x) => x > 0).length;
-    if (i < 5) completeLevel(s, sec, i, 2);
+    if (i < 10) completeLevel(s, sec, i, 2);
   }
   // build the next thing on the plan, buying land when needed; hire into empty slots; train
-  const want = islandPlan.find((id, i) => s.island.buildings.filter((b) => b.id === id).length < islandPlan.slice(0, i + 1).filter((x) => x === id).length);
+  // (buildings the player isn't famous enough for yet are skipped, like a real player would)
+  const want = islandPlan.find((id, i) => !careerLock(s, id) && s.island.buildings.filter((b) => b.id === id).length < islandPlan.slice(0, i + 1).filter((x) => x === id).length);
   if (want && s.coins >= BUILDINGS_BY_ID[want].cost) {
     const spot = s.island.owned.find((t) => !placeProblem(s, t, want));
     if (spot !== undefined) {
@@ -58,6 +61,14 @@ function runIsland(trip: number): void {
     if (role && staffAt(s, b.tile).length < b.level && s.coins >= hireCost(s, role) + 50) hire(s, b.tile);
   }
   for (const st of s.island.staff) trainStaff(s, st.uid);
+  // follow the Road's goals that need a decision: land, export orders
+  const g = nextCareerGoal(s)?.id;
+  if (g === 'c3_land' || g === 'c6_island')
+    for (let t = 0; t < COLS * ROWS; t++) if (canExpand(s, t) && buyPlot(s, t).ok) break;
+  if (s.island.buildings.some((b) => b.id === 'tradepost')) {
+    refreshContracts(s, clock);
+    for (const c of s.island.contracts ?? []) if (!c.done && deliverContract(s, c.id)) mark('export order delivered', trip);
+  }
 }
 
 const priority: UpgradeId[] = ['jars', 'line', 'rod', 'hook', 'boat', 'bait', 'jars', 'salt', 'stall', 'line', 'boat', 'hook', 'rod', 'bait', 'jars', 'salt', 'stall', 'line', 'boat', 'hook', 'rod', 'bait'];
@@ -113,7 +124,16 @@ for (let trip = 1; trip <= trips; trip++) {
   s.jars.forEach((j, i) => {
     if (j.sealed && agingLevel(s, j, 0) >= 2) openJar(s, i, 0);
   });
-  for (const p of [...s.shelf]) sellProduct(s, p.uid);
+  // staff bottles are left for the shopkeeper once there is one (that is what earns the income rate)
+  const seller = s.island.staff.some((x) => x.role === 'seller');
+  // the banner's goal steers the player, like a real one: keep Legendary bottles for the awards
+  const goal = nextCareerGoal(s)?.id;
+  if (s.island.buildings.some((b) => b.id === 'tradepost')) {
+    refreshContracts(s, clock);
+    for (const c of s.island.contracts ?? []) if (!c.done && deliverContract(s, c.id)) mark('export order delivered', trip);
+  }
+  if (goal === 'c7_awards') while (enterAwards(s) !== null) mark('AWARDS entry', trip);
+  for (const p of [...s.shelf]) if (!p.auto || !seller) sellProduct(s, p.uid);
   if ((s.gadgets.salt ?? 0) > 0) useGadget(s, 'salt');
   s.jars.forEach((j, i) => {
     const pick = bestJarFill(s);
@@ -138,6 +158,7 @@ for (let trip = 1; trip <= trips; trip++) {
   buildDogHouse(s);
   if (upgradeBrand(s)) mark(`brand ${s.brand.level}`, trip);
   checkGoals(s);
+  for (const up of checkCareer(s)) mark(`CAREER stage ${up.index + 1}: ${up.stage.title}`, trip);
   for (const m of checkMissions(s)) {
     mark(`mission ${m.mission.id}`, trip);
     if (m.relic) mark(`RELIC ${m.relic} (${m.sea.name} done)`, trip);
@@ -154,4 +175,7 @@ for (const [k, t] of Object.entries(milestones).sort((a, b) => a[1] - b[1])) {
   if (k.startsWith('level') && Number(k.split(' ')[1]) % 5 !== 0) continue;
   console.log(`trip ${String(t).padStart(3)} (~${min(t).padStart(7)})  ${k}`);
 }
+console.log(`degrees made ${JSON.stringify(s.cellar)} shelf ${JSON.stringify(s.shelf.map((p) => p.degrees))}`);
+console.log(`career ${JSON.stringify(s.career)} owned ${s.island.owned.length}`);
+console.log(`staff ${JSON.stringify(s.island.staff.map((x) => x.role + x.level))} shelf ${s.shelf.length} auto ${s.shelf.filter((p) => p.auto).length} jars ${JSON.stringify(s.jars.map((j) => (j.sealed ? (j.auto ? "A" : "P") : "-")))} buildings ${s.island.buildings.map((b) => b.id).join(",")} unpaid ${s.island.unpaid}`);
 console.log(`\nfinal: coins ${s.coins}, level ${levelForXp(s.xp)}, relics ${s.relics.join(',')}, upgrades ${JSON.stringify(s.upgrades)}, tangles ${s.stats.tangles}, brand ${s.brand.level} rep ${s.brand.rep}, ledger ${JSON.stringify(s.island.ledger)}, island ${JSON.stringify(s.island.made)}, chain links ${s.stats.chains}, best chain ${s.stats.bestChain}`);

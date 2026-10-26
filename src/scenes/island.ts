@@ -1,5 +1,6 @@
 // The island business map (tycoon layer): buy plots, place buildings, hire and train staff.
 // Staff work in every scene (Game.tickIsland); this screen shows where and what they make.
+import { CAREER } from '../core/career';
 import { analytics } from '../core/analytics';
 import { villageStage } from '../core/evolution';
 import {
@@ -348,7 +349,7 @@ export class IslandScene implements Scene {
       ctx.font = font(10, 900);
       text(ctx, def.name, x + cw / 2, y + 62, def.name.length > 11 ? 9.5 : 10.5, COLORS.ink, 'center', 900);
       if (problem && !problem.startsWith('Needs ' + def.cost)) {
-        const short = problem.replace('Needs island level', 'Island Lv').replace('Needs a shore plot', 'Shore only').replace('Needs the Old Pier', 'Old Pier only').replace('Keep this special shore for a dock or salt field', 'Shore jobs only');
+        const short = problem.replace('Needs island level', 'Island Lv').replace('Needs a shore plot', 'Shore only').replace('Needs the Old Pier', 'Old Pier only').replace('Keep this special shore for a dock or salt field', 'Shore jobs only').replace(/^Unlocks when you are “(.*)”$/, (_m, t: string) => `🔒 Stage ${CAREER.findIndex((c) => c.title === t) + 1}`);
         text(ctx, short, x + cw / 2, y + 82, 9.5, COLORS.bad, 'center', 900);
       } else {
         drawCoin(ctx, x + cw / 2 - 18, y + 83, 6);

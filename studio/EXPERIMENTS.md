@@ -108,3 +108,12 @@
 - **Simulation (NOT evidence):** first tourism tuning gave ~7,900 coins/h late-game (too much); cut
   (groups /6, tickets 4 + attraction/5, a tour every 3 min) → a few hundred/h early, a few thousand late.
 - **Result:** pending real players.
+
+## EXP-009 · Road to the World's Best (build 3.9)
+- **Hypothesis:** themed stages with titles and fame-gated unlocks make the mid-game direction clear and
+  inspiring, so players keep going past the first hour (fewer "what now?" drop-offs; Tour Office built
+  when it pays).
+- **Measure:** `career_stage` events (stage, time since first launch), `career_open` / `career_go` usage,
+  share of players reaching stage 3 by session 2, and session length before/after stage 1.
+- **Success:** ≥60% of players who finish the tutorial reach stage 1; ≥35% reach stage 3; median stage 3
+  under 90 min of play. **Evidence so far:** [SIM] only (see GAME_DESIGN.md).

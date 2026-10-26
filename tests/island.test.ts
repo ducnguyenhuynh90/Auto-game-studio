@@ -8,6 +8,7 @@ import { loadFromBlob } from '../src/core/save';
 
 const rich = () => {
   const s = newState();
+  s.career = { stage: 7, done: [] }; // a famous player: every building unlocked
   s.coins = 100000;
   return s;
 };

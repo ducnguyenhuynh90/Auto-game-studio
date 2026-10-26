@@ -119,6 +119,7 @@ if (import.meta.env.DEV && params.has('scene')) {
     // a busy island business for visual QA of the main screen overview
     st.stats.sold = Math.max(1, st.stats.sold);
     st.coins = 50000;
+    st.career = { stage: 4, done: [] }; // famous enough for every building in the plan
     const I = { buyPlot, build, hire, canExpand, terrain };
     for (let k = 0; k < 14; k++) {
       const t = [...Array(63).keys()].find((i) => I.canExpand(st, i) && 'bcsgf'.includes(I.terrain(i)));

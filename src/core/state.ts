@@ -1,4 +1,5 @@
 // Persistent game state and all rule-level actions. No rendering here, so it is unit-testable.
+import type { CareerState } from './career';
 import { BALANCE, RECIPES_BY_ID, SPECIES_BY_ID, UPGRADES_BY_ID, saucePrice, tierFor, type SeaId, type UpgradeId } from './data';
 import { GADGETS, hasRelic, type GadgetId, type RelicId } from './items';
 import { addXp } from './progression';
@@ -50,7 +51,7 @@ export interface GameState {
   upgrades: Record<UpgradeId, number>;
   dex: Record<string, { count: number; best: number }>;
   cellar: Record<string, number>; // recipe id -> best °N ever made
-  stats: { trips: number; fullTrips: number; casts: number; catches: number; perfects: number; jarsOpened: number; sold: number; earned: number; tangles: number; chains: number; bestChain: number };
+  stats: { trips: number; fullTrips: number; casts: number; catches: number; perfects: number; jarsOpened: number; sold: number; earned: number; tangles: number; chains: number; bestChain: number; exports?: number; bestAging?: number };
   /** The sea the boat is set to sail to. */
   sea: SeaId;
   goalsDone: string[];
@@ -73,6 +74,8 @@ export interface GameState {
   puzzles: PuzzleProgress;
   /** Brand stage and reputation (src/core/brand.ts). */
   brand: BrandState;
+  /** The Road to the World's Best Fish Sauce (src/core/career.ts). Missing on old saves until first read. */
+  career?: CareerState;
   /** Mực the Phú Quốc dog (src/core/dog.ts). */
   dog: DogState;
 }
@@ -249,6 +252,8 @@ export function openJar(s: GameState, jarIndex: number, now: number): { product:
   s.jars[jarIndex] = emptyJar();
   s.shelf.push(product);
   s.stats.jarsOpened++;
+  // the patience record counts the player's own jars (staff open theirs as soon as they can)
+  if (!jar.auto) s.stats.bestAging = Math.max(s.stats.bestAging ?? 0, lvl);
   return { product, newRecipe, newBest };
 }
 

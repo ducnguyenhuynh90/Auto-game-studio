@@ -6,6 +6,7 @@ import { newState } from '../src/core/state';
 
 const rich = () => {
   const s = newState();
+  s.career = { stage: 7, done: [] }; // a famous player: every building unlocked
   s.coins = 100000;
   s.stats.sold = 1;
   return s;

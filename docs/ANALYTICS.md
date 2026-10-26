@@ -24,6 +24,10 @@ first_sale → first_upgrade → third_trip_start → first_reef_trip
 | upgrade | id, level, cost | progression pace |
 | goal_complete | goal, reward | tutorial or goal-chain drop-off |
 | app_hidden / app_visible | scene | where sessions end |
+| career_stage | stage, title | pace along the Road to the World's Best (EXP-009) |
+| career_open / career_go | stage / goal, where | do players use the Road to decide what to do? |
+| award_entry | degrees, entries | the finale |
+| salt_rake | salt | do players make salt by hand? |
 
 ## Key ratios (see SUCCESS.yaml)
 second_trip_start/first_launch · first_seal/first_catch · first_sale/first_catch (tutorial proxy) ·

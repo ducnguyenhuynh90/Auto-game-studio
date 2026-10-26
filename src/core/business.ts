@@ -1,6 +1,7 @@
 // The business report: every way the island earns and spends, what each needs to switch on, which
 // staff are idle and why, and concrete ways to cut costs. Also export contracts at the Trading Post.
 // Pure rules: the report screen (scenes/business.ts) only draws these and runs the linked actions.
+import { careerLock } from './career';
 import { BALANCE, saucePrice } from './data';
 import { spawnWeight, speciesForSea } from './fishing';
 import { brandMult } from './brand';
@@ -41,7 +42,7 @@ import { agingLevel, canFerment, type GameState, type Product } from './state';
 export type Fix =
   | { kind: 'build'; building: BuildingId; tile: number | null }
   | { kind: 'select'; tile: number }
-  | { kind: 'market' | 'brand' | 'puzzles' | 'fish' | 'contracts' | 'boost' | 'jars' };
+  | { kind: 'market' | 'brand' | 'puzzles' | 'fish' | 'contracts' | 'boost' | 'jars' | 'road' };
 
 export interface Source {
   id: string;
@@ -71,6 +72,9 @@ function setUp(s: GameState, building: BuildingId, role: Role | null): { how: st
   const b = firstOf(s, building);
   const def = BUILDINGS_BY_ID[building];
   if (!b) {
+    // not famous enough yet: say which stage of the Road opens it
+    const fame = careerLock(s, building);
+    if (fame) return { how: `${fame}.`, fix: { label: 'Road ›', action: { kind: 'road' } } };
     const where = def.needs === 'shore' ? 'on the shore' : def.needs === 'pier' ? 'on the Old Pier' : 'on open land';
     const lvl = def.minLevel > 1 ? ` (island Lv ${def.minLevel})` : '';
     return { how: `Build a ${def.name} ${where}${lvl}${role ? `, then hire a ${ROLE[role].title}` : ''}.`, fix: { label: `Build · ${def.cost}`, action: { kind: 'build', building, tile: suggestPlot(s, building) } } };
@@ -83,6 +87,7 @@ function fullStore(s: GameState, what: string): { why: string; fix: { label: str
   if (!staffOf(s, 'brewer').length) return { why: `${what}: no brewer`, fix: { label: 'Hire brewer', action: { kind: 'select', tile: firstOf(s, 'brewhouse')!.tile } } };
   if (s.upgrades.jars < 3) return { why: `${what}: brewers need more jars`, fix: { label: 'More jars', action: { kind: 'jars' } } };
   if (staffOf(s, 'brewer').length < 2) return { why: `${what}: one brewer can't keep up`, fix: { label: 'Brew House', action: { kind: 'select', tile: firstOf(s, 'brewhouse')!.tile } } };
+  if (careerLock(s, 'warehouse')) return { why: what, fix: { label: 'Road ›', action: { kind: 'road' } } };
   return { why: what, fix: { label: 'Warehouse', action: { kind: 'build', building: 'warehouse', tile: suggestPlot(s, 'warehouse') } } };
 }
 
@@ -205,7 +210,11 @@ export function savingTips(s: GameState, now = Date.now()): { text: string; fix?
   const fisher = s.island.staff.find((st) => st.role === 'fisher' && terrain(st.tile) !== 'c');
   if (fisher) tips.push({ text: 'A Dock on a Fishing Cove fishes 25% faster for the same wage.' });
   if (wagesPerHour(s) + upkeepPerHour(s) > 0 && !has(s, 'shop') && !has(s, 'touroffice'))
-    tips.push({ text: 'Nothing turns your staff work into coins yet: a Sauce Shop or Tour Office does.', fix: { label: 'Sauce Shop', action: { kind: 'build', building: 'shop', tile: suggestPlot(s, 'shop') } } });
+    tips.push(
+      careerLock(s, 'shop')
+        ? { text: 'Nothing turns staff work into coins yet: sell bottles at the Market, and finish Stage 1 to open a Sauce Shop.', fix: { label: 'Road ›', action: { kind: 'road' } } }
+        : { text: 'Nothing turns your staff work into coins yet: a Sauce Shop or Tour Office does.', fix: { label: 'Sauce Shop', action: { kind: 'build', building: 'shop', tile: suggestPlot(s, 'shop') } } },
+    );
   return tips.slice(0, 5);
 }
 
@@ -250,6 +259,7 @@ export function deliverContract(s: GameState, id: number): number {
   s.coins += c.pay;
   s.stats.earned += c.pay;
   s.stats.sold += c.count;
+  s.stats.exports = (s.stats.exports ?? 0) + 1;
   s.brand.rep += c.count * 3;
   c.done = true;
   const l = ledger(s);

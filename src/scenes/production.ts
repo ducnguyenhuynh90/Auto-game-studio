@@ -10,6 +10,7 @@ import { sfx } from '../render/audio';
 import { COLORS, H, W, clamp01, drawBottle, drawCoin, drawFish, drawJar, font, outlinedText, panel, rr, star, text, type Ctx } from '../render/draw';
 import type { Game, Scene } from '../game';
 import { JarFillOverlay, RevealOverlay } from './jar';
+import { RoadOverlay } from './career';
 import { MarketOverlay } from './market';
 
 const CARD_H = 82;
@@ -111,6 +112,7 @@ export class ProductionOverlay implements Scene {
       if (a.tile === null) g.toast('Buy more land first', '#8a7a66', 'Tap a "for sale" plot next to your land');
     } else if (a.kind === 'select') g.goIsland(a.tile);
     else if (a.kind === 'jars') g.push(new MarketOverlay(g, 'village'));
+    else if (a.kind === 'road') g.push(new RoadOverlay(g));
     else if (a.kind === 'market') g.push(new MarketOverlay(g));
   }
 

@@ -164,3 +164,11 @@ built, but as ONE connected system rather than separate features:
   decision for the founder (studio rule: legal/compliance-sensitive changes need approval).
 - Ambience is procedural (no audio files, no licences), quiet under the sound effects (surf ≈ -39 dB RMS,
   melody ≈ -42 dB), and the melody has its own switch.
+
+## D-019 · 2026-10-26 · Founder direction: stages, fame unlocks, a "World's Best" goal
+- One long-term spine after the tutorial: seven fame stages with themes (village, brand, fame, quality,
+  trade, country, world). Titles replace "Captain" in the HUD so progress is visible at a glance.
+- Fame gates the Sauce Shop/Warehouse (stage 1), Tour Office/Shrine (stage 3) and Trading Post (stage 4).
+  Existing buildings are never taken away; the founder's own save keeps what it built.
+- The Tour Office arrives with a free hire and an explicit "why": tourists come because you are known.
+- The World Fish Sauce Awards are fictional; the title is decided by three entries, no random judging.

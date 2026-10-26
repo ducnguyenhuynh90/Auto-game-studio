@@ -6,6 +6,7 @@ import { newState } from '../src/core/state';
 
 function setup(withShop: boolean) {
   const s = newState();
+  s.career = { stage: 7, done: [] }; // a famous player: every building unlocked
   s.coins = 5000;
   s.stats.sold = 1;
   const shore = s.island.owned.filter((i) => terrain(i) === 'b');

@@ -1,5 +1,6 @@
 // Business report: where the money comes from, where it goes, and a button on every line that leads to
 // the action that switches an income on, fixes an idle worker, or cuts a cost (core/business.ts).
+import { RoadOverlay } from './career';
 import { analytics } from '../core/analytics';
 import { BRAND_STAGES } from '../core/brand';
 import { costLines, deliverContract, earningsBySource, incomeSources, qualifying, refreshContracts, savingTips, type Fix } from '../core/business';
@@ -69,6 +70,8 @@ export class BusinessOverlay implements Scene {
         return g.push(new PuzzleHubOverlay(g));
       case 'fish':
         return g.goFishing(g.state.sea);
+      case 'road':
+        return g.push(new RoadOverlay(g));
       case 'contracts':
       case 'boost':
         this.tab = 'boost';

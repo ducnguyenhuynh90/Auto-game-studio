@@ -137,6 +137,11 @@ describe('goal banner', () => {
     expect(pair.current!.chapter).toBe('Tutorial');
     expect(pair.next).not.toBeNull();
     s.goalsDone = GOALS.map((g) => g.id);
+    // after the tutorial the Road to the World's Best leads (core/career.ts)
+    pair = goalPair(s);
+    expect(pair.current!.chapter).toMatch(/^Stage 1\/7/);
+    // with the road walked, the sea story is the banner again
+    s.career = { stage: 7, done: [] };
     pair = goalPair(s);
     expect(pair.current!.chapter).toBe('Phú Quốc');
     expect(pair.next!.text).toBe(SEAS_BY_ID.lagoon.missions[1].text);

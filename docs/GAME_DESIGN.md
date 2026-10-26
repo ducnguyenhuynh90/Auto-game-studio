@@ -240,3 +240,30 @@ Manual buttons where you act: Go fishing, Fill a jar, Open, Sell now.
 **Estimate:** bottles/h, expected °N and price, sold/h, ≈ coins/h (sauce + tours), and a capacity bar per
 step (fish ÷ 3, salt, jars, selling) with the **bottleneck** in orange and its fix button. A unit test
 keeps the estimate within ±45% of an hour of real staff work.
+
+## Road to the World's Best Fish Sauce (build 3.9, founder direction D-019)
+**Founder feedback:** the Tour Office was available before there was income or reputation to make it
+worth it; goals should feel like stages (build the village, the brand, the quality) aiming at a
+"World's Best Fish Sauce" title, with fame unlocking things.
+
+After the tutorial, the goal banner follows **seven fame stages** (`src/core/career.ts`). Each has a theme,
+four goals (any order, read from state, kept once reached), a reward and a new **title** shown in the
+top bar (tap it, or the banner, for the Road screen with a "Go ›" button per goal):
+
+| # | Title | Theme | Goals | Unlocks / reward |
+|---|---|---|---|---|
+| 1 | Village Mắm Maker | Build your village | Brew House, first Brewer, Salt Field, Brewers seal 3 jars | Sauce Shop, Warehouse · 150 |
+| 2 | A Name on the Bottle | Build your brand | Shopkeeper, Hand-drawn Label, 50 reputation, Fine 22°N | 300 |
+| 3 | Famous on Phú Quốc | Become famous | Mắm Bà Năm label, staff 200/h, 3 more plots, Phú Quốc story | **Tour Office**, Banyan Shrine · 500 + a free hire |
+| 4 | Master Brewer | Perfect your quality | Premium 30°N, own jar aged ★★★, Brewer Lv 5, Salt puzzle 8 | Trading Post · 1,000 |
+| 5 | Phú Quốc Origin | Trade beyond the island | Origin Seal, 2 export orders, staff 600/h, sail to Hạ Long Bay | 2,500 |
+| 6 | Famous Across Vietnam | The whole country | top brand, Legendary 40°N, island Lv 8, Dragon Carp | 6,000 |
+| 7 | World's Best Fish Sauce | The world stage | 3 Legendary bottles entered in the Awards, Oarfish, staff 1,200/h, 4,000 reputation | the title · 15,000 |
+
+- Fame gates buildings (`careerLock`): locked cards say "🔒 Stage 3"; the business report links to the Road.
+- The finale is an action, not a stockpile: enter your own Legendary bottles one by one (best first).
+  No randomness: three entries win.
+- Sea missions still drive the fishing story (Captain's Log) and appear as "Next" on the banner.
+- [SIM] pacing (tools/sim.ts --island): stage 1 at 20-60 min, Tour Office (stage 3) at 40-70 min,
+  the title at ~3.3-4 h of play. Stage 4 often lands with stage 3 in the sim because the sim trains
+  staff and clears puzzles faster than people do; watch it in real play.

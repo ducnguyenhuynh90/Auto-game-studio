@@ -14,6 +14,8 @@ import { MarketOverlay } from './market';
 import { BusinessOverlay } from './business';
 import { ProductionOverlay } from './production';
 import { DogOverlay } from './dog';
+import { RoadOverlay, StageUpOverlay } from './career';
+import { careerTitle, worldChampion } from '../core/career';
 import { DexOverlay } from './dex';
 import { MissionsOverlay, RelicOverlay } from './missions';
 import { SettingsOverlay } from './settings';
@@ -152,6 +154,8 @@ export class VillageScene implements Scene {
     const id = g?.id ?? '';
     // Relics earned anywhere get their big moment back in the village.
     if (this.game.relicQueue.length && this.game.overlays.length === 0) this.game.push(new RelicOverlay(this.game, this.game.relicQueue.shift()!));
+    // a finished career stage gets its own moment: new title, reward, what it unlocks
+    if (this.game.careerQueue.length && this.game.overlays.length === 0) this.game.push(new StageUpOverlay(this.game, this.game.careerQueue.shift()!));
     // story beats play in the village once their moment has come (after any relic celebration)
     if (this.game.overlays.length === 0 && this.t > 0.6) {
       const scene = pendingScene(this.game.state, 'village');
@@ -504,12 +508,25 @@ export class VillageScene implements Scene {
     ctx.arc(154, 34, 16, 0, Math.PI * 2);
     ctx.fill();
     outlinedText(ctx, String(lvl), 154, 35, 15, '#fff', COLORS.ink, 3);
-    text(ctx, 'Captain', 176, 25, 11, 'rgba(43,33,24,0.6)', 'left');
+    // the title you have earned on the Road (two short lines when it is long)
+    const title = careerTitle(s);
+    const tc = worldChampion(s) ? '#b8860b' : 'rgba(43,33,24,0.7)';
+    ctx.font = font(10, 800);
+    if (ctx.measureText(title).width <= 80) text(ctx, title, 176, 25, 10, tc, 'left', 800);
+    else {
+      const words = title.split(' ');
+      let cut = 1;
+      while (cut < words.length - 1 && ctx.measureText(words.slice(0, cut + 1).join(' ')).width <= 80) cut++;
+      text(ctx, words.slice(0, cut).join(' '), 176, 20, 9, tc, 'left', 800);
+      const rest = words.slice(cut).join(' ');
+      text(ctx, rest, 176, 30, fitSize(ctx, rest, 80, 9, 7), tc, 'left', 800);
+    }
+    this.game.hitArea('road', 132, 12, 128, 44, () => this.game.push(new RoadOverlay(this.game)));
     ctx.fillStyle = 'rgba(43,33,24,0.12)';
-    rr(ctx, 176, 36, 74, 9, 4);
+    rr(ctx, 176, 38, 74, 7, 3.5);
     ctx.fill();
     ctx.fillStyle = '#a35bd6';
-    rr(ctx, 176, 36, 74 * levelProgress(s.xp), 9, 4);
+    rr(ctx, 176, 38, 74 * levelProgress(s.xp), 7, 3.5);
     ctx.fill();
     const found = SPECIES.filter((sp) => s.dex[sp.id]).length;
     this.game.button(ctx, 'dex', 266, 12, 78, 44, `${found}/${SPECIES.length}`, () => this.game.push(new DexOverlay(this.game)), { color: '#3a8fd9', dark: '#22609e', size: 16, sub: 'Fishdex' });
@@ -535,7 +552,7 @@ export class VillageScene implements Scene {
     ctx.scale(1 + k * 0.05, 1 + k * 0.05);
     panel(ctx, -184, -46, 368, 100, k > 0.5 ? '#fff1b8' : COLORS.paper, 16);
     // row 1: GOAL chip + goal text (sized to fit)
-    ctx.fillStyle = current.chapter === 'Tutorial' ? COLORS.accent : '#3a8fd9';
+    ctx.fillStyle = current.chapter === 'Tutorial' ? COLORS.accent : current.career ? '#d4a017' : '#3a8fd9';
     rr(ctx, -176, -38, 58, 30, 10);
     ctx.fill();
     text(ctx, 'GOAL', -147, -23, 14, '#fff', 'center', 900);
@@ -564,9 +581,9 @@ export class VillageScene implements Scene {
     // row 3: what comes next
     const nextText = next ? `Next: ${next.text}` : 'Next: you have done it all, captain!';
     text(ctx, nextText, -174, 39, fitSize(ctx, nextText, 262, 14, 11), 'rgba(43,33,24,0.75)', 'left', 800);
-    text(ctx, 'Missions ›', 176, 39, 13, '#3a8fd9', 'right', 900);
+    text(ctx, current.career ? 'Road ›' : 'Missions ›', 176, 39, 13, current.career ? '#b8860b' : '#3a8fd9', 'right', 900);
     ctx.restore();
-    this.game.hitArea('goal', 8, 64, W - 16, 102, () => this.game.push(new MissionsOverlay(this.game)));
+    this.game.hitArea('goal', 8, 64, W - 16, 102, () => this.game.push(current.career ? new RoadOverlay(this.game) : new MissionsOverlay(this.game)));
   }
 
   private drawBottom(ctx: Ctx): void {

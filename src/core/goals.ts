@@ -1,5 +1,6 @@
 // A single always-visible "next goal" chain. It is the tutorial for the first ~10 minutes and the
 // long-term direction after that. Each goal is checked against state, so it never desyncs.
+import { CAREER, activeStage, career, goalDone, type CareerGoal } from './career';
 import { SEAS, SEAS_BY_ID, seaComplete, seaLock, type Mission, type Sea } from './seas';
 import type { GameState } from './state';
 
@@ -56,8 +57,10 @@ export interface GoalView {
   text: string;
   progress?: [number, number];
   reward: number;
-  /** Chapter label: 'Tutorial' or the sea's name. */
+  /** Chapter label: 'Tutorial', 'Stage 3 · Famous on Phú Quốc' or the sea's name. */
   chapter: string;
+  /** A Road to the World's Best goal (core/career.ts). */
+  career?: CareerGoal;
 }
 
 function tutorialView(s: GameState, g: Goal): GoalView {
@@ -78,13 +81,21 @@ function voyageView(s: GameState, from: Sea): GoalView | null {
   return { id: `voyage_${next.id}`, text, reward: 0, chapter: from.name };
 }
 
+function careerView(s: GameState, g: CareerGoal): GoalView {
+  const i = career(s).stage;
+  return { id: g.id, text: g.text, progress: g.progress(s), reward: 0, chapter: `Stage ${i + 1}/${CAREER.length} · ${CAREER[i].title}`, career: g };
+}
+
 /** The goal shown on the banner, and the one after it, so players always know what's next. */
 export function goalPair(s: GameState): { current: GoalView | null; next: GoalView | null } {
   const tut = GOALS.filter((g) => !s.goalsDone.includes(g.id));
+  // after the tutorial, the Road to the World's Best leads; the sea story follows behind it
+  const stage = tut.length ? null : activeStage(s);
+  const road = stage ? stage.goals.filter((g) => !goalDone(s, g)).map((g) => careerView(s, g)) : [];
   const sea = SEAS_BY_ID[s.sea];
   const seaQueue: GoalView[] = sea.missions.filter((m) => !s.missionsDone.includes(m.id)).map((m) => missionView(s, sea, m));
   const after = seaQueue.length ? null : voyageView(s, sea);
-  const queue: GoalView[] = [...tut.map((g) => tutorialView(s, g)), ...seaQueue];
+  const queue: GoalView[] = [...tut.map((g) => tutorialView(s, g)), ...road, ...seaQueue];
   if (after) {
     queue.push(after);
     // preview the first mission waiting at the destination
