@@ -102,3 +102,19 @@ describe('Supabase schema and row-level security (migration run in PGlite)', () 
     await db.close();
   }, 30_000);
 });
+
+describe('account helpers shared by the web game and the app (auth/cloudsave.ts)', () => {
+  it('finds the linked social provider; anonymous users have none', async () => {
+    const { providerOf } = await import('../src/auth/cloudsave');
+    expect(providerOf({ identities: [] })).toBeNull();
+    expect(providerOf({ identities: [{ provider: 'email' }, { provider: 'apple' }] })).toBe('apple');
+    expect(providerOf({ identities: null })).toBeNull();
+  });
+
+  it('greets by first name, or Captain', async () => {
+    const { nameOf } = await import('../src/auth/cloudsave');
+    expect(nameOf({ user_metadata: { full_name: 'Lan Nguyen' } })).toBe('Lan');
+    expect(nameOf({ user_metadata: { name: 'Hạnh' } })).toBe('Hạnh');
+    expect(nameOf({ user_metadata: {} })).toBe('Captain');
+  });
+});

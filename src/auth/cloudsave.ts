@@ -59,3 +59,25 @@ export function makeBackend(db: DbLike, userId: string, signOut?: () => Promise<
     signOut,
   };
 }
+
+export type SocialProvider = 'google' | 'apple' | 'facebook';
+const PROVIDERS: SocialProvider[] = ['google', 'apple', 'facebook'];
+
+/** The parts of a Supabase user these helpers read (keeps this module free of the client library). */
+export interface UserLike {
+  identities?: { provider: string }[] | null;
+  user_metadata?: Record<string, unknown> | null;
+}
+
+/** Which social account a user has linked, if any (an anonymous user has none). */
+export function providerOf(u: UserLike): SocialProvider | null {
+  const linked = (u.identities ?? []).map((i) => i.provider);
+  return PROVIDERS.find((p) => linked.includes(p)) ?? null;
+}
+
+/** First name from the provider's profile, for "Signed in as …". */
+export function nameOf(u: UserLike): string {
+  const m = u.user_metadata ?? {};
+  const full = String(m.full_name ?? m.name ?? '');
+  return full.split(' ')[0] || 'Captain';
+}

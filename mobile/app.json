@@ -28,7 +28,9 @@
     },
     "plugins": [
       "expo-sqlite",
-      "react-native-audio-api"
-    ]
+      "react-native-audio-api",
+      "expo-web-browser"
+    ],
+    "scheme": "com.mamvillage.rn"
   }
 }

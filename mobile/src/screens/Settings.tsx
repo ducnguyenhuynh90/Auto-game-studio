@@ -45,6 +45,22 @@ export function SettingsScreen({ nav }: { nav: Nav }) {
         <Panel style={{ gap: 10, marginTop: 12 }}>
           <Text style={styles.label}>Cloud backup</Text>
           <Text style={styles.small}>{cloud.status || 'Your progress is backed up while you play.'}</Text>
+          {cloud.connected && cloud.provider ? (
+            <View style={styles.row}>
+              <Text style={[styles.small, { flex: 1, color: C.good }]}>
+                ✓ {cloud.name} · {cloud.provider === 'apple' ? 'Apple' : 'Google'} account
+              </Text>
+              <GameButton testID="sign_out" label="Sign out" size={13} color="#8a7a66" disabled={cloud.busy} onPress={() => void cloud.signOut()} />
+            </View>
+          ) : cloud.connected ? (
+            <View style={{ gap: 8 }}>
+              <Text style={styles.small}>Sign in to keep your village if you change phones, and to play the same save on the web.</Text>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <GameButton testID="sign_in_google" label="Google" size={15} color="#3a8fd9" style={{ flex: 1 }} disabled={cloud.busy} onPress={() => void cloud.signIn('google')} />
+                <GameButton testID="sign_in_apple" label="Apple" size={15} color="#2b2118" style={{ flex: 1 }} disabled={cloud.busy} onPress={() => void cloud.signIn('apple')} />
+              </View>
+            </View>
+          ) : null}
           {cloud.conflict ? (
             <View style={{ gap: 8 }}>
               <Text style={styles.small}>Two saves found. Which one do you keep?</Text>

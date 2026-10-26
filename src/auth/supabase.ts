@@ -4,7 +4,7 @@
 // Tables and row-level security: supabase/migrations/*.sql. Lazy-loaded (only builds with config fetch it).
 import { createClient, type SupabaseClient, type User } from '@supabase/supabase-js';
 import type { SocialProvider } from './account';
-import { makeBackend, type CloudBackend, type DbLike } from './cloudsave';
+import { makeBackend, nameOf, providerOf, type CloudBackend, type DbLike } from './cloudsave';
 
 export { makeBackend, progressRow, type DbLike } from './cloudsave';
 
@@ -20,19 +20,6 @@ function sb(): SupabaseClient {
     auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: !isNative(), flowType: isNative() ? 'pkce' : 'implicit' },
   });
   return client;
-}
-
-const PROVIDERS: SocialProvider[] = ['google', 'apple', 'facebook'];
-
-function providerOf(u: User): SocialProvider | null {
-  const linked = (u.identities ?? []).map((i) => i.provider);
-  return PROVIDERS.find((p) => linked.includes(p)) ?? null;
-}
-
-function nameOf(u: User): string {
-  const m = (u.user_metadata ?? {}) as Record<string, unknown>;
-  const full = String(m.full_name ?? m.name ?? '');
-  return full.split(' ')[0] || 'Captain';
 }
 
 export interface Session {

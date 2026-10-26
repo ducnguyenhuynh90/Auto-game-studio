@@ -11,7 +11,8 @@ import type { GameState } from '../core/state';
 import { levelForXp } from '../core/progression';
 import { chooseSave, isFresh, type SaveBlob } from './merge';
 
-export type SocialProvider = 'google' | 'apple' | 'facebook';
+export type { SocialProvider } from './cloudsave';
+import type { SocialProvider } from './cloudsave';
 
 export interface AccountInfo {
   /** 'cloud' = a backed-up guest (Supabase anonymous account) that can still link a social login. */
