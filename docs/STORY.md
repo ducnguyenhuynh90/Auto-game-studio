@@ -32,11 +32,26 @@ Gameplay mirror: the overcast **tangle** is Lan's flaw made tactile; **aging sta
 
 | Character | Role | Want / truth | Details |
 |---|---|---|---|
-| **Bà Năm** (Grandma Năm) | Mentor | The village's fish-sauce master. Her **memory is fading**; she remembers through *taste*. Each relic Lan brings back unlocks a memory of the lost family recipe. | Purple áo bà ba, grey bun, bamboo ladle. Speaks in proverbs. Lives in the village (the 3D villager). |
-| **Rùa** (Old Turtle) | Sidekick | Ancient sea turtle who joins Lan's boat after the Phú Quốc story (the Turtle Buddy relic). Never speaks; blinks. Secretly the guardian of the five seas. | Mossy shell, a barnacle "crown". Comic timing: slow blink after Lan rushes. |
-| **Ông Tốc** (Mr. Tốc, "Speed") | Rival / mirror | Owner of **InstaMắm Co.**, factory fish sauce in 3 minutes. Wants to buy the village jars. Not evil: grew up poor and believes speed is the only way out. **He is Lan's flaw grown up.** | Shiny suit, sunglasses, a stopwatch he checks constantly. |
+| **Bà Năm** (Grandma Năm) | Mentor | The village's fish-sauce master. She *says* the storm took the recipe and her memory. **Twist (finale): she never forgot.** She was waiting for Lan to learn it with her own hands. Planted early: "I… forgot what they say. Yes. Forgot. Very sad." | Purple áo bà ba, grey bun, a bamboo ladle she taps on Lan's hat. Speaks in proverbs, sly, funny. |
+| **Rùa** (Old Turtle) | Sidekick | Ancient sea turtle who fished with Grandpa and waited for someone patient. Joins Lan's boat after the Phú Quốc story (Turtle Buddy). Never speaks; blinks. | Mossy shell, a barnacle "crown". Comic timing: a four-second blink after Lan rushes. |
+| **Ông Tốc** (Mr. Tốc, "Speed") | Rival / mirror | Owner of **InstaMắm Co.**, factory fish sauce in 3 minutes. Wants to buy the village. **Reveal (Chapter 4): as a boy he swept this very jar yard; Grandpa told him he was too fast, so he built a factory to prove him wrong.** He is Lan's flaw grown up. | Shiny suit, a stopwatch that goes *beep* before he speaks; in the finale it stops. |
 | **Chú Tư** (Uncle Tư) | Delta guide | Prawn fisherman who loves mắm tôm and jokes about its smell. Teaches humility: good things can smell bad. | Muddy boots, laughs at his own jokes. |
 | **Cô Hạnh** (Ms. Hạnh) | Hạ Long Bay guide | Lighthouse keeper who tells the legend of **cá chép hóa rồng**, the carp that leaps the Dragon Gate and becomes a dragon. | Lantern, calm voice, knows every tide. |
+
+## 2b · Director's review (v2, 2026-10-27)
+The founder asked for a story that makes you *want to discover more*. Notes on v1, as a Pixar story room
+would give them, and what v2 changed (lines in `src/core/story.ts`, same scenes and triggers):
+
+| Note on v1 | Why it matters | v2 |
+|---|---|---|
+| The intro opened with narration ("our village once made the finest…"). | Exposition is a wall; open on a character *doing* something, mid-problem. | Opens on Lan in the wreck, and the last jar is **humming**. A question before a fact. |
+| The recipe was "lost", but nothing on screen held the mystery. | A mystery needs an object the player can look at. | **Grandpa's jar**: his words are scratched under the glaze and appear one per sea: **CARE, DEEP, BREATHE, WAIT, TIME**. The player feeds the very jar the story is about. |
+| Bà Năm's fading memory was sad and passive. | A mentor who only forgets gives the hero nothing to push against. | She **pretends** to forget (planted jokes), and the finale reveals she was waiting for Lan to learn. A twist that makes you replay the clues. |
+| Mr. Tốc was a cardboard villain. | Pixar rule #13: give characters opinions; the rival should be the hero's flaw with a reason. | A stopwatch *beep* voice, then the Chapter 4 reveal: he swept this jar yard as a boy. |
+| Lines told feelings ("I promise!"). | Specific behaviour is funnier and believable (rule: specificity). | Hat taps with the ladle, Mực stealing sandals, a four-second turtle blink, "slow and sure QUICKLY". |
+| Scenes ended on a full stop. | Endings should pull you to the next tap. | Each scene ends on a want or a question: what's under the glaze, what Tư hid in his roof, why the ladle trembles. |
+
+The first goal and the first trip now agree: **3 fish, 3 casts** (docs/GAME_DESIGN.md).
 
 ## 3 · The Story Spine (Pixar)
 
@@ -47,19 +62,19 @@ Gameplay mirror: the overcast **tangle** is Lan's flaw made tactile; **aging sta
 | **One day…** | …a storm smashed the jar yard. Bà Năm's memory slipped, and the family's legendary recipe was lost. And Mr. Tốc arrived with an offer to buy everything. | Intro scene |
 | **Because of that…** | …Lan promised to rebuild the jar yard and find the recipe again, before the village is sold. | Tutorial (first sale, first gear) |
 | **Because of that…** | …she sailed sea by sea, and each sea taught her something the recipe needed. | Each sea: arrive + story complete |
-| **Until finally…** | …in the Abyss, with the Oarfish caught and the last jar aged, she understood the secret ingredient was never a fish. It was **time**. | Finale |
+| **Until finally…** | …in the Abyss, the jar shows its last word, TIME. The secret was never a fish, and Bà Năm never forgot it: she waited for Lan to learn it. | Finale |
 | **Ever since then…** | …the village thrives, Lan teaches the kids to wait for their jars, and Mr. Tốc buys his sauce from Lan. | Epilogue (after finale) |
 
 ## 4 · Chapters (one per sea): lesson, mentor, memory
 
-| Chapter | Title | Lesson | Mentor | Memory unlocked (relic) |
+| Chapter | Title | Lesson | Mentor | Grandpa's word under the glaze (relic) |
 |---|---|---|---|---|
 | 0 · Tutorial | *The Promise* | Start small. | Bà Năm | — |
-| 1 · Phú Quốc | *Fresh Hands of Phú Quốc* | Care: fresh fish, gentle line. | Bà Năm | "The recipe begins with care." (Turtle Buddy joins) |
-| 2 · Coral Reef | *Into the Deep* | Courage: go where it's scary. | Rùa | "Rare fish from deep water." (Ancient Compass) |
-| 3 · Mangrove Delta | *Muddy Roots* | Humility: the smelliest jar can be the best. | Chú Tư | "The jar must breathe." (Dragon Jar Glaze) |
-| 4 · Hạ Long Bay | *The Dragon Gate* | Perseverance: the carp leaps a thousand times. | Cô Hạnh | "Wait for the right moment." (Storm Kite) |
-| 5 · The Abyss | *The Longest Fish* | Patience: let go of shortcuts. | Rùa + Bà Năm | "The secret is time." (Heart of the Sea) |
+| 1 · Phú Quốc | *Fresh Hands of Phú Quốc* | Care: fresh fish, gentle line. | Bà Năm | CARE (Turtle Buddy joins) |
+| 2 · Coral Reef | *Into the Deep* | Courage: go where it's scary. | Rùa | DEEP (Grandpa's Ancient Compass) |
+| 3 · Mangrove Delta | *Muddy Roots* | Humility: the smelliest jar can be the best. | Chú Tư | BREATHE (the lid Grandpa hid in Tư's roof; Dragon Jar Glaze) |
+| 4 · Hạ Long Bay | *The Dragon Gate* | Perseverance: the carp leaps a thousand times. | Cô Hạnh | WAIT (Storm Kite); Mr. Tốc's past |
+| 5 · The Abyss | *The Longest Fish* | Patience: let go of shortcuts. | Rùa + Bà Năm | TIME (Heart of the Sea); Bà Năm's twist |
 
 ## 5 · Mission framing
 

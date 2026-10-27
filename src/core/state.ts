@@ -315,8 +315,9 @@ export function useGadget(s: GameState, id: GadgetId): boolean {
   return true;
 }
 
+/** 3 casts at first (the first goal is 3 fish: one trip), +1 per better boat (up to +2), +1 with Rùa. */
 export function castsPerTrip(s: GameState): number {
-  return BALANCE.castsPerTrip + (hasRelic(s.relics, 'turtle') ? 1 : 0);
+  return BALANCE.castsPerTrip + Math.min(s.upgrades.boat, BALANCE.boatCasts) + (hasRelic(s.relics, 'turtle') ? 1 : 0);
 }
 
 // ---------- Missions ----------

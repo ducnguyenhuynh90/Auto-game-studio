@@ -78,6 +78,17 @@ describe('progression', () => {
     expect(jarDegrees(s, s.jars[0], 0) - jarDegrees(s, s.jars[1], 0)).toBeCloseTo(6);
   });
 
+  it('the first trip has as many casts as the first goal has fish; better boats stay out longer', () => {
+    const s = newState();
+    expect(castsPerTrip(s)).toBe(3);
+    s.upgrades.boat = 1;
+    expect(castsPerTrip(s)).toBe(4);
+    s.upgrades.boat = 3;
+    expect(castsPerTrip(s)).toBe(5); // the boat bonus stops at +2
+    s.relics.push('turtle');
+    expect(castsPerTrip(s)).toBe(6);
+  });
+
   it('finishing a sea grants its relic, and relics change the rules', () => {
     const s = newState();
     s.goalsDone = GOALS.map((g) => g.id);

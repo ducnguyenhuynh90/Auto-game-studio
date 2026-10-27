@@ -102,3 +102,10 @@ Only [PLAYER] entries count as product evidence.
   (`src/auth/cloudsave.ts`, `src/analytics/gamap.ts`, `mp.ts`) let the app reuse them unchanged and test
   them with fakes. The services bot found one real bug before any player: GA renames events that start
   with `ga_` (reserved prefix), so `ga_consent` arrived as `mam_ga_consent`. Event names now avoid it.
+- [DESIGN] 2026-10-27 · Founder: the first goal says "catch 3 fish" but a trip had 5 casts. Trips now
+  start at 3 casts (+1 per better boat up to 5, +1 with Rùa), so the goal and the first trip agree.
+- [SIM] 2026-10-27 · With 3-cast trips the whole story still ends at ~171 min of fishing for skill 0.7
+  (was ~155); Phú Quốc done in ~5 min, Coral Reef ~33 min. Shorter trips, same overall pace.
+- [DESIGN] 2026-10-27 · Story v2 (docs/STORY.md §2b): a mystery object (Grandpa's humming jar, one word
+  under the glaze per sea), a mentor twist (Bà Năm never forgot), and Mr. Tốc's backstory. Measure with
+  `story_view` skip rates (EXP-004) before writing more scenes.

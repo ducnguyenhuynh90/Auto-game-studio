@@ -213,7 +213,10 @@ export const UPGRADES: UpgradeDef[] = [
 export const UPGRADES_BY_ID = Object.fromEntries(UPGRADES.map((u) => [u.id, u])) as Record<UpgradeId, UpgradeDef>;
 
 export const BALANCE = {
-  castsPerTrip: 5,
+  /** Casts on a Basket Boat trip; each better boat stays out longer (castsPerTrip in state.ts). */
+  castsPerTrip: 3,
+  /** Extra casts per boat level above the Basket Boat, up to this many. */
+  boatCasts: 2,
   jarSlots: 3,
   /** Rod: reel sweet-zone width per level. */
   rodZone: [0.26, 0.32, 0.38, 0.44],

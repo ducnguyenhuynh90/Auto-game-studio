@@ -92,7 +92,13 @@ async function fishTrip(tag) {
 
 await fishTrip('1');
 let s1 = await st();
-if (s1.catches < 3) fail.push(`trip 1 caught only ${s1.catches}`);
+if (s1.trips === 1 && s1.catches > 3) fail.push(`trip 1 should have 3 casts, caught ${s1.catches}`);
+// 3 casts a trip: a tangled cast means fishing once more before the jar can be filled, like a player
+for (let k = 2; k <= 3 && s1.bucket < 3; k++) {
+  await fishTrip(`1${k}`);
+  s1 = await st();
+}
+if (s1.bucket < 3) fail.push(`only ${s1.bucket} fish after ${s1.trips} trips`);
 // fill the first jar with the best 3 and seal it
 await press('fill_0');
 await p.waitForTimeout(400);

@@ -21,6 +21,7 @@ const skill = Number(process.argv[2] ?? 0.6);
 const trips = Number(process.argv[3] ?? 150);
 const rng = makeRng(Number(process.argv[4] ?? 1));
 const s = newState();
+const castsAt: number[] = [];
 const SECONDS_PER_CAST = 13; // aim + wait + reel + card, measured roughly from bot runs
 const milestones: Record<string, number> = {};
 const mark = (k: string, trip: number) => {
@@ -120,6 +121,7 @@ for (let trip = 1; trip <= trips; trip++) {
     hungry = lvl ? rollHungry(rng, s.sea, lvl, s.upgrades.bait) : null;
   }
   finishTrip(s, true);
+  castsAt[trip] = s.stats.casts; // trips get longer with the boat, so time is counted per cast
   // brew: open ready jars (wait for 2 aging levels when possible), seal new ones
   s.jars.forEach((j, i) => {
     if (j.sealed && agingLevel(s, j, 0) >= 2) openJar(s, i, 0);
@@ -169,7 +171,7 @@ for (let trip = 1; trip <= trips; trip++) {
   if (trip % 25 === 0) mark(`coins ${s.coins} earned ${s.stats.earned} @${trip}`, trip);
 }
 
-const min = (t: number) => `${Math.round((t * castsPerTrip(s) * SECONDS_PER_CAST) / 60)} min`;
+const min = (t: number) => `${Math.round(((castsAt[t] ?? t * castsPerTrip(s)) * SECONDS_PER_CAST) / 60)} min`;
 console.log(`skill ${skill}, ${trips} trips (≈${min(trips)} of fishing)\n`);
 for (const [k, t] of Object.entries(milestones).sort((a, b) => a[1] - b[1])) {
   if (k.startsWith('level') && Number(k.split(' ')[1]) % 5 !== 0) continue;

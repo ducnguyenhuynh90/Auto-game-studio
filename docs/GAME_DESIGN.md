@@ -11,7 +11,8 @@
   fish). Thrashes spike tension. Max tension for 0.7 s snaps the line; slack lets the fish escape.
   Freshness = time in zone.
 - **Rarity signals are honest:** legendary/epic shadows glow; treasure sparkles.
-- 5 casts per trip, then a trip summary.
+- 3 casts per trip on the Basket Boat (the first goal is 3 fish: one trip), +1 cast per better boat
+  (up to 5), +1 with Rùa; then a trip summary. Short first trips get the first jar sealed sooner.
 
 ## Crafting
 - Jar holds 3 fish. Recipes: Classic (3 anchovy), Squid (2+ squid), Reef (any snapper/grouper/trevally),
@@ -78,7 +79,7 @@ casting lane, and bites almost at once (difficulty ×0.75). Catch it next and th
 
 - **Any other catch, or a lost fish, breaks the chain** and the hungry fish swims off. A tangle doesn't
   break the chain, because the bait never reached the water.
-- **The puzzle:** with 5 casts, the order matters. Which small fish do you take first so the right big
+- **The puzzle:** with only 3-5 casts, the order matters. Which small fish do you take first so the right big
   one rises? It is also a way to reach deep fish **without** a line upgrade (Phú Quốc's deep Mackerel:
   anchovy → scad → mackerel). That gives early players a skill-based path besides grinding coins.
 - **Ladders:** Phú Quốc anchovy/sardine/crab → scad → mackerel. Reef anchovy → scad/squid →
