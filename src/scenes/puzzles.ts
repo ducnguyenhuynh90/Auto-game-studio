@@ -29,6 +29,7 @@ import {
 import { sfx, vibrate } from '../render/audio';
 import { COLORS, H, W, clamp01, drawBottle, drawCoin, ease, font, outlinedText, panel, rr, star, text, type Ctx } from '../render/draw';
 import type { Game, Scene } from '../game';
+import { SortMenuOverlay } from './sort';
 
 const SECTIONS: Section[] = ['fishing', 'salt', 'shop'];
 const SECTION_ROLES: Record<Section, Role[]> = { fishing: ['fisher'], salt: ['salter', 'brewer'], shop: ['seller'] };
@@ -103,6 +104,8 @@ export class PuzzleHubOverlay implements Scene {
     outlinedText(ctx, 'Puzzles', W / 2, 40, 30, '#fff', COLORS.ink, 6);
     text(ctx, 'Staff do the routine. You solve the hard problems.', W / 2, 72, 12, COLORS.ink, 'center', 700);
     this.game.button(ctx, 'close', W - 62, 18, 48, 40, 'x', () => this.game.pop(this), { color: '#8a7a66', dark: '#5f5244', size: 18 });
+    // the Market Sort mini game lives here too (50 stalls; core/sort.ts)
+    this.game.button(ctx, 'hub_sort', 12, 18, 112, 40, '🛒 Market Sort', () => this.game.push(new SortMenuOverlay(this.game)), { color: '#d4a017', dark: '#9c7410', size: 12 });
     SECTIONS.forEach((sec, i) => this.drawSection(ctx, sec, 92 + i * 248));
   }
 
