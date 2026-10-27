@@ -9,7 +9,8 @@ permissions:
   pages: write
   id-token: write
 concurrency:
-  group: pages
+  # one deploy at a time per branch: a push to both branches must not cancel the one that may deploy
+  group: pages-${{ github.ref }}
   cancel-in-progress: true
 jobs:
   build:
