@@ -109,3 +109,7 @@ Only [PLAYER] entries count as product evidence.
 - [DESIGN] 2026-10-27 · Story v2 (docs/STORY.md §2b): a mystery object (Grandpa's humming jar, one word
   under the glaze per sea), a mentor twist (Bà Năm never forgot), and Mr. Tốc's backstory. Measure with
   `story_view` skip rates (EXP-004) before writing more scenes.
+- [SIM] 2026-10-27 · Market Sort: a greedy solver proves all 50 generated levels winnable in < 0.5 s.
+  Two bugs only bots found: the whole-shelf tap area sat on top of the slot areas (nothing could be
+  picked up), and step-by-step hints could cycle on hard levels; the Hint now follows one whole winning
+  plan (detours cut out), so following hints clears every level.

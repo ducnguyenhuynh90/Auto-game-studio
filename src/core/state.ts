@@ -72,6 +72,8 @@ export interface GameState {
   island: IslandState;
   /** Puzzle stars per section (src/core/puzzles.ts). */
   puzzles: PuzzleProgress;
+  /** Market Sort stars per level (src/core/sort.ts). */
+  sort: number[];
   /** Brand stage and reputation (src/core/brand.ts). */
   brand: BrandState;
   /** The Road to the World's Best Fish Sauce (src/core/career.ts). Missing on old saves until first read. */
@@ -103,6 +105,7 @@ export function newState(): GameState {
     storySeen: [],
     island: newIsland(),
     puzzles: newPuzzles(),
+    sort: [],
     brand: newBrand(),
     dog: newDog(),
   };

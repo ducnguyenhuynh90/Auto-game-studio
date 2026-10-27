@@ -1,6 +1,7 @@
 // The village hub: your jars, the market, the dock. It visibly grows with every upgrade.
 // Once the island business opens, the same screen zooms out to the whole estate (render3d/estate.ts).
 import { analytics } from '../core/analytics';
+import { SortMenuOverlay } from './sort';
 import { BALANCE, SPECIES } from '../core/data';
 import { goalPair, progressLabel } from '../core/goals';
 import { levelForXp, levelProgress } from '../core/progression';
@@ -305,6 +306,14 @@ export class VillageScene implements Scene {
     // your staff: hire, train, see what each job does (once the island is open)
     if (!this.overview && islandUnlocked(s))
       this.game.button(ctx, 'team', 10, 218, 128, 38, `Team ${teamSize(s)}/${teamCap(s)}`, () => this.game.push(new TeamOverlay(this.game)), { color: '#5cb85c', dark: '#2f7a3b', size: 13 });
+    // the Market Sort mini game (after the first trip, so the first minutes are about fishing)
+    if (!this.overview && s.stats.trips >= 1)
+      this.game.button(ctx, 'sort', W - 118, islandUnlocked(s) && this.game.world ? 218 : 174, 108, 38, '🛒 Market Sort', () => this.game.push(new SortMenuOverlay(this.game)), {
+        color: '#d4a017',
+        dark: '#9c7410',
+        size: 12,
+        pulse: s.sort.length === 0,
+      });
     if (!islandUnlocked(s) || !this.game.world) return;
     const overview = this.overview;
     this.game.button(ctx, 'view', W - 118, 174, 108, 38, overview ? 'Village' : 'Island view', () => this.setView(overview ? 'village' : 'island'), {

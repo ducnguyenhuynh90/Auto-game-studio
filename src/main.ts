@@ -24,6 +24,8 @@ import { IslandScene } from './scenes/island';
 import { PuzzleHubOverlay, SaltPuzzleOverlay, ShopPuzzleOverlay } from './scenes/puzzles';
 import { FISHING_LEVELS } from './core/puzzles';
 import { SCENES } from './core/story';
+import { SortGameOverlay, SortMenuOverlay } from './scenes/sort';
+import { smartHint } from './core/sort';
 import { build, buyPlot, canExpand, catchUp, hire, terrain, type BuildingId } from './core/island';
 import { RevealOverlay } from './scenes/jar';
 import { addCatch, canFerment, sealJar, upgradeCost } from './core/state';
@@ -167,6 +169,12 @@ if (import.meta.env.DEV && params.has('scene')) {
     game.goVillage();
   }
   if (which === 'fpuzzle') game.goFishingPuzzle(Number(params.get('level') ?? 1) - 1);
+  if (which === 'sort') {
+    st.stats.trips = Math.max(1, st.stats.trips);
+    st.storySeen = SCENES.map((x) => x.id);
+    game.push(new SortMenuOverlay(game));
+    if (params.has('level')) game.push(new SortGameOverlay(game, Number(params.get('level')) - 1));
+  }
   if (which === 'island' || which === 'puzzles' || which === 'salt' || which === 'shop') {
     // a small running business for visual QA
     st.stats.sold = Math.max(1, st.stats.sold);
@@ -314,7 +322,7 @@ function frame(now: number): void {
 requestAnimationFrame(frame);
 
 // Test / QA hook (harmless in production: exposes nothing sensitive).
-(window as unknown as Record<string, unknown>).__mam = { game, analytics, rules: { upgradeCost, UPGRADES, SEAS, seaLock, seaComplete, canFerment } };
+(window as unknown as Record<string, unknown>).__mam = { game, analytics, rules: { upgradeCost, UPGRADES, SEAS, seaLock, seaComplete, canFerment, sortHint: smartHint } };
 
 // Offline + instant repeat loads on self-hosted builds. Not inside the claude.ai artifact frame
 // (service workers aren't available there) and not in dev (it would cache stale modules).

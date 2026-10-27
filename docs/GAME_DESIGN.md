@@ -283,3 +283,27 @@ top bar (tap it, or the banner, for the Road screen with a "Go ›" button per g
   finds something once (coins 45%, cowrie shell +20 XP 20%, message in a bottle +15 15%, Magic Salt 10%,
   Sonar 10%). Free and honest: rolled when it happens, never paid for.
 - Close buttons ("x") have a 14 px larger tap area and a soft glow.
+
+## Market Sort mini game (build 3.11, founder request: "like Goods Sort, 50 levels")
+Reference: Goods Sort (Onesoft / Falcon), a hybrid-casual sorting puzzle (iOS top 40 by DAU, ~8 min
+levels, rewarded ads to unblock shelves). Ours is themed on Bà Năm's Phú Quốc market stall.
+- **Rules** (`src/core/sort.ts`): shelves of 3 front slots with rows waiting behind. Move one good at a
+  time into any free front slot (any shelf, mixed kinds allowed). Three of a kind on one shelf sell; when
+  a front row is empty the row behind slides forward. Some shelves are **tied up** and open after N sales
+  (the reference unlocks these by watching an ad; we use play, D-024). Clear the stall before the timer.
+- **50 levels**, generated from the level number and **proven winnable** by a solver before they are
+  shown (the winning run is kept; tests replay it). Curve: 1-5 super easy (3 shelves, 2 kinds, no rows
+  behind at first), 6-15 easy (4-6 shelves, 2-3 rows), 16-30 medium (6-9 shelves, 3 rows, a tied shelf
+  from 19), 31-50 hard (9-12 shelves, 4 rows, up to 16 kinds, 2 tied shelves, ~3 s per good).
+  `npx vite-node tools/sort-levels.ts` prints the table.
+- **Stars** from time left (3 with half the clock, 2 with a quarter, 1 to finish). **First clear pays**
+  20 + 6 × level coins; replays can raise stars only.
+- **Boosters, game coins only** (no real money, no ads, nothing random): 💡 Hint (one free per level, then
+  10; it follows a whole winning plan, so following hints always clears the level), 🔀 Shuffle (25),
+  ⏱️ +60 s (30). Full shelves with time left offer "Shuffle & keep going" instead of an instant loss.
+- **Where:** 🛒 Market Sort button in the village after the first trip (web + app) and in the app's
+  Puzzles hub. Analytics: `sort_menu`, `puzzle_start`/`puzzle_end` with section `sort`, `sort_booster`,
+  `sort_stuck` (GA maps these like the other puzzles).
+- **Checks:** unit tests (all 50 levels winnable and deterministic; following the Hint clears every
+  level), `tools/sort-play.mjs` taps through levels in the web game, `mobile/tools/web-e2e-sort.mjs` in
+  the app.

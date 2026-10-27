@@ -209,3 +209,11 @@ built, but as ONE connected system rather than separate features:
   same Supabase web flow; a native Apple sheet is later polish.
 - Store accounts (US$25 Play, US$99/yr Apple), the final app id and the store listing are founder
   decisions (docs/STORE_RELEASE.md). Nothing is published or paid by the pipeline on its own.
+
+## D-024 · 2026-10-27 · Market Sort: the Goods Sort loop, without ads or real money
+- Founder asked for a mini game like Goods Sort with 50 levels. Same core loop (shelves, three of a kind,
+  rows behind, tied shelves, timer, boosters), themed on the Phú Quốc market.
+- The reference monetises with rewarded ads (unblock shelves) and paid boosters. We don't (studio rules:
+  no randomized paid rewards or real-money mechanics without founder/legal approval): tied shelves open
+  through play, boosters cost game coins. Adding ads or paid boosters later is a founder decision.
+- Every level is proven winnable before it is shown (honest difficulty, no impossible boards).

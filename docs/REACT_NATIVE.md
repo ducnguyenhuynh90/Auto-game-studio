@@ -48,6 +48,7 @@ buttons with a 16 px touch slop, the same analytics events (tagged `app: 'react-
 | Fishing parity: food chain (a hungry fish rushes the bait after a small catch), Mực's fetch / find surprises, fishing puzzles (fixed school + goal) | `src/screens/Fishing.tsx` | `core/chain.ts`, `core/dog.ts`, `core/puzzles.ts` |
 | Sea Chart: five seas, missions with progress, relics, why a sea is locked (ⓘ) | `src/screens/SeaChart.tsx` | `core/seas.ts` |
 | Beach soundscape + effects: the web game's own sound engine on `react-native-audio-api` (Web Audio API on iOS / Android) | `src/audio.ts` | `src/render/audio.ts`, `src/render/ambience.ts` |
+| Market Sort mini game: 50 solver-proven levels, timer, tied shelves, Hint / Shuffle / +60 s for game coins | `src/screens/Sort.tsx` | `core/sort.ts` |
 | Settings: Sound, Music, play statistics, cloud backup, two-save choice, Delete account | `src/screens/Settings.tsx` | |
 | Cloud backup (Supabase, anonymous account on first launch, same tables and merge rules as the web game) | `src/cloud.ts` | `src/auth/cloudsave.ts`, `src/auth/merge.ts` |
 | Google Analytics 4 (Measurement Protocol, opt-in card after the first catch, same events and player properties as the web) | `src/ga.ts`, `src/screens/Consent.tsx` | `src/analytics/gamap.ts`, `src/analytics/mp.ts` |

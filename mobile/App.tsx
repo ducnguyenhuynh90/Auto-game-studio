@@ -20,6 +20,7 @@ import { startAudio } from './src/audio';
 import { SeaChartScreen } from './src/screens/SeaChart';
 import { SettingsScreen } from './src/screens/Settings';
 import { StoryCard } from './src/screens/Story';
+import { SortGameScreen, SortMenuScreen } from './src/screens/Sort';
 import { ConsentCard } from './src/screens/Consent';
 import { cloud } from './src/cloud';
 import { ga } from './src/ga';
@@ -77,6 +78,8 @@ export default function App() {
           {top.name === 'fill' ? <JarFillScreen nav={nav} jar={top.jar} /> : null}
           {top.name === 'reveal' ? <RevealScreen nav={nav} jar={top.jar} /> : null}
           {top.name === 'seas' ? <SeaChartScreen nav={nav} /> : null}
+          {top.name === 'sort' ? <SortMenuScreen nav={nav} /> : null}
+          {top.name === 'sortgame' ? <SortGameScreen nav={nav} level={top.level} key={`sort${top.level}-${stack.length}`} /> : null}
           {top.name === 'settings' ? <SettingsScreen nav={nav} /> : null}
           {top.name === 'market' ? <MarketScreen nav={nav} /> : null}
           {top.name === 'island' ? <IslandScreen nav={nav} tile={top.tile} /> : null}

@@ -61,6 +61,7 @@ export function VillageScreen({ nav }: { nav: Nav }) {
       ) : null}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={styles.tools}>
         <GameButton testID="seas" label="🧭 Seas" size={13} color={C.sea} onPress={() => nav.go({ name: 'seas' })} />
+        {s.stats.trips >= 1 ? <GameButton testID="sort" label="🛒 Market Sort" size={13} color="#d4a017" onPress={() => nav.go({ name: 'sort' })} /> : null}
         {s.stats.trips >= 1 ? <GameButton testID="puzzles" label="🧩 Puzzles" size={13} color={C.purple} onPress={() => nav.go({ name: 'puzzles' })} /> : null}
       {islandUnlocked(s) ? (
         <>

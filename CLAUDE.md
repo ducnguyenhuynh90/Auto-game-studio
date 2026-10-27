@@ -5,7 +5,7 @@ the biggest problem and the next action. Then read PRODUCT.md and SUCCESS.yaml.
 
 ## Commands
 - `npm run dev`: dev server at :5173. Query params: `?reset=1` wipes the save, `?seed=N`, `?speed=N`,
-  `?scene=fishing|reef|reveal|chain|island|estate|puzzles|salt|shop|fpuzzle` (+`&level=N`) (dev-only jump for visual QA).
+  `?scene=fishing|reef|reveal|chain|island|estate|puzzles|salt|shop|fpuzzle|sort` (+`&level=N`) (dev-only jump for visual QA).
 - `npm test`: unit tests for the game rules (`tests/`).
 - `npm run build`: typecheck + production build to `dist/`.
 - `node tools/playtest.mjs --trips 6 --skill 0.7 --shots`: bot plays the real game in headless

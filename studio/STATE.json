@@ -7,7 +7,7 @@
   "how_to_test": "npm test ; npm run build ; npx vite preview --port 4173 & node tools/playtest.mjs --trips 6 --skill 0.7 --shots (playtests run against the preview build; HMR reloads break bot runs on the dev server)",
   "current_objective": "Get real players onto build 3.0 and learn whether the island business (staff + puzzles) brings them back (EXP-006) without hurting the fishing fun.",
   "biggest_known_problem": "Zero real-player evidence. The playable link and analytics now exist; the blocker is getting 5-10 casual players to open it.",
-  "active_experiment": "EXP-009 Road to the World's Best (build 3.9); EXP-005 to 008 still waiting for real players.",
+  "active_experiment": "EXP-011 Market Sort mini game (build 3.11) and EXP-010 Story v2; EXP-005 to 009 still waiting for real players.",
   "recent_results": [
     "Build 2.0 (founder direction D-007): goal + next banner, Captain's Log, Captain XP/levels, cast tangle risk, 5 gear lines (rod/line/hook/bait/boat), 3D sea chart with 5 seas × 4 missions, relics, Mystery Crate gadgets, 12 new species and 4 new recipes, per-sea 3D scenery and boats.",
     "[SIM] Progression sim (tools/sim.ts): story finishes at all skills 0.4-0.8. Reef at 10-30 min, Abyss at 2.4-3.3 h. It caught and fixed a perfect-catch softlock and an economy that maxed gear in 40 min.",

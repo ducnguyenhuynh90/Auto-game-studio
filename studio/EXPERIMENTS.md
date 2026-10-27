@@ -117,3 +117,19 @@
   share of players reaching stage 3 by session 2, and session length before/after stage 1.
 - **Success:** ≥60% of players who finish the tutorial reach stage 1; ≥35% reach stage 3; median stage 3
   under 90 min of play. **Evidence so far:** [SIM] only (see GAME_DESIGN.md).
+
+## EXP-010 · Story v2 (build 3.10.1)
+- **Hypothesis:** a mystery object (Grandpa's humming jar, one word per sea), a mentor twist and a rival
+  with a past make players read scenes instead of skipping them, and pull them to the next chapter.
+- **Measure:** `story_view` skip rate per scene (target: intro read to the end by ≥60% of new players,
+  ≤40% skips on chapter scenes), and chapter-to-chapter progression vs build 3.10.
+- **Evidence so far:** none ([DESIGN] only).
+
+## EXP-011 · Market Sort mini game (build 3.11)
+- **Hypothesis:** a short, familiar sorting puzzle (the Goods Sort loop) gives a second reason to open
+  the game on days without a fishing session, and its coin rewards speed up the main economy a little.
+- **Measure:** share of players who open Market Sort (`sort_menu`) and clear level 1; levels cleared per
+  player per day; sessions per day before/after; `sort_stuck` and booster use per level (difficulty).
+- **Success:** ≥40% of players past the tutorial clear Market Sort level 1; median player clears 5+
+  levels in their first week; no level with a loss rate above 60%.
+- **Evidence so far:** [SIM] only: every level is solver-proven; bots clear levels 1-50 by tapping.

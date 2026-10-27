@@ -55,6 +55,7 @@ jobs:
           sleep 2
           node tools/web-e2e.mjs http://localhost:4181/ shots
           node tools/web-e2e-business.mjs http://localhost:4181/ shots
+          node tools/web-e2e-sort.mjs http://localhost:4181/ shots
       # cloud backup + Google Analytics, against fake servers (no keys needed)
       - name: Play the optional services (fake Supabase and GA)
         env:

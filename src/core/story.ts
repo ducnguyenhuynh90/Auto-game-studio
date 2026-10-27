@@ -275,11 +275,11 @@ export function markSeen(s: GameState, id: string): void {
 export const MISSION_STORY: Record<string, { giver: CharacterId; why: string; done: string }> = {
   l_good: { giver: 'nam', why: 'Fresh fish make honest sauce. Show me gentle hands.', done: 'Gentle hands! The jars will thank you.' },
   l_sardine: { giver: 'nam', why: 'Sardines for the Hàm Ninh market tomorrow morning.', done: 'Five sardines! The neighbours will eat tonight.' },
-  l_fine: { giver: 'nam', why: 'Phú Quốc mắm is famous everywhere. Make one worthy of the name.', done: 'Real Phú Quốc mắm. My memory stirs…' },
+  l_fine: { giver: 'nam', why: 'Phú Quốc mắm is famous everywhere. Make one worthy of the name.', done: 'Real Phú Quốc mắm. Listen… Grandpa\'s jar is humming along.' },
   l_mackerel: { giver: 'lan', why: 'Mackerel swim too deep for my line… unless a hungry one comes up to eat.', done: 'Deep water isn\'t so scary after all.' },
   r_snapper: { giver: 'rua', why: 'Rùa keeps staring at a red shadow by the coral…', done: 'Rùa blinked twice. I think that\'s a "well done".' },
   r_squid: { giver: 'nam', why: 'Squid ink for the recipe notes, I think. Or for supper.', done: 'Enough squid for notes AND supper!' },
-  r_reserve: { giver: 'nam', why: 'Your grandfather brewed Reef Reserve. Try it.', done: 'Just like his. He would be proud.' },
+  r_reserve: { giver: 'nam', why: 'Your grandfather brewed Reef Reserve. His jar still remembers how.', done: 'Just like his. He would be proud.' },
   r_crate: { giver: 'lan', why: 'Grandpa\'s old crates are still down there somewhere!', done: 'Treasure! Grandpa really did hide things.' },
   d_prawn: { giver: 'tu', why: 'No prawns, no mắm tôm. Catch me a good bucketful!', done: 'That\'s a proper bucket! Now we brew.' },
   d_shrimp: { giver: 'tu', why: 'Two prawns or more in a jar: brave enough for mắm tôm?', done: 'Smell that? That\'s the smell of success. Ha!' },
@@ -292,5 +292,5 @@ export const MISSION_STORY: Record<string, { giver: CharacterId; why: string; do
   t_angler: { giver: 'rua', why: 'Little lights in the dark… Rùa wants to see them up close.', done: 'Tiny lanterns of the deep. Beautiful.' },
   t_squid: { giver: 'lan', why: 'Giant Squid. I\'m not scared. (I\'m very scared.)', done: 'I did it! …Can we go home now? Kidding.' },
   t_legend: { giver: 'nam', why: 'A Legendary sauce. Only time and care can make it.', done: 'Legendary. You understand now, don\'t you?' },
-  t_oarfish: { giver: 'rua', why: 'The longest fish alive. The last memory of the recipe.', done: 'The last memory returns…' },
+  t_oarfish: { giver: 'rua', why: 'The longest fish alive. The last memory of the recipe.', done: 'The jar is singing. One last word is waiting…' },
 };

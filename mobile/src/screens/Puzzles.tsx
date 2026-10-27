@@ -40,6 +40,7 @@ export function PuzzleHubScreen({ nav }: { nav: Nav }) {
       </View>
       <Text style={styles.small}>Staff do the routine. You solve the hard problems: each level you clear lets staff train one level higher.</Text>
       <ScrollView contentContainerStyle={{ gap: 10, paddingVertical: 10 }}>
+        <GameButton testID="hub_sort" label="🛒 Market Sort" sub="50 stalls to sort, three of a kind sell" color="#d4a017" onPress={() => nav.go({ name: 'sort' })} />
         {(['fishing', 'salt', 'shop'] as const).map((sec) => (
           <Panel key={sec} style={{ gap: 8 }}>
             <Text style={[styles.h2, { color: SECTION_INFO[sec].dark }]}>

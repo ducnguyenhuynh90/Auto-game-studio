@@ -3,6 +3,8 @@ export type Screen =
   | { name: 'village' }
   | { name: 'fishing'; puzzle?: number }
   | { name: 'seas' }
+  | { name: 'sort' }
+  | { name: 'sortgame'; level: number }
   | { name: 'settings' }
   | { name: 'fill'; jar: number }
   | { name: 'reveal'; jar: number }
