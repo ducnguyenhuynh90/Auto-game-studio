@@ -1,7 +1,8 @@
 name: Deploy playable build to GitHub Pages
 on:
   push:
-    branches: [main]
+    # main, and the working branch while it is the repository default (Pages only deploys the default)
+    branches: [main, ccr-833d8974-lkhlcm]
   workflow_dispatch:
 permissions:
   contents: read
