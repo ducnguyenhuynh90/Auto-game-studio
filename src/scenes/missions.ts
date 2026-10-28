@@ -8,6 +8,7 @@ import { SEAS, SEAS_BY_ID, seaLock } from '../core/seas';
 import { sfx } from '../render/audio';
 import { COLORS, H, W, clamp01, drawCoin, ease, font, outlinedText, panel, rr, star, text, type Ctx } from '../render/draw';
 import type { Game, Scene } from '../game';
+import { goGoal } from './goto';
 
 function check(ctx: Ctx, x: number, y: number, done: boolean): void {
   ctx.fillStyle = done ? COLORS.good : '#fff';
@@ -129,12 +130,21 @@ export class MissionsOverlay implements Scene {
         const line = `${CAST[st.giver].name}: “${done ? st.done : st.why}”`;
         ctx.font = font(10, 600);
         let l = line;
-        while (l.length > 8 && ctx.measureText(l).width > W - 110) l = l.slice(0, -2);
+        while (l.length > 8 && ctx.measureText(l).width > (done || lock ? W - 100 : W - 140)) l = l.slice(0, -2);
         if (l !== line) l = l.trimEnd() + '…”';
         text(ctx, l, 60, y + 27, 10, CAST[st.giver].color, 'left', 700);
       }
       drawCoin(ctx, W - 92, y + 4, 8);
       text(ctx, String(m.reward.coins), W - 80, y + 5, 12, COLORS.ink, 'left');
+      // tap a mission to go where it is done
+      if (!done && !lock && this.t > 0.3) {
+        text(ctx, 'Go ›', W - 34, y + 27, 12, '#3a8fd9', 'right', 900);
+        const view = { id: m.id, text: m.text, progress: [c, t] as [number, number], reward: m.reward.coins, chapter: sea.name };
+        this.game.hitArea(`mission_${m.id}`, 28, y - 14, W - 56, 46, () => {
+          this.game.pop(this);
+          goGoal(this.game, view);
+        });
+      }
       if (m.reward.gadget) {
         ctx.fillStyle = GADGETS[m.reward.gadget].color;
         rr(ctx, W - 52, y - 5, 20, 20, 6);

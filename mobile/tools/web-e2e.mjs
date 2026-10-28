@@ -159,6 +159,22 @@ await press('level_fishing_1');
 await p.waitForFunction(() => !!globalThis.__mamTrip?.puzzle, null, { timeout: 10000 });
 await p.waitForTimeout(400);
 await p.screenshot({ path: `${shots}/rn_fishing_puzzle.png` });
+// tapping the goal goes where it can be done: "Upgrade your fishing gear" with coins → the shop's upgrades
+for (let n = 0; n < 5 && (await byId('close').count()); n++) {
+  await press('close');
+  await p.waitForTimeout(300);
+}
+await p.evaluate(() => {
+  const g = globalThis.__mamApp;
+  g.state.goalsDone = ['catch3', 'seal1', 'trip2', 'open1', 'sell1', 'dog_feed', 'jar2', 'dog_home', 'chain2', 'dog_boat'];
+  g.state.coins = 1000;
+  g.commit();
+});
+await p.waitForTimeout(300);
+await press('goal');
+await p.waitForTimeout(400);
+if (!(await byId('up_rod').count())) fail.push('goal tap did not open the shop upgrades');
+await p.screenshot({ path: `${shots}/rn_goal_shop.png` });
 console.log(JSON.stringify({ afterTrip1: s1, afterSale: s2, afterReload: s3 }));
 console.log(fail.length ? 'FAIL\n' + fail.join('\n') : 'react native web e2e passed');
 await b.close();

@@ -2,7 +2,8 @@
 // long-term direction after that. Each goal is checked against state, so it never desyncs.
 import { CAREER, activeStage, career, goalDone, type CareerGoal } from './career';
 import { SEAS, SEAS_BY_ID, seaComplete, seaLock, type Mission, type Sea } from './seas';
-import type { GameState } from './state';
+import { BALANCE, type UpgradeId } from './data';
+import { agingLevel, canFerment, upgradeCost, type GameState } from './state';
 
 export interface Goal {
   id: string;
@@ -121,4 +122,74 @@ export function checkGoals(s: GameState): Goal[] {
     completed.push(g);
   }
   return completed;
+}
+
+// ---------- Where a goal is done ----------
+
+/** The upgrade a goal asks for (highlighted in the market), if any. */
+export function goalUpgrade(s: GameState, g: GoalView): UpgradeId | null {
+  if (g.id === 'jar2') return 'jars';
+  if (g.id === 'l_mackerel' && s.upgrades.line === 0) return 'line';
+  if (g.id.startsWith('voyage_') && /boat/i.test(g.text)) return 'boat';
+  if (g.id === 'gear1') {
+    const gear: UpgradeId[] = ['line', 'rod', 'hook', 'bait'];
+    return gear.sort((a, b) => (upgradeCost(s, a) ?? 1e9) - (upgradeCost(s, b) ?? 1e9))[0];
+  }
+  return null;
+}
+
+export type GoalPlace = 'fish' | 'fill' | 'open' | 'sell' | 'shop' | 'dog' | 'map' | 'career' | 'missions';
+
+/** Where tapping the goal takes the player: the screen where they can do it now. */
+export interface GoalTarget {
+  to: GoalPlace;
+  /** Shop: the upgrade to buy (its tab opens and it is highlighted). */
+  upgrade?: UpgradeId;
+  /** A short note when the goal can't be done yet and this is the step that gets there. */
+  why?: string;
+  /** What to do about it (the toast's second line). */
+  hint?: string;
+}
+
+const fermentable = (s: GameState) => s.bucket.filter(canFerment).length;
+
+/**
+ * The screen where the current goal can be done. If it can't be done yet (not enough coins or fish),
+ * this is the step that gets the player there, with a note saying why.
+ */
+export function goalTarget(s: GameState, g: GoalView, now = Date.now()): GoalTarget {
+  if (g.career) return { to: 'career' };
+  const up = goalUpgrade(s, g);
+  if (up) {
+    const cost = upgradeCost(s, up);
+    if (cost !== null && s.coins >= cost) return { to: 'shop', upgrade: up };
+    if (cost !== null) {
+      const short = cost - s.coins;
+      // bottles on the shelf are the quickest coins; otherwise go fishing
+      return s.shelf.length ? { to: 'sell', why: `Need ${short} more coins`, hint: 'Sell your fish sauce' } : { to: 'fish', why: `Need ${short} more coins`, hint: 'Catch fish, brew, sell' };
+    }
+  }
+  if (g.id.startsWith('voyage_')) return { to: 'map' };
+  switch (g.id) {
+    case 'seal1':
+      return fermentable(s) >= BALANCE.jarSlots ? { to: 'fill' } : { to: 'fish', why: `Need ${BALANCE.jarSlots} fish for a jar` };
+    case 'open1':
+      return s.jars.some((j) => j.sealed && agingLevel(s, j, now) >= 1) ? { to: 'open' } : { to: 'fish', why: 'The jar ages while you fish' };
+    case 'trip2':
+      return { to: 'fish' };
+    case 'sell1':
+      return s.shelf.length ? { to: 'sell' } : { to: 'open' };
+    case 'dog_feed':
+    case 'dog_home':
+      return { to: 'dog' };
+  }
+  // sea missions: brewing ones happen at the jars, the rest at sea
+  if (/^brew/i.test(g.text)) {
+    if (s.jars.some((j) => j.sealed && agingLevel(s, j, now) >= 1)) return { to: 'open' };
+    return fermentable(s) >= BALANCE.jarSlots && s.jars.some((j) => !j.sealed) ? { to: 'fill' } : { to: 'fish', why: 'Catch the fish for this sauce first' };
+  }
+  // a mission of a sea you are not in: sail there first
+  const sea = SEAS.find((x) => x.missions.some((m) => m.id === g.id));
+  if (sea && sea.id !== s.sea) return { to: 'map', why: `This one is in ${sea.name}` };
+  return { to: 'fish' };
 }

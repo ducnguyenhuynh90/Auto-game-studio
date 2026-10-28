@@ -9,9 +9,10 @@ import { game, useGame } from '../store';
 import { CloseButton, CoinChip, GameButton, Panel } from '../ui';
 import type { Nav } from '../nav';
 
-export function MarketScreen({ nav }: { nav: Nav }) {
+/** `tab` / `focus` come from the goal banner: the upgrade the goal asks for is highlighted. */
+export function MarketScreen({ nav, tab: startTab, focus }: { nav: Nav; tab?: 'sell' | 'gear'; focus?: string }) {
   const s = useGame();
-  const [tab, setTab] = useState<'sell' | 'gear'>('sell');
+  const [tab, setTab] = useState<'sell' | 'gear'>(startTab ?? 'sell');
   const spare = s.bucket.filter((f) => !canFerment(f));
   return (
     <View style={styles.wrap}>
@@ -67,7 +68,7 @@ export function MarketScreen({ nav }: { nav: Nav }) {
             const next = u.levels[lvl + 1];
             const cost = upgradeCost(s, u.id);
             return (
-              <Panel key={u.id} style={styles.row}>
+              <Panel key={u.id} style={[styles.row, focus === u.id && styles.focus]}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.name}>{u.levels[lvl].name}</Text>
                   <Text style={styles.meta}>{next ? `Next: ${next.name}: ${next.desc}` : 'Fully upgraded'}</Text>
@@ -103,6 +104,7 @@ const styles = StyleSheet.create({
   tabs: { flexDirection: 'row', gap: 8, marginVertical: 12 },
   empty: { textAlign: 'center', fontWeight: '700', color: 'rgba(43,33,24,0.6)', marginTop: 40 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10 },
+  focus: { borderColor: C.gold, borderWidth: 4, backgroundColor: '#fff6d8' },
   bottle: { width: 26, height: 44, borderRadius: 8, borderWidth: 2, borderColor: C.ink },
   name: { fontSize: 15, fontWeight: '900', color: C.ink },
   meta: { fontSize: 12, fontWeight: '700', color: 'rgba(43,33,24,0.7)' },

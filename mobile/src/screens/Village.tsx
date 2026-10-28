@@ -3,7 +3,9 @@ import { useEffect } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { careerTitle } from '@core/career';
 import { BALANCE } from '@core/data';
-import { goalPair, progressLabel } from '@core/goals';
+import { goalPair, goalTarget, progressLabel, type GoalView } from '@core/goals';
+import { analytics } from '@core/analytics';
+import { goTo } from './Business';
 import { levelForXp, levelProgress } from '@core/progression';
 import { SEAS_BY_ID } from '@core/seas';
 import { agingLevel, canFerment, type Jar } from '@core/state';
@@ -19,6 +21,41 @@ import type { Nav } from '../nav';
 function jarState(s: ReturnType<typeof useGame>, j: Jar, now: number): 'empty' | 'ageing' | 'ready' {
   if (!j.sealed) return 'empty';
   return agingLevel(s, j, now) >= 1 ? 'ready' : 'ageing';
+}
+
+/** Tapping the goal goes where it can be done now (or to the step that gets there, with a note). */
+function goGoal(nav: Nav, g: GoalView): void {
+  const s = game.state;
+  const t = goalTarget(s, g);
+  analytics.track('goal_go', { goal: g.id, to: t.to, upgrade: t.upgrade ?? '', app: 'react-native' });
+  if (t.why) game.toast(t.why, C.accent, t.hint);
+  const now = Date.now();
+  switch (t.to) {
+    case 'career':
+      return goTo(nav, g.career!);
+    case 'fish':
+      return nav.go({ name: 'fishing' });
+    case 'fill': {
+      const i = s.jars.findIndex((j) => !j.sealed);
+      if (i >= 0) nav.go({ name: 'fill', jar: i });
+      return;
+    }
+    case 'open': {
+      const i = s.jars.findIndex((j) => j.sealed && agingLevel(s, j, now) >= 1);
+      if (i >= 0) nav.go({ name: 'reveal', jar: i });
+      return;
+    }
+    case 'sell':
+      return nav.go({ name: 'market', tab: 'sell' });
+    case 'shop':
+      return nav.go({ name: 'market', tab: 'gear', focus: t.upgrade });
+    case 'dog':
+      return nav.go({ name: 'dog' });
+    case 'map':
+      return nav.go({ name: 'seas' });
+    case 'missions':
+      return nav.go({ name: 'seas' });
+  }
 }
 
 export function VillageScreen({ nav }: { nav: Nav }) {
@@ -53,11 +90,13 @@ export function VillageScreen({ nav }: { nav: Nav }) {
         </Pressable>
       </View>
       {current ? (
-        <Panel style={styles.goal}>
-          <Text style={styles.goalText}>🎯 {current.text}</Text>
-          {current.progress ? <Text style={styles.goalProg}>{progressLabel(current)}</Text> : null}
-          {next ? <Text style={styles.goalNext}>Next: {next.text}</Text> : null}
-        </Panel>
+        <Pressable testID="goal" onPress={() => goGoal(nav, current)}>
+          <Panel style={styles.goal}>
+            <Text style={styles.goalText}>🎯 {current.text}  ›</Text>
+            {current.progress ? <Text style={styles.goalProg}>{progressLabel(current)}</Text> : null}
+            {next ? <Text style={styles.goalNext}>Next: {next.text}</Text> : null}
+          </Panel>
+        </Pressable>
       ) : null}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={styles.tools}>
         <GameButton testID="seas" label="🧭 Seas" size={13} color={C.sea} onPress={() => nav.go({ name: 'seas' })} />

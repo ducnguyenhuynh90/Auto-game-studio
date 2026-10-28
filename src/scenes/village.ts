@@ -3,7 +3,8 @@
 import { analytics } from '../core/analytics';
 import { SortMenuOverlay } from './sort';
 import { BALANCE, SPECIES } from '../core/data';
-import { goalPair, progressLabel } from '../core/goals';
+import { goalPair, progressLabel, type GoalView } from '../core/goals';
+import { goGoal } from './goto';
 import { levelForXp, levelProgress } from '../core/progression';
 import { SEAS, SEAS_BY_ID, seaComplete, seaLock } from '../core/seas';
 import { agingLevel, canFerment, upgradeCost, type Jar } from '../core/state';
@@ -601,8 +602,16 @@ export class VillageScene implements Scene {
     text(ctx, nextText, -174, 39, fitSize(ctx, nextText, 262, 14, 11), 'rgba(43,33,24,0.75)', 'left', 800);
     text(ctx, current.career ? 'Road ›' : 'Missions ›', 176, 39, 13, current.career ? '#b8860b' : '#3a8fd9', 'right', 900);
     ctx.restore();
-    this.game.hitArea('goal', 8, 64, W - 16, 102, () => this.game.push(current.career ? new RoadOverlay(this.game) : new MissionsOverlay(this.game)));
+    // tapping the goal goes where it can be done; "Missions ›" / "Road ›" still opens the full list
+    this.game.hitArea('goal', 8, 64, W - 16, 102, () => this.goGoal(current));
+    this.game.hitArea('goal_list', W - 110, 136, 102, 30, () => this.game.push(current.career ? new RoadOverlay(this.game) : new MissionsOverlay(this.game)));
   }
+
+  /** Opens the screen where the goal can be done now (scenes/goto.ts). */
+  private goGoal(g: GoalView): void {
+    goGoal(this.game, g);
+  }
+
 
   private drawBottom(ctx: Ctx): void {
     const s = this.game.state;

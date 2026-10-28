@@ -81,7 +81,7 @@ export default function App() {
           {top.name === 'sort' ? <SortMenuScreen nav={nav} /> : null}
           {top.name === 'sortgame' ? <SortGameScreen nav={nav} level={top.level} key={`sort${top.level}-${stack.length}`} /> : null}
           {top.name === 'settings' ? <SettingsScreen nav={nav} /> : null}
-          {top.name === 'market' ? <MarketScreen nav={nav} /> : null}
+          {top.name === 'market' ? <MarketScreen nav={nav} tab={top.tab} focus={top.focus} key={`market${top.focus ?? ''}${stack.length}`} /> : null}
           {top.name === 'island' ? <IslandScreen nav={nav} tile={top.tile} /> : null}
           {top.name === 'team' ? <TeamScreen nav={nav} focus={top.focus} /> : null}
           {top.name === 'production' ? <ProductionScreen nav={nav} /> : null}

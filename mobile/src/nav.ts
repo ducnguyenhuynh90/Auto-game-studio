@@ -8,7 +8,7 @@ export type Screen =
   | { name: 'settings' }
   | { name: 'fill'; jar: number }
   | { name: 'reveal'; jar: number }
-  | { name: 'market' }
+  | { name: 'market'; tab?: 'sell' | 'gear'; focus?: string }
   | { name: 'island'; tile?: number }
   | { name: 'team'; focus?: string }
   | { name: 'production' }

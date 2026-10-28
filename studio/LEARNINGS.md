@@ -113,3 +113,7 @@ Only [PLAYER] entries count as product evidence.
   Two bugs only bots found: the whole-shelf tap area sat on top of the slot areas (nothing could be
   picked up), and step-by-step hints could cycle on hard levels; the Hint now follows one whole winning
   plan (detours cut out), so following hints clears every level.
+- [PLAYER] 2026-10-28 · Founder: tapping the goal ("upgrade your rod") opened the mission list, not the
+  shop. A goal is an instruction; tapping it should take you to where you do it. Now the banner and
+  every mission row go there (core/goals.ts goalTarget): the shop with the upgrade highlighted when you
+  can afford it, otherwise the step that earns it with "Need N more coins" (sell sauce, or go fishing).

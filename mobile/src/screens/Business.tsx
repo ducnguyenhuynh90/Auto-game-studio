@@ -281,7 +281,7 @@ export function BrandScreen({ nav }: { nav: Nav }) {
 }
 
 // ---------- Road to the World's Best ----------
-function goTo(nav: Nav, g: CareerGoal): void {
+export function goTo(nav: Nav, g: CareerGoal): void {
   analytics.track('career_go', { goal: g.id, where: g.where });
   const where: Record<CareerGoal['where'], () => void> = {
     island: () => nav.go({ name: 'island' }),
@@ -290,7 +290,7 @@ function goTo(nav: Nav, g: CareerGoal): void {
     brew: () => nav.go({ name: 'production' }),
     market: () => nav.go({ name: 'market' }),
     puzzles: () => nav.go({ name: 'puzzles' }),
-    map: () => game.toast('The sea chart comes in the next update', C.blue),
+    map: () => nav.go({ name: 'seas' }),
     awards: () => undefined,
   };
   where[g.where]();

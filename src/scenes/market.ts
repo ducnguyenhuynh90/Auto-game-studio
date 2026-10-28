@@ -3,7 +3,7 @@ import { explain } from '../core/help';
 import { showHelp } from './info';
 import { analytics } from '../core/analytics';
 import { SPECIES_BY_ID, UPGRADES, UPGRADES_BY_ID, tierFor, type UpgradeId } from '../core/data';
-import { goalPair } from '../core/goals';
+import { goalPair, goalUpgrade } from '../core/goals';
 import { VILLAGE_STAGES, villageStage } from '../core/evolution';
 import { EvolutionOverlay } from './evolution';
 import { BrandOverlay } from './brand';
@@ -186,18 +186,10 @@ export class MarketOverlay implements Scene {
 
   /** The upgrade the current goal asks for, so it can be highlighted. */
   private goalUpgrade(): UpgradeId | null {
-    const s = this.game.state;
-    const g = goalPair(s).current;
-    if (!g) return null;
-    if (g.id === 'jar2') return 'jars';
-    if (g.id === 'l_mackerel' && s.upgrades.line === 0) return 'line';
-    if (g.id.startsWith('voyage_') && /boat/i.test(g.text)) return 'boat';
-    if (g.id === 'gear1') {
-      const gear: UpgradeId[] = ['line', 'rod', 'hook', 'bait'];
-      return gear.sort((a, b) => (upgradeCost(s, a) ?? 1e9) - (upgradeCost(s, b) ?? 1e9))[0];
-    }
-    return null;
+    const g = goalPair(this.game.state).current;
+    return g ? goalUpgrade(this.game.state, g) : null;
   }
+
 }
 
 /** Shortens text with an ellipsis so it never runs under the buy button. */

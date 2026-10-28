@@ -307,3 +307,12 @@ levels, rewarded ads to unblock shelves). Ours is themed on Bà Năm's Phú Qu�
 - **Checks:** unit tests (all 50 levels winnable and deterministic; following the Hint clears every
   level), `tools/sort-play.mjs` taps through levels in the web game, `mobile/tools/web-e2e-sort.mjs` in
   the app.
+
+## Goals take you there (build 3.11.1, founder feedback)
+Tapping the goal banner (or a mission in the Captain's Log) opens the screen where it is done now:
+gear and jar goals open the Market on that upgrade (highlighted) when you can afford it; otherwise the
+step that earns the coins (sell your sauce if you have bottles, else go fishing) with a "Need N more
+coins" note. Fill / open jar goals open the jar, Mực goals open the dog, sea missions go fishing (or to
+the Sea Chart when they are in another sea), Road goals go where the Road's "Go ›" goes. "Missions ›" /
+"Road ›" on the banner still opens the full list. Rules: `goalTarget` in `src/core/goals.ts` (tested);
+`tools/goal-go-check.mjs` taps the banner in the real game.
