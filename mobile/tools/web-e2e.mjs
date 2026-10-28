@@ -175,6 +175,20 @@ await press('goal');
 await p.waitForTimeout(400);
 if (!(await byId('up_rod').count())) fail.push('goal tap did not open the shop upgrades');
 await p.screenshot({ path: `${shots}/rn_goal_shop.png` });
+// a mission on the Sea Chart goes where it is done too (Phú Quốc missions: out fishing)
+for (let n = 0; n < 5 && (await byId('close').count()); n++) {
+  await press('close');
+  await p.waitForTimeout(300);
+}
+await p.evaluate(() => (globalThis.__mamTrip = undefined));
+await press('seas');
+await p.waitForTimeout(300);
+const mission = p.locator('[data-testid^="mission_l_"]').first();
+if (!(await mission.count())) fail.push('no tappable mission on the Sea Chart');
+else {
+  await mission.click();
+  await p.waitForFunction(() => !!globalThis.__mamTrip, null, { timeout: 5000 }).catch(() => fail.push('tapping a mission did not go fishing'));
+}
 console.log(JSON.stringify({ afterTrip1: s1, afterSale: s2, afterReload: s3 }));
 console.log(fail.length ? 'FAIL\n' + fail.join('\n') : 'react native web e2e passed');
 await b.close();

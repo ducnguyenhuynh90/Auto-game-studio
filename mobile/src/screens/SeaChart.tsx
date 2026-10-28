@@ -1,5 +1,5 @@
 // The Sea Chart (core/seas.ts): five seas in story order. Each shows its missions, relic and why it's locked.
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { analytics } from '@core/analytics';
 import { RELICS } from '@core/items';
 import { SEAS, missionDone, seaComplete, seaLock } from '@core/seas';
@@ -8,6 +8,7 @@ import { C } from '../theme';
 import { game, useGame } from '../store';
 import { CloseButton, GameButton, Panel } from '../ui';
 import type { Nav } from '../nav';
+import { goGoal } from '../goto';
 
 export function SeaChartScreen({ nav }: { nav: Nav }) {
   const s = useGame();
@@ -59,10 +60,18 @@ export function SeaChartScreen({ nav }: { nav: Nav }) {
               {sea.missions.map((m) => {
                 const [c, t] = m.progress(s);
                 const ok = s.missionsDone.includes(m.id) || missionDone(s, m);
-                return (
-                  <Text key={m.id} style={[styles.mission, ok && { color: C.good }]}>
+                const row = (
+                  <Text style={[styles.mission, ok && { color: C.good }]}>
                     {ok ? '✓' : '•'} {m.text} {ok ? '' : `(${c}/${t})`}  +{m.reward.coins}
+                    {!ok && !lock ? <Text style={styles.go}>   Go ›</Text> : null}
                   </Text>
+                );
+                if (ok || lock) return <View key={m.id}>{row}</View>;
+                // tap a mission to go where it is done (fishing here, or sail there first)
+                return (
+                  <Pressable key={m.id} testID={`mission_${m.id}`} hitSlop={6} onPress={() => (nav.back(), goGoal(nav, { id: m.id, text: m.text, progress: [c, t], reward: m.reward.coins, chapter: sea.name }))}>
+                    {row}
+                  </Pressable>
                 );
               })}
               <Text style={[styles.small, { color: relic.color }]}>
@@ -83,5 +92,6 @@ const styles = StyleSheet.create({
   h2: { fontSize: 17, fontWeight: '900', color: C.ink },
   local: { fontSize: 11, fontWeight: '700', color: 'rgba(43,33,24,0.6)' },
   small: { fontSize: 12, fontWeight: '700', color: 'rgba(43,33,24,0.8)' },
+  go: { color: C.blue, fontWeight: '900' },
   mission: { fontSize: 12.5, fontWeight: '800', color: C.ink },
 });
