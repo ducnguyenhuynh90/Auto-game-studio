@@ -6,6 +6,11 @@ Everything needed is in the repository: the native projects are **generated** fr
 CI does the same thing on every push (`.github/workflows/react-native.yml`) if you'd rather download
 its builds; see docs/STORE_RELEASE.md for that route.
 
+**Build settings:** copy `build.env.example` (repository root) to `.env.local` and fill it in. It lists every
+setting for both apps (Supabase, Google Analytics, Android upload key, App Store Connect key), where
+to get each value, and the matching GitHub secret names. Everything is optional except signing for
+store uploads.
+
 ## 0. Get the code
 ```bash
 git clone https://github.com/ducnguyenhuynh90/Auto-game-studio.git
