@@ -316,3 +316,33 @@ coins" note. Fill / open jar goals open the jar, Mực goals open the dog, sea m
 the Sea Chart when they are in another sea), Road goals go where the Road's "Go ›" goes. "Missions ›" /
 "Road ›" on the banner still opens the full list. Rules: `goalTarget` in `src/core/goals.ts` (tested);
 `tools/goal-go-check.mjs` taps the banner in the real game.
+
+## Special fish fight back (build 3.11.2, founder feedback)
+Founder, after installing the APK: special fish should look more interesting and be harder to catch,
+with a smaller green zone.
+- **Harder (core/fishing.ts, BALANCE.rareZone / rareSwing / rareTight / rareSlack).** The sweet zone
+  shrinks by rarity: Rare ×0.76, Epic ×0.66, Legendary ×0.58. It also swings further. Being out of the
+  zone now costs something. A common fish still comes in while you reel too tight (0.6 speed). A Rare
+  fish digs in (0), and an Epic or Legendary fish pulls line back. Slack loses line 1.5-1.9× faster.
+  Before this change, a player who hovered near the zone never lost any fish (simulated: 100% for
+  every species).
+- **Simulated players** (tests/rarefight.test.ts: reaction time 70-230 ms, aim a little off-centre).
+  Catch rates with the starter rod / the best rod:
+
+  | Fish | Starter rod | Best rod |
+  |---|---|---|
+  | Commons | ~100% | ~100% |
+  | Rares | 74-85% | 100% |
+  | Epics | 30-64% | 80-100% |
+  | Golden Anchovy | 32% | 86% |
+  | Dragon Carp | 25% | 64% |
+  | Oarfish | 15% | 44% |
+
+  The rod upgrade is now what makes legends catchable; the Calm Pearl (×1.5 zone) helps too. The
+  outcome still depends only on what the player does: no hidden odds.
+- **More interesting to look at.** Glowing shadows (Epic/Legendary, crates, treasure, Compass-revealed
+  rares) get a halo that pulses over the water and glints circling them. A hooked special fish shows
+  its true colours with faster sparkles. The reel panel shows "★ RARE / EPIC / LEGENDARY" in the
+  rarity colour, a gold-trimmed sweet spot with a running glint, and "Too tight — it fights back!".
+  Rare (3) shadows stay plain until hooked, so the Ancient Compass relic keeps its value (Mực still
+  barks at them).

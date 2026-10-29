@@ -229,3 +229,11 @@ built, but as ONE connected system rather than separate features:
 - The soundtrack is the game's own procedural sea and pluck, scored to the cuts. No licensed music.
 - Copy: no prices, rankings, review quotes or competitor names; "no ads, no payments" is stated because it
   is true and is a selling point for the cozy audience.
+
+## D-026 · 2026-10-29 · Special fish fight back, and the rod is the way to land them
+- Rarity sets the fight: a smaller, livelier sweet zone, and time outside it now costs line. Commons
+  are unchanged, so the first minutes stay friendly. Legendaries are a real chase that the rod
+  upgrades and the Calm Pearl solve. Everything depends on what the player does: no hidden odds,
+  no paid help.
+- Shadows only glow where the game already signalled specials (Epic/Legendary, crates, treasure,
+  Compass rares), so the Ancient Compass stays worth having.

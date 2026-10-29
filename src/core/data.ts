@@ -225,6 +225,15 @@ export const BALANCE = {
   /** Hook: bite window (s) and seconds at max tension before snapping, per level. */
   hookBite: [1.1, 1.3, 1.45, 1.6],
   hookSnap: [0.7, 0.85, 1.0, 1.25],
+  /** Special fish fight harder: the sweet zone shrinks by rarity (index = rarity; Rare / Epic / Legendary)… */
+  rareZone: [1, 1, 1, 0.76, 0.66, 0.58],
+  /** …and wanders further (added to the zone's swing, as a share of the bar). */
+  rareSwing: [0, 0, 0, 0.04, 0.08, 0.11],
+  /** Reeling while too tight still pulls a common fish in (0.6 of full speed); a special fish digs in
+   *  instead (0 = no progress, below 0 = it pulls line back). */
+  rareTight: [0.6, 0.6, 0.6, 0, -0.1, -0.25],
+  /** How much faster a special fish takes line back while it's slack. */
+  rareSlack: [1, 1, 1, 1.5, 1.7, 1.9],
   /** Bait: spawn-weight multiplier for rare+ (rarity ≥ 3) fish, per level. */
   baitRare: [1, 1.4, 1.9, 2.5],
   /** Releasing the cast meter above this power tangles the line (the cast is lost). */

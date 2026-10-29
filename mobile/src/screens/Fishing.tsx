@@ -221,7 +221,7 @@ class Trip {
     const s = game.state;
     const sp = SPECIES_BY_ID[t.species];
     t.state = 'hooked';
-    this.reel = new Reel({ difficulty: sp.difficulty * (t.hungry ? HUNGRY_DIFFICULTY : 1), rodLevel: s.upgrades.rod, hookLevel: s.upgrades.hook, assist: s.stats.catches < 1 }, game.rng);
+    this.reel = new Reel({ difficulty: sp.difficulty * (t.hungry ? HUNGRY_DIFFICULTY : 1), rodLevel: s.upgrades.rod, hookLevel: s.upgrades.hook, assist: s.stats.catches < 1, rarity: sp.rarity }, game.rng);
     this.phase = 'reel';
     buzz(Haptics.ImpactFeedbackStyle.Medium);
     analytics.track('hook', { species: sp.id, reaction: Math.round((BALANCE.hookBite[s.upgrades.hook] - this.biteTimer) * 1000) });

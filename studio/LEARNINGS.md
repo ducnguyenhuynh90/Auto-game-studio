@@ -122,3 +122,8 @@ Only [PLAYER] entries count as product evidence.
   and the °N reveal. The film is cut from real play under a fake clock: 2 s per frame at 886×1920 in
   headless Chromium, because the 3D world, the UI and the captions are combined inside the page
   (a browser screenshot per frame was 3-6 s). Unverified with players; EXP-012 will measure the store page.
+- [PLAYER] 2026-10-29 · Founder (Android APK): special fish should look more interesting and be harder to
+  catch. [SIM] The old reel could not be lost by anyone who stayed near the zone (100% catch for every
+  species), so a smaller zone alone would only have lowered the stars. Specials now punish time outside
+  the zone. A mixed-reaction bot lands Legendaries 15-32% of the time with the starter rod and 44-86%
+  with the best rod. Real players may differ: watch `fish_lost` by rarity.

@@ -478,6 +478,9 @@ class FishingRig {
         const compass = hasRelic(game.state.relics, 'compass') && sp.rarity === 3;
         const glow = sp.rarity >= 4 ? (sp.rarity === 5 ? '#ffd35a' : '#c99bff') : sp.crate ? '#d9a8ff' : sp.treasure ? '#fff2b0' : compass ? '#7fd3ff' : null;
         m.setSilhouette(true, glow);
+        // Special catches sparkle: a few glints circle the shadow (more for rarer fish).
+        if (glow) m.group.add(makeSparkles(glow, sp.rarity >= 5 ? 7 : sp.rarity >= 4 ? 5 : 4));
+        m.group.userData.glowSeed = Math.random() * 6.28;
         this.root.add(m.group);
         this.fish.set(sh, m);
       }
@@ -491,6 +494,13 @@ class FishingRig {
       if (hungry) m.group.userData.revealed = true;
       this.screenToWater(sh.x, sh.y, tmp);
       const hooked = sh.state === 'hooked';
+      // a hooked special fish shows its true colours for the fight (the reel bar names its rarity too)
+      if (hooked && sp.rarity >= 3 && !m.group.userData.fightReveal) {
+        m.group.userData.fightReveal = true;
+        m.setSilhouette(false);
+        if (!m.group.getObjectByName('sparkles')) m.group.add(makeSparkles(RARITY_COLOR[sp.rarity], sp.rarity >= 5 ? 7 : 5));
+      }
+      animateGlow(m.group, t, hooked);
       // out-of-reach fish swim deeper, so they read fainter through the water
       m.group.position.set(tmp.x, hooked ? -0.12 : hungry ? -0.04 : sh.locked ? -0.7 : -0.32, tmp.z);
       const heading = sh.state === 'approach' ? Math.atan2(-(f.bobber.y - sh.y), f.bobber.x - sh.x) : sh.dir > 0 ? 0 : Math.PI;
@@ -1360,5 +1370,45 @@ export class World {
     }
     this.renderer.render(this.scene, cam);
   }
+}
+
+const SPARKLE_GEO = new THREE.OctahedronGeometry(0.07, 0);
+
+/** A ring of small additive glints around a special fish. */
+function makeSparkles(color: string, n: number): THREE.Group {
+  const g = new THREE.Group();
+  g.name = 'sparkles';
+  const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.95, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending });
+  for (let i = 0; i < n; i++) {
+    const s = new THREE.Mesh(SPARKLE_GEO, mat);
+    s.renderOrder = 6;
+    s.userData.a = (i / n) * Math.PI * 2;
+    s.userData.sharedGeo = true;
+    if (i === 0) s.userData.disposeMat = true; // one shared material, freed once
+    g.add(s);
+  }
+  return g;
+}
+
+/** Pulses the halo and spins the glints; faster and brighter while the fish fights on the line. */
+function animateGlow(fish: THREE.Group, t: number, hooked: boolean): void {
+  const seed = (fish.userData.glowSeed as number) ?? 0;
+  const halo = fish.getObjectByName('glow') as THREE.Mesh | undefined;
+  if (halo) {
+    const k = Math.sin(t * 3.2 + seed);
+    halo.scale.setScalar(1 + k * 0.18);
+    (halo.material as THREE.MeshBasicMaterial).opacity = 0.24 + k * 0.12;
+  }
+  const sp = fish.getObjectByName('sparkles');
+  if (!sp) return;
+  const speed = hooked ? 3.2 : 1.4;
+  sp.children.forEach((c, i) => {
+    const a = (c.userData.a as number) + t * speed + seed;
+    const r = 0.7 + Math.sin(t * 2 + i * 1.7) * 0.12;
+    c.position.set(Math.cos(a) * r, 0.25 + Math.sin(t * 3 + i) * 0.18, Math.sin(a) * r * 0.55);
+    const twinkle = 0.5 + 0.5 * Math.sin(t * 7 + i * 2.3 + seed);
+    c.scale.setScalar(0.6 + twinkle * 0.9);
+    c.rotation.y = t * 4 + i;
+  });
 }
 

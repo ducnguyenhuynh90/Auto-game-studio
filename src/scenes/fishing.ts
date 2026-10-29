@@ -320,7 +320,7 @@ export class FishingScene implements Scene {
     this.target.state = 'hooked';
     const up = this.game.state.upgrades;
     const difficulty = sp.difficulty * (this.target.hungry ? HUNGRY_DIFFICULTY : 1);
-    this.reel = new Reel({ difficulty, rodLevel: up.rod, hookLevel: up.hook, assist: this.tutorial, zoneMult: this.effects.has('pearl') ? 1.5 : 1 }, this.game.rng);
+    this.reel = new Reel({ difficulty, rodLevel: up.rod, hookLevel: up.hook, assist: this.tutorial, zoneMult: this.effects.has('pearl') ? 1.5 : 1, rarity: sp.rarity }, this.game.rng);
     this.hintT = 0;
     sfx.splash();
     vibrate(40);
@@ -876,7 +876,12 @@ export class FishingScene implements Scene {
     panel(ctx, x - 10, y - 46, w + 20, h + 70, 'rgba(255,248,236,0.94)', 16);
     // distance / progress
     const sp = SPECIES_BY_ID[this.target?.species ?? 'anchovy'];
-    text(ctx, sp.rarity >= 3 ? 'Something big…' : 'Fish on!', x, y - 26, 15, COLORS.ink, 'left');
+    const special = sp.rarity >= 3;
+    if (special) {
+      // a special fish announces itself: rarity in its colour, and why the sweet spot is small
+      const pulse = 1 + Math.sin(this.t * 8) * 0.06;
+      outlinedText(ctx, `★ ${RARITY_LABEL[sp.rarity].toUpperCase()}`, x + 54, y - 26, 13 * pulse, RARITY_COLOR[sp.rarity], COLORS.ink, 4);
+    } else text(ctx, 'Fish on!', x, y - 26, 15, COLORS.ink, 'left');
     ctx.fillStyle = 'rgba(43,33,24,0.12)';
     rr(ctx, x + 120, y - 32, w - 120, 12, 6);
     ctx.fill();
@@ -895,6 +900,16 @@ export class FishingScene implements Scene {
     ctx.fillStyle = r.inZone ? '#5fd36b' : '#8ed497';
     rr(ctx, zx, y + 2, zw, h - 4, 8);
     ctx.fill();
+    if (special) {
+      // gold-trimmed sweet spot with a running glint: small, precious, hard to hold
+      ctx.strokeStyle = RARITY_COLOR[sp.rarity];
+      ctx.lineWidth = 3;
+      rr(ctx, zx, y + 2, zw, h - 4, 8);
+      ctx.stroke();
+      const gx = zx + ((this.t * 0.9) % 1) * zw;
+      ctx.fillStyle = 'rgba(255,255,255,0.55)';
+      ctx.fillRect(gx - 2, y + 4, 4, h - 8);
+    }
     ctx.lineWidth = 2.5;
     ctx.strokeStyle = COLORS.ink;
     rr(ctx, x, y, w, h, 10);
@@ -911,7 +926,8 @@ export class FishingScene implements Scene {
     ctx.fillRect(nx - 2, y - 4, 4, h + 8);
     text(ctx, 'slack', x + 4, y + h + 13, 11, 'rgba(43,33,24,0.6)', 'left');
     text(ctx, 'snap!', x + w - 4, y + h + 13, 11, COLORS.bad, 'right');
-    text(ctx, r.inZone ? 'Perfect tension!' : r.tension > r.zoneHigh ? 'Too tight — let go' : 'Too loose — hold', W / 2, y + h + 13, 12, r.inZone ? COLORS.good : COLORS.ink);
+    const tight = special ? 'Too tight — it fights back!' : 'Too tight — let go';
+    text(ctx, r.inZone ? 'Perfect tension!' : r.tension > r.zoneHigh ? tight : 'Too loose — hold', W / 2, y + h + 13, 12, r.inZone ? COLORS.good : r.tension > r.zoneHigh && special ? COLORS.bad : COLORS.ink);
   }
 
   private drawPrompts(ctx: Ctx): void {

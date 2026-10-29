@@ -107,7 +107,9 @@ function silhouetteFn(g: THREE.Group, parts: { m: THREE.Mesh; mat: THREE.Materia
     const old = g.getObjectByName('glow');
     if (old) g.remove(old);
     if (on && glow) {
-      const halo = new THREE.Mesh(HALO_GEO, new THREE.MeshBasicMaterial({ color: glow, transparent: true, opacity: 0.35, depthWrite: false, blending: THREE.AdditiveBlending }));
+      // drawn over the water so the glow reads through it (shadows swim below the surface)
+      const halo = new THREE.Mesh(HALO_GEO, new THREE.MeshBasicMaterial({ color: glow, transparent: true, opacity: 0.35, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending }));
+      halo.renderOrder = 5;
       halo.rotation.x = -Math.PI / 2;
       halo.name = 'glow';
       halo.userData.disposeMat = true;

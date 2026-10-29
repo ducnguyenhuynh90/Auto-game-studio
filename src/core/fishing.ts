@@ -48,6 +48,8 @@ export interface ReelOptions {
   assist?: boolean; // first-catch tutorial: wider zone, no thrash
   /** Multiplier on the green zone width (Calm Pearl = 1.5). */
   zoneMult?: number;
+  /** Species rarity 1-5: Rare and better have a smaller, livelier sweet zone (BALANCE.rareZone). */
+  rarity?: number;
 }
 
 export class Reel {
@@ -66,6 +68,9 @@ export class Reel {
   private readonly snapTime: number;
   private readonly d: number;
   private readonly assist: boolean;
+  private readonly swing: number;
+  private readonly tight: number;
+  private readonly slack: number;
 
   constructor(
     opts: ReelOptions,
@@ -73,7 +78,11 @@ export class Reel {
   ) {
     this.d = opts.difficulty;
     this.assist = !!opts.assist;
-    this.zoneWidth = Math.min(0.8, (BALANCE.rodZone[opts.rodLevel] + (this.assist ? 0.1 : 0)) * (opts.zoneMult ?? 1));
+    const rarity = opts.rarity ?? 1;
+    this.zoneWidth = Math.min(0.8, (BALANCE.rodZone[opts.rodLevel] + (this.assist ? 0.1 : 0)) * (opts.zoneMult ?? 1) * BALANCE.rareZone[rarity]);
+    this.swing = 0.2 * this.d + BALANCE.rareSwing[rarity];
+    this.tight = BALANCE.rareTight[rarity];
+    this.slack = BALANCE.rareSlack[rarity];
     this.snapTime = BALANCE.hookSnap[opts.hookLevel];
     this.thrashTimer = this.nextThrash();
   }
@@ -102,7 +111,7 @@ export class Reel {
     this.time += dt;
     const d = this.d;
 
-    this.zoneCenter = 0.5 + Math.sin(this.time * (0.7 + d * 1.2)) * 0.2 * d;
+    this.zoneCenter = 0.5 + Math.sin(this.time * (0.7 + d * 1.2)) * this.swing;
 
     this.tension += (holding ? 1.15 : -0.95) * dt;
     if (!this.assist) {
@@ -120,8 +129,8 @@ export class Reel {
 
     const rate = 1 / (3.2 + 5 * d);
     if (this.inZone) this.progress += rate * dt;
-    else if (this.tension > this.zoneHigh) this.progress += rate * 0.6 * dt;
-    else this.progress -= (0.12 + 0.15 * d) * dt;
+    else if (this.tension > this.zoneHigh) this.progress += rate * this.tight * dt;
+    else this.progress -= (0.12 + 0.15 * d) * this.slack * dt;
 
     if (this.time > 0.4) {
       this.scoredTime += dt;
