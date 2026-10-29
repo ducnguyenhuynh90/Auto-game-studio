@@ -217,3 +217,15 @@ built, but as ONE connected system rather than separate features:
   no randomized paid rewards or real-money mechanics without founder/legal approval): tied shelves open
   through play, boosters cost game coins. Adding ads or paid boosters later is a founder decision.
 - Every level is proven winnable before it is shown (honest difficulty, no impossible boards).
+
+## D-025 · 2026-10-29 · Store listing pack from the 3D game; the preview video is a short film cut from real play
+- Founder asked for store screenshots, a video and SEO copy for the first upload, and for the video to feel
+  like "a short movie by Pixar using the game". The two apps aren't decided yet ("both, decide later"), so
+  the pack shows the 3D (web/Capacitor) game. Store rules want listing images that match the app: if the
+  React Native app ships instead, re-shoot (store/listing.md says so at the top).
+- Everything is captured from the real build with a believable mid-game save (tools/store-save.ts), never
+  mocked: Apple rejects previews that aren't in-app footage. The film's camera moves are the game's own hub
+  zoom; captions, grade and dissolves are added on top; the catch and the jar reveal are played, not faked.
+- The soundtrack is the game's own procedural sea and pluck, scored to the cuts. No licensed music.
+- Copy: no prices, rankings, review quotes or competitor names; "no ads, no payments" is stated because it
+  is true and is a selling point for the cozy audience.

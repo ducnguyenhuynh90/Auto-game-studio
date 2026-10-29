@@ -25,10 +25,11 @@ import { PuzzleHubOverlay, SaltPuzzleOverlay, ShopPuzzleOverlay } from './scenes
 import { FISHING_LEVELS } from './core/puzzles';
 import { SCENES } from './core/story';
 import { SortGameOverlay, SortMenuOverlay } from './scenes/sort';
+import { StoryOverlay } from './scenes/story';
 import { smartHint } from './core/sort';
 import { build, buyPlot, canExpand, catchUp, hire, terrain, type BuildingId } from './core/island';
 import { RevealOverlay } from './scenes/jar';
-import { addCatch, canFerment, sealJar, upgradeCost } from './core/state';
+import { addCatch, agingLevel, canFerment, sealJar, upgradeCost } from './core/state';
 import { UPGRADES } from './core/data';
 import { SEAS, SEAS_BY_ID, seaComplete, seaLock } from './core/seas';
 import type { SeaId } from './core/data';
@@ -322,7 +323,14 @@ function frame(now: number): void {
 requestAnimationFrame(frame);
 
 // Test / QA hook (harmless in production: exposes nothing sensitive).
-(window as unknown as Record<string, unknown>).__mam = { game, analytics, rules: { upgradeCost, UPGRADES, SEAS, seaLock, seaComplete, canFerment, sortHint: smartHint } };
+(window as unknown as Record<string, unknown>).__mam = {
+  game,
+  analytics,
+  rules: { upgradeCost, UPGRADES, SEAS, seaLock, seaComplete, canFerment, agingLevel, sortHint: smartHint },
+  // store capture + QA: replay a story scene (never marks it seen), open a Market Sort level
+  story: (id: string) => game.push(new StoryOverlay(game, SCENES.filter((x) => x.id === id), true)),
+  sort: (level: number) => game.push(new SortGameOverlay(game, level)),
+};
 
 // Offline + instant repeat loads on self-hosted builds. Not inside the claude.ai artifact frame
 // (service workers aren't available there) and not in dev (it would cache stale modules).

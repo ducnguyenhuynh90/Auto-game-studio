@@ -117,3 +117,8 @@ Only [PLAYER] entries count as product evidence.
   shop. A goal is an instruction; tapping it should take you to where you do it. Now the banner and
   every mission row go there (core/goals.ts goalTarget): the shop with the upgrade highlighted when you
   can afford it, otherwise the step that earns it with "Need N more coins" (sell sauce, or go fishing).
+- [DESIGN] 2026-10-29 · Store pack (D-025): the strongest moments to sell the game are already in it: the
+  hub camera flying from the whole island down to the village, Grandpa's humming jar, the three knocks
+  and the °N reveal. The film is cut from real play under a fake clock: 2 s per frame at 886×1920 in
+  headless Chromium, because the 3D world, the UI and the captions are combined inside the page
+  (a browser screenshot per frame was 3-6 s). Unverified with players; EXP-012 will measure the store page.

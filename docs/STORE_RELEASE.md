@@ -75,6 +75,9 @@ the account and its data in Settings → Cloud backup → Delete account (both s
 ## Not automated (yet)
 - Uploading to Google Play from CI (the first upload must be manual; later uploads could use a Play
   service account: founder decision, it needs a Google Cloud service account with release rights).
-- Store screenshots and descriptions.
+- Uploading the listing itself. The listing pack is ready in `store/` (see `store/listing.md`):
+  screenshots for iPhone 6.9" and Android phones in English and Vietnamese, the Play feature graphic, a
+  28 s App Preview video and the SEO copy. They show the 3D (Capacitor) app. Regenerate them with
+  `tools/store-shots.mjs`, `tools/store-trailer.mjs` + `tools/store-audio.mjs`.
 - Native "Sign in with Apple" sheet on iPhone (today Apple sign-in uses Apple's web page, which the
   App Store accepts; the native sheet is a polish item).

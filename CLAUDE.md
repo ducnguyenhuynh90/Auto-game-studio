@@ -15,6 +15,8 @@ the biggest problem and the next action. Then read PRODUCT.md and SUCCESS.yaml.
 
 - `npx vite-node tools/sim.ts <skill> <trips>`: fast progression/economy simulation (pacing, not fun).
 - `node tools/bench.mjs <cpuSlowdown> [low|medium|high]`: fps benchmark on a simulated weak phone.
+- Store pack (`store/listing.md`): `npx vite-node tools/store-save.ts`, then against the preview build
+  `node tools/store-shots.mjs` (screenshots), `node tools/store-trailer.mjs && node tools/store-audio.mjs` (preview film).
 - `node tools/build-artifact.mjs`: single-file build for the claude.ai playtest artifact (then publish it).
 - `npm run cap:sync`: build + copy the game into the native apps (`android/`, `ios/`); see docs/NATIVE.md.
   CI (`.github/workflows/native.yml`) builds the Android APK/AAB and an iOS simulator build.

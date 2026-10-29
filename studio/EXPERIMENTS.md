@@ -133,3 +133,11 @@
 - **Success:** ≥40% of players past the tutorial clear Market Sort level 1; median player clears 5+
   levels in their first week; no level with a loss rate above 60%.
 - **Evidence so far:** [SIM] only: every level is solver-proven; bots clear levels 1-50 by tapping.
+
+## EXP-012 · Store page: first screenshot and preview video (store launch)
+- **Hypothesis:** leading with the cozy village plus a story-first preview film (a "short movie" made from
+  real play) converts store visitors to installs better than leading with the fishing action.
+- **Measure:** App Store Product Page Optimization / Play store listing experiments: conversion rate,
+  variant A (village first, as shipped) vs B (fishing first); preview video play-through where reported.
+- **Success:** pick the winner at 90% confidence after ≥1,000 page views per variant.
+- **Evidence so far:** none (needs the store launch).
