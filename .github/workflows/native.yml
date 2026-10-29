@@ -68,7 +68,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           cp android/app/build/outputs/apk/debug/app-debug.apk mam-village.apk
-          notes="Test build 1.0.${{ github.run_number }} ($(git log -1 --format=%s | cut -c1-80)). Open on an Android phone, download mam-village.apk, allow installs from this source, install. New versions install over the old one and keep your save."
+          cloud=$([ -n "$VITE_SUPABASE_URL" ] && echo "on (Supabase)" || echo "off (guest only)")
+          ga=$([ -n "$VITE_GA_MEASUREMENT_ID" ] && echo "on (opt-in)" || echo "off")
+          notes="Test build 1.0.${{ github.run_number }} ($(git log -1 --format=%s | cut -c1-80)). Cloud saves + sign-in: $cloud. Analytics: $ga. Open on an Android phone, download mam-village.apk, allow installs from this source, install. New versions install over the old one and keep your save."
           gh release view android-latest >/dev/null 2>&1 || gh release create android-latest --prerelease --title "Android test build (latest)" --notes "$notes"
           gh release edit android-latest --notes "$notes"
           gh release upload android-latest mam-village.apk --clobber
