@@ -20,6 +20,14 @@ android {
     // Upload key for Google Play, from CI secrets (docs/NATIVE.md). Without it release builds stay unsigned.
     def keystore = System.getenv("ANDROID_KEYSTORE_PATH")
     signingConfigs {
+        // Test builds (the APK testers sideload) always use this committed key, so a new APK installs
+        // over the old one and keeps the save. It is not the Play upload key and is not a secret.
+        tester {
+            storeFile file('tester.keystore')
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+        }
         if (keystore) {
             release {
                 storeFile file(keystore)
@@ -30,6 +38,9 @@ android {
         }
     }
     buildTypes {
+        debug {
+            signingConfig signingConfigs.tester
+        }
         release {
             if (keystore) signingConfig signingConfigs.release
             minifyEnabled false

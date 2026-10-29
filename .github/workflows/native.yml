@@ -21,6 +21,8 @@ env:
 jobs:
   android:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # publishes the test APK to the "android-latest" release
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -58,6 +60,18 @@ jobs:
             android/app/build/outputs/apk/debug/app-debug.apk
             android/app/build/outputs/bundle/release/app-release.aab
           if-no-files-found: error
+      # A direct download link for phones: the release "android-latest" always holds the newest test APK
+      # from the default branch (https://github.com/<repo>/releases/download/android-latest/mam-village.apk).
+      - name: Publish the test APK for phones
+        if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp android/app/build/outputs/apk/debug/app-debug.apk mam-village.apk
+          notes="Test build 1.0.${{ github.run_number }} ($(git log -1 --format=%s | cut -c1-80)). Open on an Android phone, download mam-village.apk, allow installs from this source, install. New versions install over the old one and keep your save."
+          gh release view android-latest >/dev/null 2>&1 || gh release create android-latest --prerelease --title "Android test build (latest)" --notes "$notes"
+          gh release edit android-latest --notes "$notes"
+          gh release upload android-latest mam-village.apk --clobber
 
   ios:
     runs-on: macos-latest

@@ -34,6 +34,13 @@ npx cap open ios          # Xcode (macOS only)
 npm run icons             # redraw icons/splash and regenerate every native size
 ```
 Run on a device: Android Studio ▶ with a phone in USB-debugging mode, or install the CI's debug APK.
+
+**Install on an Android phone (no computer needed):** open
+https://github.com/ducnguyenhuynh90/Auto-game-studio/releases/download/android-latest/mam-village.apk
+on the phone (or the "Android test build (latest)" release page). Download it, then allow your browser or
+Files app to install unknown apps when Android asks, and install. Every push to the default branch
+refreshes this APK. Test builds are signed with the committed `android/app/tester.keystore`, so a new one
+installs over the old one and keeps the save. This is not the Play upload key.
 iOS: Xcode ▶ on a simulator, or on your iPhone with a free Apple ID (7-day signing) before paying for
 the developer account.
 
