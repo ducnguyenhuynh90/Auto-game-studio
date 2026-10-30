@@ -141,3 +141,13 @@
   variant A (village first, as shipped) vs B (fishing first); preview video play-through where reported.
 - **Success:** pick the winner at 90% confidence after ≥1,000 page views per variant.
 - **Evidence so far:** none (needs the store launch).
+
+## EXP-013 · Friends and invites (build 3.12)
+- **Hypothesis:** comparing sauce with friends and earning coins for invites brings new players
+  (viral growth) and gives existing players a reason to return (beat a friend's °N).
+- **Measure:** `invite_share` (by channel), `invite_opened`, `invite_joined`, `invite_reward`,
+  `friend_added`, `friend_visit`, `friends_open`; invites per active player; the share of new
+  players who arrive through an invite; day-7 return rate with friends vs without.
+- **Success:** ≥15% of active players share an invite; each sharing player brings ≥0.3 new players;
+  players with ≥1 friend return on day 7 at least 1.3× as often as players without.
+- **Evidence so far:** none ([DESIGN] only; tests prove the rules, not the fun).

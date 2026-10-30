@@ -127,3 +127,7 @@ Only [PLAYER] entries count as product evidence.
   species), so a smaller zone alone would only have lowered the stars. Specials now punish time outside
   the zone. A mixed-reaction bot lands Legendaries 15-32% of the time with the starter rod and 44-86%
   with the best rod. Real players may differ: watch `fish_lost` by rarity.
+- [DESIGN] 2026-10-30 · Friends (D-027): the founder's request, voice-typed, was read as leaderboard,
+  referral rewards, visiting friends to see whose sauce is better, and sharing to Facebook and other
+  apps. The taste-off is the hook: a single number (°N) everyone understands, already earned in play.
+  Watch EXP-013 before building more social features.

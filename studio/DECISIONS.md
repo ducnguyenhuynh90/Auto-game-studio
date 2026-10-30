@@ -237,3 +237,16 @@ built, but as ONE connected system rather than separate features:
   no paid help.
 - Shadows only glow where the game already signalled specials (Epic/Legendary, crates, treasure,
   Compass rares), so the Ancient Compass stays worth having.
+
+## D-027 · 2026-10-30 · Friends and invites: game coins only, real play to earn, names only among friends
+- Founder asked for leaderboards, referrals with rewards, visiting friends to compare sauce, and
+  sharing to Facebook and other social apps. Built on the Supabase accounts (D-018 / D-022).
+- Invite rewards are game coins: 300 to the new player, 500 to the inviter once the friend has made
+  a first sale. The server pays each reward once, with at most 50 paid invites per player. No money
+  and nothing random, so this is within the studio rules without extra approval. Rewarding the share
+  itself is avoided (store rules on incentivised actions): only a friend who joins and plays pays.
+- No contacts upload and no friend suggestions: friends connect by code or link. Names are visible
+  only to friends. The world list shows strangers by code, so there's no public user-generated text
+  to moderate (keeps the 4+ rating simple). The store privacy answers gained one row
+  (docs/STORE_RELEASE.md).
+- The React Native app doesn't have Friends yet: same server functions, screen to port.

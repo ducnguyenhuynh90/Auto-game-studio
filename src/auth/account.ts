@@ -79,6 +79,17 @@ export class AccountManager {
     else if (__FIREBASE__) void import('./firebase');
   }
 
+  /** Friends, invites and leaderboards: Supabase builds with a working (guest or social) account. */
+  get social(): boolean {
+    return __SUPABASE__ && !!this.backend && (this.info.kind === 'cloud' || this.info.kind === 'social');
+  }
+
+  /** The friends API (auth/social.ts), loaded on first use; null when this build or session has none. */
+  async socialApi(): Promise<typeof import('./social') | null> {
+    if (!__SUPABASE__ || !this.social) return null;
+    return import('./social');
+  }
+
   get signedIn(): boolean {
     return this.info.kind !== 'guest';
   }

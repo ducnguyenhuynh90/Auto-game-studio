@@ -2,6 +2,7 @@
 // Once the island business opens, the same screen zooms out to the whole estate (render3d/estate.ts).
 import { analytics } from '../core/analytics';
 import { SortMenuOverlay } from './sort';
+import { FriendsOverlay } from './friends';
 import { BALANCE, SPECIES } from '../core/data';
 import { goalPair, progressLabel, type GoalView } from '../core/goals';
 import { goGoal } from './goto';
@@ -314,6 +315,13 @@ export class VillageScene implements Scene {
         dark: '#9c7410',
         size: 12,
         pulse: s.sort.length === 0,
+      });
+    // friends: compare sauce, visit villages, invite for coins (online builds, after the first trip)
+    if (!this.overview && s.stats.trips >= 1 && this.game.account?.social)
+      this.game.button(ctx, 'friends', W - 118, islandUnlocked(s) && this.game.world ? 262 : 218, 108, 38, '👥 Friends', () => this.game.push(new FriendsOverlay(this.game)), {
+        color: '#3a8fd9',
+        dark: '#235f96',
+        size: 12,
       });
     if (!islandUnlocked(s) || !this.game.world) return;
     const overview = this.overview;

@@ -31,6 +31,7 @@ Android apps. The claude.ai playtest page keeps using claude.ai storage (it can'
 2. **Create the tables:** SQL editor → paste and run each file in `supabase/migrations/`, in order:
    1. `20261025000000_players.sql`: profiles, saves, security rules
    2. `20261026000000_delete_account.sql`: in-app account deletion
+   3. `20261030000000_friends.sql`: friend codes, friends, invites and rewards, leaderboards, visits
 3. **Turn on sign-in methods:** Authentication → Sign In / Providers:
    - **Allow anonymous sign-ins**: on (required)
    - **Allow manual linking**: on (lets guests link a login)
@@ -67,3 +68,21 @@ Android apps. The claude.ai playtest page keeps using claude.ai storage (it can'
 - Tests: `tests/supabase.test.ts` runs the migrations in PGlite (real Postgres) as two players, including
   account deletion. `tools/supabase-e2e.mjs` fakes Supabase at the network level in Chromium: sign-up →
   upload → restore after a wipe → delete account → offline start (build steps in the file header).
+
+## Friends, invites and leaderboards (build 3.12)
+`supabase/migrations/20261030000000_friends.sql`, tested as three players in Postgres (`tests/friends.test.ts`).
+- **Friend code:** every profile gets a 6-character code (no 0/O/1/I). Players can't change it, and
+  can't set who invited them; a trigger guards both.
+- **Tables:** `friends` (both directions) and `referrals` (one row per invited player). Players can
+  read only their own rows. All writes go through these functions: `add_friend`,
+  `remove_friend`, `redeem_invite`, `claim_invite_rewards`, `set_display_name`, `touch_profile`.
+- **Invites:** a village in its first 14 days can join once with a friend's code. They become friends
+  and the game gives them 300 coins. The inviter gets 500 coins per invited friend who has sold a
+  first bottle (the server checks the friend's save), up to 50 friends, each paid once.
+- **Boards:** `friends_board()` lists you and your friends by best sauce °N. `top_board()` lists the
+  world's top 20 plus your own rank; players who aren't your friends appear as "Captain" plus the last
+  4 characters of their code, never a name.
+- **Visits:** `visit_friend(id)` works only between friends. It returns village facts (levels, best
+  sauces, buildings, Fishdex species, staff count, dog), never the save itself.
+- **Names:** friends see the captain name. A player can set it (1-20 characters, no links). A Google or
+  Apple first name only replaces the default "Captain"; it never replaces a name the player chose.

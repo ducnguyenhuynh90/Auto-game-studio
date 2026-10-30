@@ -346,3 +346,21 @@ with a smaller green zone.
   rarity colour, a gold-trimmed sweet spot with a running glint, and "Too tight — it fights back!".
   Rare (3) shadows stay plain until hooked, so the Ancient Compass relic keeps its value (Mực still
   barks at them).
+
+## Friends, invites and leaderboards (build 3.12, founder request)
+The founder asked for a social layer: a leaderboard, inviting friends for coins, visiting a friend to
+see whose sauce is better, and sharing to Facebook and other social apps.
+- **Friends button** in the village, after the first trip, in online builds.
+- **Friends tab:** you and your friends ranked by best sauce °N, with medals for the top 3 and a
+  *Visit* button on each row. You can also add a friend by typing their code.
+- **Visit:** a *taste-off* puts your best bottle against theirs. The winner glows; if you lose, it
+  says how many °N you need to beat them. You see their buildings (3D icons) and which fish they have
+  caught that you haven't, a nudge to sail on.
+- **World top:** the 20 best sauces anywhere, plus your own rank. Strangers are shown by code only.
+- **Invite tab:** your code, the deal (300 coins for your friend, 500 for you when they sell their
+  first bottle), *Share invite* (the phone's share sheet, so Zalo, Messenger, Facebook, WhatsApp…),
+  Facebook and WhatsApp buttons, copy link, your captain name, and *Enter code* for new players.
+- **Invite links** (`…/Auto-game-studio/?invite=CODE`) open the web game and join automatically
+  once the account is ready. In the apps, players type the code.
+- **Honest and safe:** coins only, paid once, decided by the server. The bigger reward needs the
+  friend to really play (a first sale), so fake accounts can't farm it.

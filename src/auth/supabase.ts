@@ -29,14 +29,26 @@ export interface Session {
 }
 
 async function touchProfile(u: User): Promise<void> {
-  // display name and sign-in method only; failures here never block play
+  // display name and sign-in method only; failures here never block play.
+  // The server keeps a captain name the player chose (touch_profile, *_friends.sql).
+  const provider = providerOf(u);
+  const { error } = await sb().rpc('touch_profile', { provider_name: provider, social_name: provider ? nameOf(u) : null });
+  if (!error) return;
+  // a project without the friends migration yet: the original profile write
   await sb()
     .from('profiles')
-    .upsert({ id: u.id, display_name: nameOf(u).slice(0, 40), provider: providerOf(u) ?? 'anonymous', last_seen: new Date().toISOString() }, { onConflict: 'id' })
+    .upsert({ id: u.id, display_name: nameOf(u).slice(0, 40), provider: provider ?? 'anonymous', last_seen: new Date().toISOString() }, { onConflict: 'id' })
     .then(
       () => undefined,
       () => undefined,
     );
+}
+
+/** Calls a database function (friends, invites, boards: auth/social.ts) as the signed-in player. */
+export async function rpc<T>(fn: string, args?: Record<string, unknown>): Promise<T> {
+  const { data, error } = await sb().rpc(fn, args);
+  if (error) throw new Error(error.message);
+  return data as T;
 }
 
 /**

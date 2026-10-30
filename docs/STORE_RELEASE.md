@@ -68,6 +68,7 @@ What the game actually collects (docs/ANALYTICS.md, docs/SUPABASE.md):
 | Random install id and gameplay events (screens, catches, levels, purchases with game coins) | Only after "Yes" on the statistics question; builds with GA | No (anonymous id) | Analytics |
 | Game save and progress summary | Builds with Supabase (cloud backup) | Yes, to the account | App functionality |
 | Name and email from Google / Apple | Only if the player signs in | Yes | Account |
+| Captain name and progress summary (levels, best sauce °N, buildings, Fishdex) shown to friends; to non-friends only on the world top list, under a code, never a name | Builds with Supabase, Friends feature | Yes | App functionality (social) |
 
 No ads, no ad ids, no tracking across apps, no payments, no location, no contacts. Players can delete
 the account and its data in Settings → Cloud backup → Delete account (both stores require this).

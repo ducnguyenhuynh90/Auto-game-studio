@@ -26,6 +26,7 @@ import { FISHING_LEVELS } from './core/puzzles';
 import { SCENES } from './core/story';
 import { SortGameOverlay, SortMenuOverlay } from './scenes/sort';
 import { StoryOverlay } from './scenes/story';
+import { captureInvite, checkSocial } from './scenes/friends';
 import { smartHint } from './core/sort';
 import { build, buyPlot, canExpand, catchUp, hire, terrain, type BuildingId } from './core/island';
 import { RevealOverlay } from './scenes/jar';
@@ -139,8 +140,11 @@ game.account = new AccountManager({
     game.goVillage();
   },
 });
+// an invite link (?invite=CODE) is redeemed once the account is ready
+captureInvite(location.search);
 void game.account.init().then(() => {
   if (game.account?.conflict) game.toast('Two saves found', '#a35bd6', 'Open Settings (≡) to choose one');
+  void checkSocial(game);
 });
 
 // Dev-only shortcuts for visual QA: ?scene=fishing | reef | reveal
