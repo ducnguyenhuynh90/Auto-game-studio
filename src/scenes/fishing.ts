@@ -10,6 +10,8 @@ import { SCENES, pendingScene } from '../core/story';
 import { FETCH_CHANCE, FIND_CHANCE, MAX_FETCH_PER_TRIP, dogAboard, dogFetch, dogFind } from '../core/dog';
 import { FISHING_LEVELS, completeLevel, fishingGoalMet, fishingGoalText, fishingStars, levelOpen, type FishingLevel } from '../core/puzzles';
 import { StoryOverlay } from './story';
+import { bragHeadline } from '../core/social';
+import { brag } from './friends';
 import { range } from '../core/rng';
 import { addCatch, agingLevel, castsPerTrip, duplicateCatch, finishTrip, useGadget, type CaughtFish } from '../core/state';
 import { sfx, vibrate } from '../render/audio';
@@ -1046,6 +1048,11 @@ export class FishingScene implements Scene {
       outlinedText(ctx, 'NEW RECORD SIZE!', W / 2, 410, 20, COLORS.gold, COLORS.ink, 5);
     }
     if (c.t > 0.6) outlinedText(ctx, 'tap to continue', W / 2, 680, 16, '#fff', COLORS.ink, 4);
+    // a rare-or-better catch, a new species or a record: a picture worth posting
+    if (c.t > 0.8 && (sp.rarity >= 3 || c.isRecord) && !this.puzzle)
+      this.game.button(ctx, 'brag_fish', W / 2 - 80, 716, 160, 42, '📤 Show friends', () =>
+        void brag(this.game, { headline: bragHeadline('fish', 0, sp.name), sub: `${c.fish.size} cm · ${RARITY_LABEL[sp.rarity]}${c.isRecord ? ' · my record' : ''}`, crop: { y0: 110, y1: 610 }, accent: RARITY_COLOR[sp.rarity] }, 'fish'),
+      { color: '#3a8fd9', dark: '#235f96', size: 15 });
   }
 
   private drawPuzzleSummary(ctx: Ctx): void {

@@ -10,6 +10,22 @@ export interface MySocial {
   can_redeem: boolean;
   friends: number;
   invites: number;
+  /** Invited friends who really played (made a first sale); counts toward invite milestones. */
+  played?: number;
+}
+
+export interface InvitePreview {
+  name: string;
+  best_degrees: number;
+  captain_level: number;
+}
+
+export interface GiftStatus {
+  friends: number;
+  /** Friends who haven't had today's gift from me yet. */
+  unsent: number;
+  /** Gifts waiting for me to open. */
+  waiting: number;
 }
 
 export interface BoardRow {
@@ -65,3 +81,10 @@ export const setName = (name: string) => rpc<string>('set_display_name', { new_n
 export const friendsBoard = async () => (await rpc<BoardRow[]>('friends_board')).map(num);
 export const topBoard = async () => (await rpc<TopRow[]>('top_board')).map(num);
 export const visitFriend = async (id: string) => num(await rpc<Visit>('visit_friend', { friend: id }));
+export const invitePreview = async (code: string) => {
+  const p = await rpc<InvitePreview | null>('invite_preview', { code });
+  return p ? num(p) : null;
+};
+export const sendGifts = () => rpc<number>('send_gifts');
+export const openGifts = () => rpc<string[]>('open_gifts');
+export const giftStatus = () => rpc<GiftStatus>('gift_status');

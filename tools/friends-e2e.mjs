@@ -23,7 +23,7 @@ const session = {
   user: { id: userId, aud: 'authenticated', role: 'authenticated', is_anonymous: true, identities: [], app_metadata: { provider: 'anonymous' }, user_metadata: {}, created_at: new Date().toISOString() },
 };
 // the fake server's view of the world
-const server = { name: 'Captain', invitedBy: null, friends: [], rewardsDue: 1, calls: [] };
+const server = { name: 'Captain', invitedBy: null, friends: [], rewardsDue: 1, calls: [], giftsWaiting: ['Lan', 'Chú Tư'], sentToday: false };
 const lan = { id: lanId, name: 'Lan', code: 'K7M2QX', best: 31.2 };
 const tu = { id: '6a1d5e2c-3333-4c3b-9f00-000000000003', name: 'Chú Tư', code: 'TU4P9R', best: 18.4 };
 const players = [lan, tu];
@@ -48,7 +48,21 @@ await ctx.route('https://demo-project.supabase.co/**', async (route) => {
     case 'touch_profile':
       return route.fulfill({ status: 204, headers: { 'access-control-allow-origin': '*' }, body: '' });
     case 'my_social':
-      return json({ code: 'MY55AA', name: server.name, invited: !!server.invitedBy, can_redeem: !server.invitedBy, friends: server.friends.length, invites: 1 });
+      return json({ code: 'MY55AA', name: server.name, invited: !!server.invitedBy, can_redeem: !server.invitedBy, friends: server.friends.length, invites: 1, played: 1 });
+    case 'invite_preview': {
+      const o = byCode(args.code);
+      return json(o ? { name: o.name, best_degrees: o.best, captain_level: 9 } : null);
+    }
+    case 'open_gifts': {
+      const g = server.giftsWaiting;
+      server.giftsWaiting = [];
+      return json(g);
+    }
+    case 'gift_status':
+      return json({ friends: server.friends.length, unsent: server.sentToday ? 0 : server.friends.length, waiting: server.giftsWaiting.length });
+    case 'send_gifts':
+      server.sentToday = true;
+      return json(server.friends.length);
     case 'redeem_invite': {
       const o = byCode(args.code);
       if (!o) return err('no player has that code');
@@ -89,6 +103,7 @@ await ctx.route('https://demo-project.supabase.co/**', async (route) => {
 });
 const p = await ctx.newPage();
 p.on('pageerror', (e) => fail.push(e.message));
+p.on('console', (m) => m.text().startsWith('B') && console.log('page:', m.text()));
 const shot = (n) => p.screenshot({ path: `${shots}/${n}.png`, timeout: 120000 });
 const g = (fn, arg) => p.evaluate(fn, arg);
 /** Taps a game button by id, waiting (up to 8 s) for the screen that has it to be drawn. */
@@ -131,6 +146,14 @@ const st = await g(() => ({ coins: window.__mam.game.state.coins, earned: window
 if (server.invitedBy !== lanId) fail.push('invite link was not redeemed');
 if (st.earned < 800) fail.push(`welcome gift + invite reward not paid: ${JSON.stringify(st)} (start ${coins0})`);
 if (await g(() => localStorage.getItem('mam_invite'))) fail.push('pending invite not cleared');
+// the invited player is greeted by name, and the milestone (1 friend playing) and 2 gifts are paid
+if (!(await until(() => window.__mam.game.overlays.some((o) => o.name === 'invite_welcome')))) fail.push('no invite welcome');
+await until(() => window.__mam.game.state.stats.earned >= 800 + 300 + 120);
+await p.waitForTimeout(500);
+await shot('00_welcome');
+const st2 = await g(() => ({ earned: window.__mam.game.state.stats.earned, pearl: window.__mam.game.state.gadgets.pearl ?? 0, milestone: window.__mam.game.state.social?.milestone }));
+if (st2.earned !== 800 + 300 + 120 || st2.pearl < 2 || st2.milestone !== 1) fail.push(`milestone/gifts not paid right: ${JSON.stringify(st2)}`);
+await tapHit('welcome_go');
 
 // 2) Friends opens from the village once there has been a trip
 await g(() => {
@@ -150,6 +173,22 @@ if (!(await tapHit('visit_1'))) fail.push('no Visit button on the board');
 await until(() => window.__mam.game.top.name === 'friend_visit' && !!window.__mam.game.top.v);
 await p.waitForTimeout(900);
 await shot('02_visit');
+// a taste-off win can be bragged about: the picture is made and shared (a download + copied text here)
+console.log('snapshot test', await g(async () => {
+  const t0 = performance.now();
+  const shot = await Promise.race([window.__mam.game.snapshot(), new Promise((r) => setTimeout(() => r(null), 15000))]);
+  return [shot ? `${shot.width}x${shot.height}` : 'timeout', Math.round(performance.now() - t0)];
+}));
+const dl = p.waitForEvent('download', { timeout: 120000 }).catch(() => null);
+await g(() => {
+  window.__mam.game.state.cellar = { premium: 35 };
+});
+if (!(await tapHit('brag_win'))) fail.push('no brag button after winning the taste-off');
+const t0 = Date.now();
+const file = await dl;
+console.log('brag card took', Date.now() - t0, 'ms');
+if (!file) fail.push(`brag card was not produced: ${JSON.stringify(await g(() => (window.__mam.analytics.events ?? window.__mam.analytics.log ?? []).slice?.(-5)))} share=${await g(() => typeof navigator.share)} canShare=${await g(() => typeof navigator.canShare)}`);
+else await file.saveAs(`${shots}/06_brag_card.jpg`);
 await tapHit('visit_back');
 await p.waitForTimeout(300);
 // 4) invite tab, copy the code
@@ -176,6 +215,10 @@ await until(() => (window.__mam.game.top.board ?? []).length === 3);
 if (!server.friends.includes(tu)) fail.push('friend not added by code');
 await p.waitForTimeout(300);
 await shot('04_board_after_add');
+// daily gifts
+if (!(await tapHit('send_gifts'))) fail.push('no send gifts button');
+await until(() => window.__mam.game.top.gifts?.unsent === 0);
+if (!server.sentToday) fail.push('gifts not sent');
 // a wrong code is refused with a message, not an error
 await tapHit('friend_add');
 await until(() => !!document.querySelector('input'));

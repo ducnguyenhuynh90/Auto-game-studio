@@ -250,3 +250,12 @@ built, but as ONE connected system rather than separate features:
   to moderate (keeps the 4+ rating simple). The store privacy answers gained one row
   (docs/STORE_RELEASE.md).
 - The React Native app doesn't have Friends yet: same server functions, screen to port.
+
+## D-028 · 2026-10-30 · Growth is the viral loop, not paid ads
+- Founder: "the key goal is to make a viral loop … I don't need to spend any money on marketing".
+- K above 1 is rare, so we design for every factor of K × retention: brag cards at peak moments
+  (shares), a picture plus challenge plus code (clicks), a link that plays in the browser with a
+  personal welcome (joins), and friends, gifts and taste-offs (retention). Plan and queries:
+  docs/VIRAL.md.
+- Rewards stay game coins and gadgets, paid only when a friend really plays, never for the share
+  (Facebook platform and store rules). No randomized rewards, no money.

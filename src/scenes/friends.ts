@@ -2,16 +2,20 @@
 // visits to a friend's village. Server rules in supabase/migrations/*_friends.sql; coins in core/social.ts.
 import { analytics } from '../core/analytics';
 import { SPECIES, TIERS, tierFor } from '../core/data';
-import { INVITE_REWARD, WELCOME_GIFT, bestSauce, grantInviteRewards, grantWelcome, inviteUrl, parseInvite, recipeName, shareText, tasteOff } from '../core/social';
+import { GAME_URL, GIFT_COINS, bragMessage, INVITE_MILESTONES, INVITE_REWARD, WELCOME_GIFT, bestSauce, grantGifts, grantInviteRewards, grantWelcome, inviteUrl, nextMilestone, parseInvite, payMilestones, recipeName, shareText, tasteOff } from '../core/social';
+import { GADGETS, type GadgetId } from '../core/items';
 import { BUILDINGS_BY_ID, type BuildingId } from '../core/island';
 import { askText } from '../render/ask';
 import { sfx } from '../render/audio';
 import { COLORS, H, W, clamp01, drawCoin, ease, islandImage, outlinedText, panel, rr, text, type Ctx } from '../render/draw';
-import { copyText, facebookShareUrl, openShareUrl, shareInvite, whatsappShareUrl } from '../native/share';
-import type { BoardRow, MySocial, TopRow, Visit } from '../auth/social';
+import { copyText, facebookShareUrl, openShareUrl, shareImage, shareInvite, whatsappShareUrl } from '../native/share';
+import { cardBlob, drawBragCard, type BragCard } from '../render/bragcard';
+import type { BoardRow, GiftStatus, InvitePreview, MySocial, TopRow, Visit } from '../auth/social';
 import type { Game, Scene } from '../game';
 
 const PENDING_KEY = 'mam_invite';
+/** The player's friend code once known, so every brag card carries it. */
+let myCode: string | null = null;
 
 /** An invite link opened the game (?invite=CODE): remember the code until the account is ready. */
 export function captureInvite(search: string): void {
@@ -44,7 +48,10 @@ export async function checkSocial(game: Game): Promise<void> {
     } catch {
       /* ignore */
     }
-    await redeem(game, pending, true);
+    // greet by name: "Lan invited you. Her sauce is 31.2°N. Can you beat it?"
+    const [preview, me0] = await Promise.all([api.invitePreview(pending).catch(() => null), api.mySocial().catch(() => null)]);
+    const welcome = !!preview && !!me0?.can_redeem;
+    if ((await redeem(game, pending, true, !welcome)) && welcome) game.push(new InviteWelcomeOverlay(game, preview));
   }
   const n = await api.claimInviteRewards().catch(() => 0);
   if (n > 0) {
@@ -54,10 +61,55 @@ export async function checkSocial(game: Game): Promise<void> {
     sfx.upgrade();
     game.toast(`Invite reward  +${coins}`, COLORS.good, n === 1 ? 'A friend you invited sold their first bottle!' : `${n} friends you invited sold their first bottles!`);
   }
+  const me = await api.mySocial().catch(() => null);
+  if (me) {
+    myCode = me.code;
+    for (const m of payMilestones(game.state, me.played ?? 0)) {
+      game.coinPulse = 1;
+      sfx.upgrade();
+      game.toast(`${m.title}!  +${m.coins}`, COLORS.gold, `${m.friends} invited ${m.friends === 1 ? 'friend plays' : 'friends play'}: ${gadgetList(m.gadgets)}`);
+    }
+    game.commit();
+  }
+  const from = await api.openGifts().catch(() => [] as string[]);
+  if (from.length) {
+    const coins = grantGifts(game.state, from);
+    game.coinPulse = 1;
+    game.commit();
+    game.toast(`🎁 ${from.length === 1 ? `A gift from ${from[0]}` : `${from.length} gifts from friends`}  +${coins}`, COLORS.good, 'Send gifts back in Friends');
+  }
+}
+
+function gadgetList(g: Partial<Record<GadgetId, number>>): string {
+  return Object.entries(g)
+    .map(([id, n]) => `${n}× ${GADGETS[id as GadgetId].name}`)
+    .join(', ');
+}
+
+/**
+ * A brag card: the moment on screen, the headline, and the player's code and link, shared as a picture
+ * (Facebook, Zalo, Messenger, TikTok…). Every share is an invitation.
+ */
+export async function brag(game: Game, card: Omit<BragCard, 'code' | 'url'>, kind: string): Promise<void> {
+  analytics.track('brag_tap', { kind });
+  if (!myCode) myCode = (await (await game.account?.socialApi())?.mySocial().catch(() => null))?.code ?? null;
+  const url = myCode ? inviteUrl(myCode) : GAME_URL;
+  const msg = bragMessage(card.headline, myCode, navigator.language);
+  try {
+    const shot = await game.snapshot();
+    const blob = await cardBlob(drawBragCard(shot, { ...card, code: myCode, url }));
+    const r = blob ? await shareImage(blob, msg, url) : await shareInvite(msg, url);
+    analytics.track('brag_share', { kind, result: r });
+    if (r === 'copied') game.toast('Picture saved, message copied', COLORS.good, 'Post it with the picture');
+  } catch (e) {
+    analytics.track('brag_error', { kind, msg: String((e as Error)?.message ?? e).slice(0, 80) });
+    game.toast('Could not make the picture', COLORS.bad, 'Sharing the link instead');
+    await shareInvite(msg, url);
+  }
 }
 
 /** Join a friend's crew with their code: both become friends and the new player gets a welcome gift. */
-async function redeem(game: Game, code: string, quiet = false): Promise<boolean> {
+async function redeem(game: Game, code: string, quiet = false, toast = true): Promise<boolean> {
   const api = await game.account?.socialApi();
   if (!api) return false;
   try {
@@ -66,7 +118,7 @@ async function redeem(game: Game, code: string, quiet = false): Promise<boolean>
     game.coinPulse = 1;
     game.commit();
     sfx.upgrade();
-    game.toast(`Welcome to ${inviter}'s crew!  +${coins}`, COLORS.good, 'You are now friends. Compare your sauce in Friends.');
+    if (toast) game.toast(`Welcome to ${inviter}'s crew!  +${coins}`, COLORS.good, 'You are now friends. Compare your sauce in Friends.');
     return true;
   } catch (e) {
     const msg = (e as Error).message;
@@ -91,6 +143,7 @@ export class FriendsOverlay implements Scene {
   private me: MySocial | null = null;
   private board: BoardRow[] | null = null;
   private top: TopRow[] | null = null;
+  private gifts: GiftStatus | null = null;
   private error = '';
   private busy = false;
 
@@ -109,6 +162,8 @@ export class FriendsOverlay implements Scene {
     try {
       await checkSocial(this.game);
       [this.me, this.board] = await Promise.all([api.mySocial(), api.friendsBoard()]);
+      myCode = this.me.code;
+      this.gifts = await api.giftStatus().catch(() => null);
       this.error = '';
     } catch (e) {
       const msg = (e as Error).message;
@@ -194,7 +249,36 @@ export class FriendsOverlay implements Scene {
       text(ctx, `Invite one: they get ${WELCOME_GIFT} coins, you get ${INVITE_REWARD}.`, W / 2, y + 46, 14, 'rgba(43,33,24,0.75)', 'center', 800);
       this.game.button(ctx, 'friends_go_invite', W / 2 - 100, y + 70, 200, 46, 'Invite friends', () => this.setTab('invite'), { color: COLORS.good, dark: '#2f7a3b', size: 17, pulse: true });
     }
+    const g = this.gifts;
+    if (g && g.friends > 0) {
+      const can = g.unsent > 0;
+      this.game.button(ctx, 'send_gifts', 30, 686, W - 60, 46, can ? `🎁 Send today's gifts (${g.unsent})` : '🎁 Gifts sent today ✓', () => void this.sendGifts(), {
+        color: can ? '#e67e22' : '#e9dfcf',
+        dark: can ? '#a85a14' : '#b9ab95',
+        size: 16,
+        textColor: can ? '#fff' : 'rgba(43,33,24,0.6)',
+        disabled: !can,
+        pulse: can,
+      });
+    }
     this.game.button(ctx, 'friend_add', 30, 742, W - 60, 46, '+ Add a friend by code', () => void this.addByCode(), { color: '#3a8fd9', dark: '#235f96', size: 16 });
+  }
+
+  private async sendGifts(): Promise<void> {
+    const api = await this.game.account?.socialApi();
+    if (!api || this.busy) return;
+    this.busy = true;
+    try {
+      const n = await api.sendGifts();
+      analytics.track('gifts_sent', { n });
+      sfx.upgrade();
+      this.game.toast(`🎁 Sent ${n} ${n === 1 ? 'gift' : 'gifts'}`, COLORS.good, `Each friend gets ${GIFT_COINS} coins when they next play`);
+      this.gifts = await api.giftStatus();
+    } catch (e) {
+      this.game.toast('Could not send gifts', COLORS.bad, (e as Error).message);
+    } finally {
+      this.busy = false;
+    }
   }
 
   private boardRow(ctx: Ctx, y: number, rank: number, name: string, deg: number, sub: string, me: boolean, visit: (() => void) | null): void {
@@ -272,11 +356,22 @@ export class FriendsOverlay implements Scene {
     text(ctx, `${WELCOME_GIFT} for your friend when they join`, 60, 331, 13, COLORS.ink, 'left', 800);
     drawCoin(ctx, 44, 356, 9);
     text(ctx, `${INVITE_REWARD} for you when they sell their first bottle`, 60, 357, 13, COLORS.ink, 'left', 800);
-    text(ctx, `Friends you invited: ${me.invites}`, 30, 384, 12, 'rgba(43,33,24,0.6)', 'left', 800);
+    const played = me.played ?? 0;
+    const next = nextMilestone(played);
+    if (next) {
+      const prev = [...INVITE_MILESTONES].reverse().find((m) => m.friends <= played)?.friends ?? 0;
+      text(ctx, `Next: ${next.title} at ${next.friends} · ${played}/${next.friends} friends playing`, 30, 380, 12, COLORS.ink, 'left', 900);
+      ctx.fillStyle = 'rgba(43,33,24,0.12)';
+      rr(ctx, 30, 388, W - 60, 6, 3);
+      ctx.fill();
+      ctx.fillStyle = COLORS.gold;
+      rr(ctx, 30, 388, (W - 60) * clamp01((played - prev) / (next.friends - prev)), 6, 3);
+      ctx.fill();
+    } else text(ctx, `Village legend: ${played} invited friends play!`, 30, 384, 12, COLORS.gold, 'left', 900);
 
     // share
-    const msg = shareText(me.code, best);
-    this.game.button(ctx, 'share_invite', 30, 400, W - 60, 52, '📤  Share invite (Zalo, Messenger…)', () => void this.share(msg, url, 'sheet'), { color: COLORS.good, dark: '#2f7a3b', size: 16, pulse: me.invites === 0 });
+    const msg = shareText(me.code, best, navigator.language);
+    this.game.button(ctx, 'share_invite', 30, 402, W - 60, 52, '📤  Share invite (Zalo, Messenger…)', () => void this.share(msg, url, 'sheet'), { color: COLORS.good, dark: '#2f7a3b', size: 16, pulse: me.invites === 0 });
     this.game.button(ctx, 'share_fb', 30, 464, (W - 72) / 3, 42, 'Facebook', () => void this.share(msg, url, 'facebook'), { color: '#1877f2', dark: '#0f56b3', size: 14 });
     this.game.button(ctx, 'share_wa', 36 + (W - 72) / 3, 464, (W - 72) / 3, 42, 'WhatsApp', () => void this.share(msg, url, 'whatsapp'), { color: '#25a244', dark: '#1a7a32', size: 14 });
     this.game.button(ctx, 'share_copy', 42 + ((W - 72) / 3) * 2, 464, (W - 72) / 3, 42, 'Copy link', () => void this.copy(`${msg}\n${url}`, 'Invite copied'), { color: '#e9dfcf', dark: '#b9ab95', size: 14, textColor: COLORS.ink });
@@ -392,6 +487,10 @@ export class FriendVisitOverlay implements Scene {
     outlinedText(ctx, 'vs', W / 2, 232, 22, '#fff', COLORS.ink, 5);
     const verdict = res === 'tie' ? 'A perfect tie!' : res === 'win' ? 'Your sauce wins!' : `${this.row.name}'s sauce wins!`;
     outlinedText(ctx, verdict, W / 2, 352, 22 * (0.9 + 0.1 * k), res === 'win' ? COLORS.gold : res === 'tie' ? '#fff' : '#ff9a7a', COLORS.ink, 5);
+    if (res === 'win')
+      this.game.button(ctx, 'brag_win', W / 2 - 90, 372, 180, 36, '📤 Tell everyone', () =>
+        void brag(this.game, { headline: `My fish sauce beat ${this.row.name}'s!`, sub: `${mine.degrees.toFixed(1)}°N vs ${theirs.degrees.toFixed(1)}°N in the taste-off`, crop: { y0: 124, y1: 334 }, accent: COLORS.gold }, 'tasteoff'),
+      { color: '#3a8fd9', dark: '#235f96', size: 14, pulse: true });
     if (res === 'lose') {
       text(ctx, `Brew ${(theirs.degrees - mine.degrees + 0.1).toFixed(1)}°N more to beat it.`, W / 2, 378, 12, 'rgba(43,33,24,0.75)', 'center', 900);
       text(ctx, 'Perfect catches, more salt and longer aging make stronger sauce.', W / 2, 394, 10, 'rgba(43,33,24,0.6)', 'center', 800);
@@ -469,4 +568,51 @@ function wrapText(ctx: Ctx, s: string, max: number): string[] {
   }
   if (line) out.push(line);
   return out;
+}
+
+/** First launch from an invite link: who invited you, their sauce to beat, and the welcome gift. */
+export class InviteWelcomeOverlay implements Scene {
+  name = 'invite_welcome';
+  covers3d = true;
+  t = 0;
+
+  constructor(
+    private game: Game,
+    private from: InvitePreview,
+  ) {
+    analytics.track('invite_welcome');
+    sfx.upgrade();
+  }
+
+  update(dt: number): void {
+    this.t += dt;
+  }
+
+  draw(ctx: Ctx): void {
+    ctx.fillStyle = 'rgba(20,15,10,0.65)';
+    ctx.fillRect(0, 0, W, H);
+    const k = ease.outBack(clamp01(this.t / 0.4));
+    ctx.save();
+    ctx.translate(W / 2, H / 2);
+    ctx.scale(k, k);
+    ctx.translate(-W / 2, -H / 2);
+    panel(ctx, 24, 170, W - 48, 470, COLORS.paper, 24);
+    outlinedText(ctx, `${this.from.name} invited you!`, W / 2, 214, 24, '#ffd34d', COLORS.ink, 6);
+    text(ctx, 'Welcome to Mắm Village, Phú Quốc.', W / 2, 250, 15, COLORS.ink, 'center', 800);
+    drawCoin(ctx, W / 2 - 62, 300, 18);
+    outlinedText(ctx, `+${WELCOME_GIFT}`, W / 2 + 10, 300, 34, '#fff', COLORS.ink, 6);
+    text(ctx, 'a welcome gift from your new friend', W / 2, 336, 13, 'rgba(43,33,24,0.7)', 'center', 800);
+    const d = this.from.best_degrees;
+    if (d > 0) {
+      const t = tierFor(d);
+      text(ctx, `${this.from.name}'s best fish sauce:`, W / 2, 392, 15, COLORS.ink, 'center', 900);
+      outlinedText(ctx, `${d.toFixed(1)}°N`, W / 2, 430, 40, t.color, COLORS.ink, 6);
+      text(ctx, `${t.name}. Can you brew better?`, W / 2, 466, 15, COLORS.ink, 'center', 900);
+    } else {
+      text(ctx, `${this.from.name} is just starting out too.`, W / 2, 410, 15, COLORS.ink, 'center', 900);
+      text(ctx, 'Race them to the first great fish sauce!', W / 2, 436, 15, COLORS.ink, 'center', 800);
+    }
+    ctx.restore();
+    this.game.button(ctx, 'welcome_go', W / 2 - 110, 540, 220, 60, "Let's fish!", () => this.game.pop(this), { color: COLORS.good, dark: '#2f7a3b', size: 22, pulse: true });
+  }
 }

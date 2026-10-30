@@ -4,7 +4,7 @@
 // ignore it: those already have their own buttons and must never lose an outcome.
 
 /** Overlays that are plain menus or abandon-able puzzles: back closes them. */
-const CLOSABLE = new Set(['brand', 'business', 'dex', 'dog', 'evolution', 'market', 'missions', 'production', 'puzzles', 'settings', 'salt_puzzle', 'shop_puzzle', 'relic', 'career', 'career_up', 'info', 'team', 'friends', 'friend_visit']);
+const CLOSABLE = new Set(['brand', 'business', 'dex', 'dog', 'evolution', 'market', 'missions', 'production', 'puzzles', 'settings', 'salt_puzzle', 'shop_puzzle', 'relic', 'career', 'career_up', 'info', 'team', 'friends', 'friend_visit', 'invite_welcome']);
 /** Scenes that back returns to the village from. */
 const SIDE_SCENES = new Set(['map', 'island']);
 

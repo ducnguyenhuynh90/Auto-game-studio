@@ -22,6 +22,41 @@ export async function shareInvite(text: string, url: string): Promise<ShareResul
   return (await copyText(`${text}\n${url}`)) ? 'copied' : 'failed';
 }
 
+/** Shares a picture (a brag card) with its message: the share sheet, or a download where there is none. */
+export async function shareImage(blob: Blob, text: string, url: string): Promise<ShareResult> {
+  try {
+    if (isNative()) {
+      const [{ Filesystem, Directory }, { Share }] = await Promise.all([import('@capacitor/filesystem'), import('@capacitor/share')]);
+      const data = await new Promise<string>((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(String(r.result).split(',')[1] ?? '');
+        r.onerror = () => reject(r.error);
+        r.readAsDataURL(blob);
+      });
+      const file = await Filesystem.writeFile({ path: `mam-village-${Date.now()}.jpg`, data, directory: Directory.Cache });
+      await Share.share({ title: 'Mắm Village', text: `${text} ${url}`, files: [file.uri], dialogTitle: 'Share' });
+      return 'shared';
+    }
+    const file = new File([blob], 'mam-village.jpg', { type: 'image/jpeg' });
+    if (navigator.canShare?.({ files: [file] })) {
+      await navigator.share({ files: [file], title: 'Mắm Village', text: `${text} ${url}` });
+      return 'shared';
+    }
+    // desktop browsers: save the picture, copy the message
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'mam-village.jpg';
+    document.body.append(a); // some browsers ignore clicks on links outside the page
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    return (await copyText(`${text} ${url}`)) ? 'copied' : 'shared';
+  } catch (e) {
+    if (String((e as Error)?.message ?? e).match(/cancel|abort/i)) return 'failed';
+    return shareInvite(text, url);
+  }
+}
+
 export async function copyText(text: string): Promise<boolean> {
   try {
     if (isNative()) {

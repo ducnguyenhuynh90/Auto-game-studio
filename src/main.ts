@@ -322,6 +322,16 @@ function frame(now: number): void {
   game.world?.render(game, Math.min(0.05, dt) * game.timeScale);
   ctx.clearRect(0, 0, W, H);
   game.draw(ctx);
+  // a brag card wants this frame: copy it now, while the 3D picture is still in its buffer
+  if (game.snapshots.length) {
+    const shot = document.createElement('canvas');
+    shot.width = canvas.width;
+    shot.height = canvas.height;
+    const sx = shot.getContext('2d')!;
+    sx.drawImage(worldCanvas, 0, 0, shot.width, shot.height);
+    sx.drawImage(canvas, 0, 0);
+    for (const done of game.snapshots.splice(0)) done(shot);
+  }
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);

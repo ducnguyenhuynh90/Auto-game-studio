@@ -32,6 +32,7 @@ Android apps. The claude.ai playtest page keeps using claude.ai storage (it can'
    1. `20261025000000_players.sql`: profiles, saves, security rules
    2. `20261026000000_delete_account.sql`: in-app account deletion
    3. `20261030000000_friends.sql`: friend codes, friends, invites and rewards, leaderboards, visits
+   4. `20261031000000_viral.sql`: invite preview, daily gifts, invite milestones (docs/VIRAL.md)
 3. **Turn on sign-in methods:** Authentication → Sign In / Providers:
    - **Allow anonymous sign-ins**: on (required)
    - **Allow manual linking**: on (lets guests link a login)

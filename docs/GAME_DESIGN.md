@@ -364,3 +364,17 @@ see whose sauce is better, and sharing to Facebook and other social apps.
   once the account is ready. In the apps, players type the code.
 - **Honest and safe:** coins only, paid once, decided by the server. The bigger reward needs the
   friend to really play (a first sale), so fake accounts can't farm it.
+
+## The viral loop (build 3.13, founder goal: grow without paid marketing)
+Strategy, maths and how to measure K: docs/VIRAL.md.
+- **Brag cards** (`render/bragcard.ts`): "📤 Show friends" appears after a Premium+ sauce, a new best
+  or a new recipe (not on the first bottle), on a Rare+ or record catch, and after winning a
+  taste-off. It makes a 1080×1350 picture of the moment with the headline and "Play free · my code",
+  shared through the phone's share sheet. On a desktop it downloads and the message is copied.
+- **Personal welcome:** an invite link greets the new player with the inviter's name and best sauce
+  ("can you beat it?") and the 300-coin gift.
+- **Daily gifts:** one tap sends every friend a gift (60 coins). At most 10 gifts open per day, and
+  they open when the friend next plays.
+- **Invite milestones** for friends who really play: 1, 3, 5 and 10 friends, paying coins and gadgets
+  (Calm Pearls, Sonar Shells, Rocket Bobbers, Octo Nets), each once.
+- Share messages are in Vietnamese on Vietnamese phones.

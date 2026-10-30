@@ -131,3 +131,7 @@ Only [PLAYER] entries count as product evidence.
   referral rewards, visiting friends to see whose sauce is better, and sharing to Facebook and other
   apps. The taste-off is the hook: a single number (°N) everyone understands, already earned in play.
   Watch EXP-013 before building more social features.
+- [DESIGN] 2026-10-30 · Viral loop (D-028): the moments players already cheer at (the reveal °N, a
+  legendary catch, beating a friend) become picture posts carrying their code. [SIM] Brag cards take
+  ~30 s in this sandbox's software-rendered browser (it draws one frame every ~30 s); on real phones a
+  frame is ~16-50 ms. Verify share speed on a cheap Android.

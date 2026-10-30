@@ -38,3 +38,39 @@ describe('friends and invites (core rules)', () => {
     expect(s.stats.earned).toBe(WELCOME_GIFT + 2 * INVITE_REWARD);
   });
 });
+
+describe('viral loop rewards', async () => {
+  const { INVITE_MILESTONES, GIFT_COINS, grantGifts, nextMilestone, payMilestones, bragHeadline } = await import('../src/core/social');
+  it('milestones pay once each, in order, even when several are reached at once', () => {
+    const s = newState();
+    const c0 = s.coins;
+    expect(payMilestones(s, 0)).toEqual([]);
+    expect(payMilestones(s, 3).map((m) => m.friends)).toEqual([1, 3]);
+    expect(s.coins).toBe(c0 + INVITE_MILESTONES[0].coins + INVITE_MILESTONES[1].coins);
+    expect(s.gadgets.pearl).toBe(2);
+    expect(s.gadgets.sonar).toBe(3);
+    expect(payMilestones(s, 3)).toEqual([]); // already paid
+    expect(payMilestones(s, 5).map((m) => m.friends)).toEqual([5]);
+    expect(nextMilestone(5)?.friends).toBe(10);
+    expect(nextMilestone(10)).toBeNull();
+  });
+  it('gifts pay coins per friend; the brag line names the sauce tier', () => {
+    const s = newState();
+    const c0 = s.coins;
+    expect(grantGifts(s, ['Lan', 'Tư'])).toBe(2 * GIFT_COINS);
+    expect(grantGifts(s, [])).toBe(0);
+    expect(s.coins).toBe(c0 + 2 * GIFT_COINS);
+    expect(bragHeadline('sauce', 38.24, '')).toMatch(/^38\.2°N \w+ fish sauce!$/);
+    expect(bragHeadline('fish', 0, 'Golden Anchovy')).toBe('I caught a Golden Anchovy!');
+  });
+});
+
+describe('share messages follow the phone language', async () => {
+  const { bragMessage, shareText } = await import('../src/core/social');
+  it('Vietnamese phones get Vietnamese text, others English; both carry the code', () => {
+    expect(shareText('K7M2QX', 31.2, 'vi-VN')).toMatch(/Nhập mã K7M2QX/);
+    expect(shareText('K7M2QX', 31.2, 'en-US')).toMatch(/my code K7M2QX/);
+    expect(bragMessage('38.2°N!', 'K7M2QX', 'vi')).toMatch(/K7M2QX/);
+    expect(bragMessage('38.2°N!', null, 'en')).toMatch(/Play free/);
+  });
+});

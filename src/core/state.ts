@@ -78,6 +78,8 @@ export interface GameState {
   brand: BrandState;
   /** The Road to the World's Best Fish Sauce (src/core/career.ts). Missing on old saves until first read. */
   career?: CareerState;
+  /** Friends and invites: the highest invite milestone already paid (core/social.ts). Missing on old saves. */
+  social?: { milestone: number };
   /** Mực the Phú Quốc dog (src/core/dog.ts). */
   dog: DogState;
 }

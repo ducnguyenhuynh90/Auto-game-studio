@@ -88,6 +88,13 @@ export class Game {
   ga: { askNeeded: boolean; enabled: boolean; setConsent(yes: boolean): void } | null = null;
   /** 3D world layer; null in headless tests. */
   world: World | null = null;
+  /** Pending screen grabs (brag cards): filled by main.ts right after the next frame is drawn. */
+  snapshots: ((c: HTMLCanvasElement) => void)[] = [];
+
+  /** The next frame as one image: the 3D world with the interface on top. */
+  snapshot(): Promise<HTMLCanvasElement> {
+    return new Promise((resolve) => this.snapshots.push(resolve));
+  }
   coinPulse = 0;
   shake = 0;
   // Scene navigation is wired in main.ts to keep this module free of scene imports.

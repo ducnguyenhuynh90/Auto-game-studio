@@ -5,6 +5,8 @@ import { agingLevel, bestJarFill, useGadget, canFerment, jarDegrees, openJar, pr
 import { sfx, vibrate } from '../render/audio';
 import { COLORS, H, W, clamp01, drawFish, drawJar, drawPointer, ease, outlinedText, panel, rr, star, text, type Ctx } from '../render/draw';
 import type { Game, Scene } from '../game';
+import { bragHeadline } from '../core/social';
+import { brag } from './friends';
 
 export class JarFillOverlay implements Scene {
   name = 'jar_fill';
@@ -310,6 +312,13 @@ export class RevealOverlay implements Scene {
         const tip = this.agingLvl < BALANCE.maxAging ? 'Tip: let jars age longer (more trips) for higher °N' : 'Tip: perfect catches make fresher, stronger sauce';
         text(ctx, tip, W / 2, 668, 13, 'rgba(255,255,255,0.7)');
         const price = productPrice(s, this.product);
+        // a sauce worth showing off: a new best or recipe, or Premium and up (not on the very first bottle)
+        if (s.stats.sold > 0 && (this.newBest || this.newRecipe || this.degrees >= 30)) {
+          const tier = tierFor(this.degrees);
+          this.game.button(ctx, 'brag', W / 2 - 95, 604, 190, 44, '📤 Show friends', () =>
+            void brag(this.game, { headline: bragHeadline('sauce', this.degrees, ''), sub: `${RECIPES_BY_ID[this.recipeId]?.name ?? 'Fish sauce'} · aged by hand on Phú Quốc`, crop: { y0: 56, y1: 556 }, accent: tier.color }, 'sauce'),
+          { color: '#3a8fd9', dark: '#235f96', size: 16, pulse: this.newBest });
+        }
         if (s.stats.sold === 0) {
           // First bottle: one clear action. A playtester chose "Keep" here and never found the sale.
           this.game.button(ctx, 'sell', 40, 700, W - 80, 76, `Sell for ${price}`, () => this.sell(), { color: COLORS.good, dark: '#2f7a3b', coin: true, size: 28, pulse: true });
