@@ -21,7 +21,7 @@ real-player evidence. Capacitor wraps it in days, and every web improvement ship
 | Sign-in | `src/auth/supabase.ts` | Google / Apple / Facebook open in the system browser (Google blocks embedded web views) and return via `com.mamvillage.app://auth/callback` (PKCE code exchange) |
 | Account deletion | Settings → "Delete my account and progress" | required by both stores; calls `public.delete_my_account()` (`supabase/migrations/20261026000000_delete_account.sql`) |
 | Service worker | `src/main.ts` | off in the app (the files ship inside the install) |
-| Icons + splash | `tools/make-icons.mjs` → `assets/` | vector-drawn 1024 icon, Android adaptive layers, splash; sizes generated per platform |
+| Icons + splash | `npm run icons` (`tools/make-icons.mjs` renders `tools/icon/scene.ts`) → `assets/`, `mobile/assets/`, `public/` | 1024 icon rendered with the game's 3D models (Lan + Golden Anchovy at sunset), Android adaptive + monochrome layers, splash; every platform size generated |
 
 The app id is **`com.mamvillage.app`** (`capacitor.config.ts`, Android `applicationId`, iOS bundle id,
 deep-link scheme). It can't change after the first store upload, so the founder should confirm it first.

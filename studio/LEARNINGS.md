@@ -135,3 +135,6 @@ Only [PLAYER] entries count as product evidence.
   legendary catch, beating a friend) become picture posts carrying their code. [SIM] Brag cards take
   ~30 s in this sandbox's software-rendered browser (it draws one frame every ~30 s); on real phones a
   frame is ~16-50 ms. Verify share speed on a cheap Android.
+- [DESIGN] 2026-10-30 · Icon (D-029): readable at 60 px means three shapes at most (face, hat, fish) and
+  strong value contrast (pale hat on orange). Unproven: Play store listing experiments will show
+  whether it lifts the tap-through rate.

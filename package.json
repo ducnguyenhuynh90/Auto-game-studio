@@ -12,7 +12,7 @@
     "playtest": "node tools/playtest.mjs",
     "sim": "vite-node tools/sim.ts",
     "cap:sync": "npm run build && cap sync",
-    "icons": "node tools/make-icons.mjs && npx -y @capacitor/assets@3.0.5 generate --iconBackgroundColor '#1b6f8a' --splashBackgroundColor '#0e3d4f' --splashBackgroundColorDark '#0e3d4f' --android --ios"
+    "icons": "node tools/make-icons.mjs && npx -y @capacitor/assets@3.0.5 generate --iconBackgroundColor '#ff8a3d' --splashBackgroundColor '#0e3d4f' --splashBackgroundColorDark '#0e3d4f' --android --ios"
   },
   "devDependencies": {
     "@capacitor/cli": "8.5.3",

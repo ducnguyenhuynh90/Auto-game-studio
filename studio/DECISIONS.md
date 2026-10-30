@@ -259,3 +259,15 @@ built, but as ONE connected system rather than separate features:
   docs/VIRAL.md.
 - Rewards stay game coins and gadgets, paid only when a friend really plays, never for the share
   (Facebook platform and store rules). No randomized rewards, no money.
+
+## D-029 · 2026-10-30 · App icon: a face, a catch, a place
+- Founder: the icon wasn't attractive. The old one (a jar wearing a hat over two white arcs) had no
+  character, didn't say "fishing", and blended in among blue home-screen icons.
+- New icon: Lan's smiling face under her nón lá, a glowing Golden Anchovy leaping beside her, against
+  a warm Phú Quốc sunset with the sun behind the fish. Casual games convert with a character face;
+  the fish says what you do; orange stands out on home screens.
+- Rendered with the game's own 3D models (`tools/icon/scene.ts`), so the icon matches the game.
+  Checked at 60-180 px, in the iOS rounded mask, the Android round adaptive mask (content inside the
+  66% safe zone) and the Android 13 monochrome themed icon.
+- Next: A/B test it against a variant (e.g. Mực the dog with the humming jar) with Play's store listing
+  experiments once live (EXP-012).
