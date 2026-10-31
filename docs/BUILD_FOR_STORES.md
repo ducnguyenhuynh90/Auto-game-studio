@@ -87,7 +87,8 @@ Native apps (Android + iOS) → Run workflow → tick testflight**.
 | Sign-in buttons only for working providers (`VITE_AUTH_PROVIDERS`, default Google; hidden on iPhone until Sign in with Apple is set up) | ✓ |
 | Store listing, screenshots, video, feature graphic (`store/`) | ✓ |
 | Supabase database (accounts, saves, friends, invites, gifts) | ✓ live |
-| **Your team:** Play upload key, Apple team signing, a support email on both store pages, the store forms (Data safety / App Privacy, content rating) | to do |
+| Store forms (Data safety, App Privacy, content rating, review notes): ready-to-paste answers in `store/store-forms.md` | ✓ |
+| **Your team:** Play upload key, Apple team signing, a support email on both store pages, target age group | to do |
 
 **Google Play, new personal developer accounts:** Google requires a closed test with at least 12 testers
 for 14 days before the first production release. Organisation accounts can skip it. Plan for it.

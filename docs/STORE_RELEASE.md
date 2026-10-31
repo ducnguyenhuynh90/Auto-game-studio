@@ -16,6 +16,7 @@ US$99 per year. Neither is needed to keep testing with the CI downloads.
 |---|---|---|
 | Every push | `mam-village-android-N`: `app-debug.apk` (installs on any phone; also published as the `android-latest` release) and `app-release.aab`, signed for Google Play when the upload key is set | Simulator app (proves it compiles) |
 | Actions → Native apps (Android + iOS) → Run workflow → tick **testflight** | (same) | Archives, signs and uploads build N to TestFlight |
+| Actions → Native apps (Android + iOS) → Run workflow → **play_track** = internal / alpha / beta / production | Uploads the signed `.aab` to that Google Play track (after the first manual upload) | |
 
 Version numbers come from the run number: version name `1.0.N`, Android `versionCode` N, iOS build N, so
 every upload is higher than the last. Building by hand instead: docs/BUILD_FOR_STORES.md.
@@ -37,7 +38,11 @@ and the sign-in deep link). It can't change after the first store upload.
 3. The next push builds a signed `app-release.aab` (in the `mam-village-android-N` download).
 4. Play Console: create the app, then **Testing → Internal testing → Create release** and upload the
    `.aab` from the CI download (Google requires the first upload by hand). Add testers by email.
-5. Store listing, content rating questionnaire, target audience, and **Data safety** (below).
+5. Store listing, content rating questionnaire, target audience, and **Data safety**: ready-to-paste answers
+   in `store/store-forms.md`.
+6. Later uploads from GitHub: Play Console → Users and permissions → invite a Google Cloud **service account**
+   with "Release apps", save its JSON key as the secret `PLAY_SERVICE_ACCOUNT_JSON`, then Run workflow →
+   **play_track**.
 
 ## 3. App Store (TestFlight first)
 1. Join the Apple Developer Program with the company or founder's Apple ID.

@@ -11,6 +11,11 @@ on:
       testflight:
         description: 'Also archive the iOS app and upload it to TestFlight (needs the App Store Connect secrets)'
         type: boolean
+      play_track:
+        description: 'Also upload the signed Android bundle to Google Play (needs the upload key + Play service account secrets; the first upload must be done by hand)'
+        type: choice
+        options: [none, internal, alpha, beta, production]
+        default: none
 permissions:
   contents: read
 concurrency:
@@ -149,3 +154,30 @@ jobs:
           PLIST
           xcodebuild -exportArchive -archivePath build/MamVillage.xcarchive -exportOptionsPlist build/ExportOptions.plist \
             -exportPath build/export "${AUTH[@]}"
+
+  # Google Play: upload the signed .aab built by the android job, on request (Run workflow → play_track).
+  # Needs ANDROID_KEYSTORE_* (signing) and PLAY_SERVICE_ACCOUNT_JSON (Play Console → Users and permissions →
+  # invite a Google Cloud service account with "Release apps"). Google requires the first upload by hand.
+  play-upload:
+    needs: android
+    if: github.event_name == 'workflow_dispatch' && inputs.play_track != 'none'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check the secrets
+        env:
+          PLAY_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          [ -n "$KEYSTORE_B64" ] || { echo "::error::ANDROID_KEYSTORE_BASE64 is missing: the bundle would be unsigned (docs/STORE_RELEASE.md)"; exit 1; }
+          [ -n "$PLAY_JSON" ] || { echo "::error::PLAY_SERVICE_ACCOUNT_JSON is missing (docs/STORE_RELEASE.md)"; exit 1; }
+      - uses: actions/download-artifact@v4
+        with:
+          name: mam-village-android-${{ github.run_number }}
+          path: out
+      - uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.mamvillage.app
+          releaseFiles: out/bundle/release/app-release.aab
+          track: ${{ inputs.play_track }}
+          status: ${{ inputs.play_track == 'internal' && 'completed' || 'draft' }}
