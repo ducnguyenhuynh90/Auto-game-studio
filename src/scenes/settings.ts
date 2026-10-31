@@ -4,6 +4,10 @@ import { isMusicOn, isMuted, setMusic, setMuted } from '../render/audio';
 import { loadQualitySetting, type QualitySetting } from '../render3d/quality';
 import { COLORS, H, W, clamp01, ease, outlinedText, panel, rr, text, type Ctx } from '../render/draw';
 import type { Game, Scene } from '../game';
+import { openShareUrl } from '../native/share';
+import { GAME_URL } from '../core/social';
+
+const PRIVACY_URL = `${GAME_URL}privacy.html`;
 
 const PROVIDER_STYLE: Record<SocialProvider, { label: string; color: string; dark: string; text: string }> = {
   google: { label: 'Continue with Google', color: '#ffffff', dark: '#c9c9c9', text: '#2b2118' },
@@ -134,6 +138,8 @@ export class SettingsOverlay implements Scene {
 
     // ----- Privacy -----
     text(ctx, 'PRIVACY', 30, y, 12, 'rgba(43,33,24,0.6)', 'left', 900);
+    // the privacy policy (both stores require a link inside the app too)
+    this.game.button(ctx, 'privacy_policy', W - 150, y - 20, 120, 24, 'Privacy policy ›', () => void openShareUrl(PRIVACY_URL), { color: '#e8dcc6', dark: '#b8a98f', textColor: COLORS.ink, size: 12 });
     const ga = this.game.ga;
     if (ga) {
       // Google Analytics: the player's choice, changeable any time

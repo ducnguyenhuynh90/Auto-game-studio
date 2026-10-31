@@ -7,6 +7,8 @@ interface ImportMetaEnv {
   /** 'ask' (default): players are asked once; 'granted': no prompt (founder/legal decision). */
   readonly VITE_GA_CONSENT?: 'ask' | 'granted';
   readonly VITE_SUPABASE_URL: string;
+  /** Social sign-in providers turned on in Supabase, comma-separated (google,apple,facebook). Default: google. */
+  readonly VITE_AUTH_PROVIDERS?: string;
   readonly VITE_SUPABASE_ANON_KEY: string;
   readonly VITE_FIREBASE_API_KEY?: string;
   readonly VITE_FIREBASE_AUTH_DOMAIN?: string;

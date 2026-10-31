@@ -74,6 +74,24 @@ Native apps (Android + iOS) → Run workflow → tick testflight**.
 - Privacy answers (Data safety / App Privacy): docs/STORE_RELEASE.md §5.
 - Account deletion is in the app (Settings), as both stores require.
 
+## Ready-to-upload checklist (checked 2026-10-31)
+| Item | Status |
+|---|---|
+| Android and iOS projects build (CI, every push) | ✓ |
+| Android target API 36, only the Internet permission, portrait | ✓ |
+| App icon: opaque 1024 (iOS), adaptive + round (Android) | ✓ |
+| iPhone only (no iPad screenshots needed); export compliance declared (`ITSAppUsesNonExemptEncryption = NO`) | ✓ |
+| Account deletion inside the app (Settings) | ✓ |
+| Privacy policy: https://ducnguyenhuynh90.github.io/Auto-game-studio/privacy.html (also linked in Settings) | ✓ (founder: review the wording) |
+| Account deletion web page (Google Play requires it): https://ducnguyenhuynh90.github.io/Auto-game-studio/delete-account.html | ✓ |
+| Sign-in buttons only for working providers (`VITE_AUTH_PROVIDERS`, default Google; hidden on iPhone until Sign in with Apple is set up) | ✓ |
+| Store listing, screenshots, video, feature graphic (`store/`) | ✓ |
+| Supabase database (accounts, saves, friends, invites, gifts) | ✓ live |
+| **Your team:** Play upload key, Apple team signing, a support email on both store pages, the store forms (Data safety / App Privacy, content rating) | to do |
+
+**Google Play, new personal developer accounts:** Google requires a closed test with at least 12 testers
+for 14 days before the first production release. Organisation accounts can skip it. Plan for it.
+
 ## When something goes wrong
 - **The app shows an old version of the game:** run `npm run cap:sync` again (it rebuilds `dist/` and
   copies it into `mobile/android` and `mobile/ios`).

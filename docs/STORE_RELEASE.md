@@ -58,6 +58,9 @@ and Apple must be enabled under Auth → Providers (docs/SUPABASE.md). Apple sig
 Google because the App Store requires it for apps with third-party sign-in.
 
 ## 5. Privacy answers (Play "Data safety" / App Store "App Privacy")
+Privacy policy URL: https://ducnguyenhuynh90.github.io/Auto-game-studio/privacy.html · Account deletion URL
+(Play): https://ducnguyenhuynh90.github.io/Auto-game-studio/delete-account.html (both in `public/`).
+
 What the game actually collects (docs/ANALYTICS.md, docs/SUPABASE.md):
 
 | Data | When | Linked to the player | Used for |

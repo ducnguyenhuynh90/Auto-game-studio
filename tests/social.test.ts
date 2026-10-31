@@ -74,3 +74,14 @@ describe('share messages follow the phone language', async () => {
     expect(bragMessage('38.2°N!', null, 'en')).toMatch(/Play free/);
   });
 });
+
+describe('sign-in buttons only for providers that work', async () => {
+  const { enabledProviders } = await import('../src/auth/account');
+  it('defaults to Google; iPhone hides social sign-in until Sign in with Apple is set up (App Store 4.8)', () => {
+    expect(enabledProviders(undefined, 'android')).toEqual(['google']);
+    expect(enabledProviders(undefined, 'web')).toEqual(['google']);
+    expect(enabledProviders(undefined, 'ios')).toEqual([]);
+    expect(enabledProviders('google, apple', 'ios')).toEqual(['google', 'apple']);
+    expect(enabledProviders('google,apple,facebook', 'web')).toEqual(['google', 'apple', 'facebook']);
+  });
+});

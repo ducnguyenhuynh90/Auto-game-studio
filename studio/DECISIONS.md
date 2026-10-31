@@ -282,3 +282,13 @@ built, but as ONE connected system rather than separate features:
   CI runs only by hand. It lacked the social features and the 3D look, and two apps doubled the work.
 - The team builds with `npm run android:release` / `npm run ios:open` (docs/BUILD_FOR_STORES.md).
   TestFlight upload is available in native.yml (Run workflow → testflight).
+
+## D-031 · 2026-10-31 · Store-readiness fixes before the first upload
+- Sign-in buttons appear only for providers set up in Supabase (`VITE_AUTH_PROVIDERS`, default Google): the
+  Apple and Facebook buttons would have failed in front of reviewers. On iPhone, social sign-in is hidden
+  until Sign in with Apple is set up (App Store rule 4.8). Guests are still backed up to the cloud.
+- The iOS app is iPhone-only for launch (iPad would require iPad screenshots), and declares only standard
+  encryption.
+- Privacy policy and account-deletion pages are published on the website (`public/privacy.html`,
+  `public/delete-account.html`), with a Privacy policy link in Settings. Drafted from what the code and
+  database actually collect; the founder should review the wording (legal/compliance).

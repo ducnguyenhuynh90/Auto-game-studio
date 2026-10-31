@@ -62,9 +62,9 @@ export class AccountManager {
     });
   }
 
-  /** Social sign-in buttons to show (empty when this build has no Firebase config). */
+  /** Social sign-in buttons to show: only the providers this build lists as set up (VITE_AUTH_PROVIDERS). */
   get socialProviders(): SocialProvider[] {
-    return __SUPABASE__ || __FIREBASE__ ? ['google', 'apple', 'facebook'] : [];
+    return __SUPABASE__ || __FIREBASE__ ? enabledProviders(import.meta.env.VITE_AUTH_PROVIDERS, platform()) : [];
   }
 
   /** True when progress is already backed up but no social login is linked yet. */
@@ -325,4 +325,23 @@ function setSocialSession(on: boolean): void {
   } catch {
     /* ignore */
   }
+}
+
+/** Which platform the game runs on: the iOS / Android app (Capacitor) or a browser. */
+function platform(): 'ios' | 'android' | 'web' {
+  const p = (window as unknown as { Capacitor?: { getPlatform?(): string } }).Capacitor?.getPlatform?.();
+  return p === 'ios' || p === 'android' ? p : 'web';
+}
+
+/**
+ * The sign-in buttons to offer. Only providers turned on in Supabase may appear (a dead button fails app
+ * review), so builds list them in VITE_AUTH_PROVIDERS (default: google). On iPhone, App Store rule 4.8 says
+ * an app offering Google sign-in must also offer Sign in with Apple, so without Apple the iOS app offers
+ * no social login (guests are still backed up to the cloud).
+ */
+export function enabledProviders(list: string | undefined, where: 'ios' | 'android' | 'web'): SocialProvider[] {
+  const all: SocialProvider[] = ['google', 'apple', 'facebook'];
+  const on = all.filter((p) => (list ?? 'google').split(',').map((x) => x.trim().toLowerCase()).includes(p));
+  if (where === 'ios' && !on.includes('apple')) return [];
+  return on;
 }
