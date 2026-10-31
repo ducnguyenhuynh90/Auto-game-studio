@@ -12,7 +12,10 @@
     "playtest": "node tools/playtest.mjs",
     "sim": "vite-node tools/sim.ts",
     "cap:sync": "npm run build && cap sync",
-    "icons": "node tools/make-icons.mjs && npx -y @capacitor/assets@3.0.5 generate --iconBackgroundColor '#ff8a3d' --splashBackgroundColor '#0e3d4f' --splashBackgroundColorDark '#0e3d4f' --android --ios"
+    "icons": "node tools/make-icons.mjs && npx -y @capacitor/assets@3.0.5 generate --assetPath mobile/assets --androidProject mobile/android --iosProject mobile/ios/App --iconBackgroundColor '#ff8a3d' --splashBackgroundColor '#0e3d4f' --splashBackgroundColorDark '#0e3d4f' --android --ios",
+    "android:apk": "npm run cap:sync && cd mobile/android && ./gradlew assembleDebug",
+    "android:release": "npm run cap:sync && cd mobile/android && ./gradlew bundleRelease",
+    "ios:open": "npm run cap:sync && cap open ios"
   },
   "devDependencies": {
     "@capacitor/cli": "8.5.3",

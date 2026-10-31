@@ -305,7 +305,7 @@ levels, rewarded ads to unblock shelves). Ours is themed on Bà Năm's Phú Qu�
   Puzzles hub. Analytics: `sort_menu`, `puzzle_start`/`puzzle_end` with section `sort`, `sort_booster`,
   `sort_stuck` (GA maps these like the other puzzles).
 - **Checks:** unit tests (all 50 levels winnable and deterministic; following the Hint clears every
-  level), `tools/sort-play.mjs` taps through levels in the web game, `mobile/tools/web-e2e-sort.mjs` in
+  level), `tools/sort-play.mjs` taps through levels in the web game, `archive/react-native/tools/web-e2e-sort.mjs` in
   the app.
 
 ## Goals take you there (build 3.11.1, founder feedback)

@@ -4,18 +4,18 @@
     "strict": true,
     "paths": {
       "@core/*": [
-        "./../src/core/*"
+        "./../../src/core/*"
       ],
       "@web/*": [
-        "./../src/*"
+        "./../../src/*"
       ]
     }
   },
   "include": [
     "**/*.ts",
     "**/*.tsx",
-    "../src/core/**/*.ts",
-    "../src/render/audio.ts",
-    "../src/render/ambience.ts"
+    "../../src/core/**/*.ts",
+    "../../src/render/audio.ts",
+    "../../src/render/ambience.ts"
   ]
 }

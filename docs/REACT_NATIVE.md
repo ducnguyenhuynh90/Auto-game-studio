@@ -1,4 +1,8 @@
-# React Native app (`mobile/`)
+# React Native app (archived: `archive/react-native/`)
+
+> **Archived (D-030, 2026-10-31).** The founder chose to ship the 3D game as the mobile app
+> (`mobile/`, Capacitor; docs/BUILD_FOR_STORES.md). This version is kept for reference; its CI runs only
+> when started by hand. Paths below that say `mobile/` now mean `archive/react-native/`.
 
 The founder chose React Native for the iOS / Android apps (D-021). It lives in its own folder so the web
 game, the Capacitor apps (`android/`, `ios/`) and their CI are untouched.

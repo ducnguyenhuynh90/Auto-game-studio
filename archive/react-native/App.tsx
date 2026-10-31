@@ -1,4 +1,4 @@
-// Mắm Village (React Native). The rules are the web game's (../src/core); this app draws them natively.
+// Mắm Village (React Native). The rules are the web game's (../../src/core); this app draws them natively.
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useState } from 'react';
 import { BackHandler, StyleSheet, View } from 'react-native';

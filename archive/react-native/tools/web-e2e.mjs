@@ -1,6 +1,6 @@
 // Plays the React Native app's web build in Chromium like a player: casts, hooks, reels by keeping the
 // tension in the green zone, fills and seals a jar, fishes again so it ages, opens it, sells the bottle,
-// and checks the save survives a reload. The rules under test are the shared ones (../src/core).
+// and checks the save survives a reload. The rules under test are the shared ones (../../src/core).
 //   npm run web:setup && npx expo export --platform web --output-dir /tmp/rn-web
 //   (cd /tmp/rn-web && python3 -m http.server 4180 &)   then:   node tools/web-e2e.mjs [url] [shots-dir]
 import { createRequire } from 'node:module';

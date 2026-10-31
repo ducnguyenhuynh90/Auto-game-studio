@@ -1,5 +1,5 @@
 // The cloud save in Supabase's public.saves table, without the Supabase client itself, so the web game
-// (auth/supabase.ts) and the React Native app (mobile/src/cloud.ts) share it, and tests can pass a fake.
+// (auth/supabase.ts) and the archived React Native app (archive/react-native/src/cloud.ts) share it, and tests can pass a fake.
 import { levelForXp } from '../core/progression';
 import type { GameState } from '../core/state';
 import type { SaveBlob } from './merge';

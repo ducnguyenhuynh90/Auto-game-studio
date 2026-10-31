@@ -271,3 +271,14 @@ built, but as ONE connected system rather than separate features:
   66% safe zone) and the Android 13 monochrome themed icon.
 - Next: A/B test it against a variant (e.g. Mực the dog with the humming jar) with Play's store listing
   experiments once live (EXP-012).
+
+## D-030 · 2026-10-31 · One mobile app: `mobile/` is the 3D game (Capacitor); React Native archived
+- Founder: "Ship android and ios. So do it all in mobile", then chose "Move 3D app into mobile/".
+- `mobile/android`, `mobile/ios` and `mobile/assets` now hold the shipping app (`com.mamvillage.app`).
+  It is the build the founder installed and tested, it matches the store screenshots and video, and it
+  has every feature (friends, invites, brag cards, special-fish glow). The game stays in `src/`, shared
+  with the website; `npm run cap:sync` copies it into both native projects.
+- The React Native app (D-021) moved to `archive/react-native/`. It still typechecks and bundles, and its
+  CI runs only by hand. It lacked the social features and the 3D look, and two apps doubled the work.
+- The team builds with `npm run android:release` / `npm run ios:open` (docs/BUILD_FOR_STORES.md).
+  TestFlight upload is available in native.yml (Run workflow → testflight).

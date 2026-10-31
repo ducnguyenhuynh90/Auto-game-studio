@@ -1,4 +1,4 @@
-// The game for React Native: the same GameState and rules as the web game (../src/core), the same save
+// The game for React Native: the same GameState and rules as the web game (../../src/core), the same save
 // format (so cloud saves can move between web and app later), and a tiny subscribe API for React.
 import { useSyncExternalStore } from 'react';
 import { AppState } from 'react-native';

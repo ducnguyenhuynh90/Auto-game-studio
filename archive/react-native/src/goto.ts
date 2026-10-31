@@ -1,4 +1,4 @@
-// Tapping a goal or a mission goes where it can be done now (rules: goalTarget in ../src/core/goals.ts).
+// Tapping a goal or a mission goes where it can be done now (rules: goalTarget in ../../src/core/goals.ts).
 import { analytics } from '@core/analytics';
 import { goalTarget, type GoalView } from '@core/goals';
 import { agingLevel } from '@core/state';

@@ -43,7 +43,7 @@ Android apps. The claude.ai playtest page keeps using claude.ai storage (it can'
 4. **Allow the return addresses:** Authentication → URL Configuration:
    - Site URL: the game URL, e.g. `https://<user>.github.io/Auto-game-studio/`
    - Redirect URLs: the same game URL **and** `com.mamvillage.app://auth/callback` (the Capacitor app)
-     **and** `com.mamvillage.rn://auth/callback` (the React Native app)
+     (the archived React Native app used `com.mamvillage.rn://auth/callback`)
 5. **Connect the builds:** Project Settings → API → copy the *Project URL* and the *anon public* key.
    Add them in GitHub → Settings → Secrets and variables → Actions as:
    - `VITE_SUPABASE_URL`

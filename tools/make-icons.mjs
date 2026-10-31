@@ -1,6 +1,6 @@
 // The app icon and splash, rendered with the game's own 3D models (tools/icon/scene.ts): Lan under her
 // nón lá with a glowing Golden Anchovy leaping in front of a Phú Quốc sunset. Writes the source art to
-// assets/ (Capacitor) and mobile/assets/ (React Native) and the web icons to public/, then
+// mobile/assets/ (the iOS / Android app) and the web icons to public/, then
 // `npm run icons` makes every iOS / Android size from them (docs/NATIVE.md).
 //   node tools/make-icons.mjs
 import { createRequire } from 'node:module';
@@ -36,18 +36,6 @@ const out = await p.evaluate(() => {
   const fg = icon(1024, 'foreground');
   const bg = icon(1024, 'background');
   return (async () => {
-    // a monochrome Android 13+ themed icon: the solid shapes of the foreground in white (the soft glow
-    // and sparkles would turn into grey smudges, so anything less than mostly opaque is dropped)
-    const mono = await canvasOf(1024, 1024, async (x) => {
-      x.drawImage(await img(fg), 0, 0);
-      const d = x.getImageData(0, 0, 1024, 1024);
-      for (let i = 0; i < d.data.length; i += 4) {
-        const on = d.data[i + 3] > 200;
-        d.data[i] = d.data[i + 1] = d.data[i + 2] = 255;
-        d.data[i + 3] = on ? 255 : 0;
-      }
-      x.putImageData(d, 0, 0);
-    });
     // splash: the icon art as a rounded tile over the dusk sea, with the name
     const splash = await canvasOf(2732, 2732, async (x) => {
       const g = x.createLinearGradient(0, 0, 0, 2732);
@@ -72,22 +60,15 @@ const out = await p.evaluate(() => {
     });
     const scaled = async (src, s) => canvasOf(s, s, async (x) => x.drawImage(await img(src), 0, 0, s, s));
     return {
-      // Capacitor app (iOS + Android): full-bleed opaque icon, adaptive layers, splash
-      'assets/icon-only.png': full,
-      'assets/icon-foreground.png': fg,
-      'assets/icon-background.png': bg,
-      'assets/splash.png': splash,
-      'assets/splash-dark.png': splash,
+      // the mobile app (mobile/android + mobile/ios): full-bleed opaque icon, adaptive layers, splash
+      'mobile/assets/icon-only.png': full,
+      'mobile/assets/icon-foreground.png': fg,
+      'mobile/assets/icon-background.png': bg,
+      'mobile/assets/splash.png': splash,
+      'mobile/assets/splash-dark.png': splash,
       // the web app (PWA, GitHub Pages)
       'public/icon-512.png': await scaled(full, 512),
       'public/icon-192.png': await scaled(full, 192),
-      // the React Native app (Expo)
-      'mobile/assets/icon.png': full,
-      'mobile/assets/android-icon-foreground.png': fg,
-      'mobile/assets/android-icon-background.png': bg,
-      'mobile/assets/android-icon-monochrome.png': mono,
-      'mobile/assets/splash-icon.png': await scaled(full, 1024),
-      'mobile/assets/favicon.png': await scaled(full, 48),
     };
   })();
 });

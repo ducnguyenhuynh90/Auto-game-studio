@@ -1,12 +1,16 @@
 name: Native apps (Android + iOS)
-# Builds the Capacitor apps from the same game build (docs/NATIVE.md).
+# Builds the mobile app (mobile/android + mobile/ios, Capacitor) from the same game build (docs/NATIVE.md).
 # Android: a debug APK to sideload on any phone, plus a signed release AAB for Google Play when the
-# upload-key secrets exist. iOS: a simulator build that proves the project compiles; App Store builds
-# need the founder's Apple Developer account (see docs/NATIVE.md).
+# upload-key secrets exist. iOS: a simulator build that proves the project compiles, and on request
+# (Run workflow → testflight) a signed archive uploaded to TestFlight (docs/STORE_RELEASE.md).
 on:
   push:
-    paths: ['src/**', 'android/**', 'ios/**', 'capacitor.config.ts', 'package*.json', 'public/**', '.github/workflows/native.yml']
+    paths: ['src/**', 'mobile/**', 'capacitor.config.ts', 'package*.json', 'public/**', '.github/workflows/native.yml']
   workflow_dispatch:
+    inputs:
+      testflight:
+        description: 'Also archive the iOS app and upload it to TestFlight (needs the App Store Connect secrets)'
+        type: boolean
 permissions:
   contents: read
 concurrency:
@@ -45,7 +49,7 @@ jobs:
           echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/upload.jks"
           echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/upload.jks" >> "$GITHUB_ENV"
       - name: Build APK + AAB
-        working-directory: android
+        working-directory: mobile/android
         env:
           MAM_VERSION_CODE: ${{ github.run_number }}
           MAM_VERSION_NAME: 1.0.${{ github.run_number }}
@@ -57,8 +61,8 @@ jobs:
         with:
           name: mam-village-android-${{ github.run_number }}
           path: |
-            android/app/build/outputs/apk/debug/app-debug.apk
-            android/app/build/outputs/bundle/release/app-release.aab
+            mobile/android/app/build/outputs/apk/debug/app-debug.apk
+            mobile/android/app/build/outputs/bundle/release/app-release.aab
           if-no-files-found: error
       # A direct download link for phones: the release "android-latest" always holds the newest test APK
       # from the default branch (https://github.com/<repo>/releases/download/android-latest/mam-village.apk).
@@ -67,7 +71,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp android/app/build/outputs/apk/debug/app-debug.apk mam-village.apk
+          cp mobile/android/app/build/outputs/apk/debug/app-debug.apk mam-village.apk
           cloud=$([ -n "$VITE_SUPABASE_URL" ] && echo "on (Supabase)" || echo "off (guest only)")
           ga=$([ -n "$VITE_GA_MEASUREMENT_ID" ] && echo "on (opt-in)" || echo "off")
           notes="Test build 1.0.${{ github.run_number }} ($(git log -1 --format=%s | cut -c1-80)). Cloud saves + sign-in: $cloud. Analytics: $ga. Open on an Android phone, download mam-village.apk, allow installs from this source, install. New versions install over the old one and keep your save."
@@ -88,7 +92,7 @@ jobs:
       - run: npx cap sync ios
       - name: Build for the iOS simulator (no signing)
         run: |
-          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug \
+          xcodebuild -project mobile/ios/App/App.xcodeproj -scheme App -configuration Debug \
             -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath build CODE_SIGNING_ALLOWED=NO \
             CURRENT_PROJECT_VERSION=${{ github.run_number }} build
@@ -97,3 +101,51 @@ jobs:
         with:
           name: mam-village-ios-simulator-${{ github.run_number }}
           path: MamVillage-simulator.zip
+
+  # App Store: archive, sign and upload to TestFlight, on request (Actions → Run workflow → testflight).
+  # Signing is cloud-managed by Xcode with an App Store Connect API key, so no certificates or profiles
+  # live in the repository. Needs the team's Apple Developer account (docs/STORE_RELEASE.md).
+  ios-testflight:
+    if: github.event_name == 'workflow_dispatch' && inputs.testflight
+    runs-on: macos-latest
+    env:
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
+    steps:
+      - name: Check the App Store secrets
+        run: |
+          for v in APPLE_TEAM_ID ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_P8_BASE64; do
+            if [ -z "${!v}" ]; then echo "::error::Missing secret $v (docs/STORE_RELEASE.md)"; exit 1; fi
+          done
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npx cap sync ios
+      - name: Archive, sign and upload to TestFlight
+        run: |
+          echo "$ASC_KEY_P8_BASE64" | base64 -d > "$RUNNER_TEMP/AuthKey.p8"
+          AUTH=(-allowProvisioningUpdates -authenticationKeyPath "$RUNNER_TEMP/AuthKey.p8" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID")
+          mkdir -p build
+          xcodebuild -project mobile/ios/App/App.xcodeproj -scheme App -configuration Release -sdk iphoneos \
+            -destination 'generic/platform=iOS' -archivePath build/MamVillage.xcarchive \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" CODE_SIGN_STYLE=Automatic \
+            MARKETING_VERSION=1.0.${{ github.run_number }} CURRENT_PROJECT_VERSION=${{ github.run_number }} "${AUTH[@]}" archive
+          cat > build/ExportOptions.plist <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>teamID</key><string>$APPLE_TEAM_ID</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+          </dict></plist>
+          PLIST
+          xcodebuild -exportArchive -archivePath build/MamVillage.xcarchive -exportOptionsPlist build/ExportOptions.plist \
+            -exportPath build/export "${AUTH[@]}"

@@ -2,7 +2,8 @@
 
 Mắm Village ships to the App Store and Google Play as a **Capacitor** app: the same game build
 (`dist/`) runs inside the phone's own web view (WKWebView on iOS, Chrome WebView on Android), wrapped in
-real native projects (`ios/`, `android/`). One codebase, three targets: web, iOS, Android.
+real native projects (`mobile/ios`, `mobile/android`). One codebase, three targets: web, iOS, Android.
+The store build guide for the team: docs/BUILD_FOR_STORES.md.
 
 Why Capacitor and not a rewrite (Unity, React Native, Flutter): the game is a three.js world under a 2D
 canvas UI, with no DOM UI to port. A rewrite would take months and freeze the game while we still have zero
@@ -21,16 +22,17 @@ real-player evidence. Capacitor wraps it in days, and every web improvement ship
 | Sign-in | `src/auth/supabase.ts` | Google / Apple / Facebook open in the system browser (Google blocks embedded web views) and return via `com.mamvillage.app://auth/callback` (PKCE code exchange) |
 | Account deletion | Settings → "Delete my account and progress" | required by both stores; calls `public.delete_my_account()` (`supabase/migrations/20261026000000_delete_account.sql`) |
 | Service worker | `src/main.ts` | off in the app (the files ship inside the install) |
-| Icons + splash | `npm run icons` (`tools/make-icons.mjs` renders `tools/icon/scene.ts`) → `assets/`, `mobile/assets/`, `public/` | 1024 icon rendered with the game's 3D models (Lan + Golden Anchovy at sunset), Android adaptive + monochrome layers, splash; every platform size generated |
+| Icons + splash | `npm run icons` (`tools/make-icons.mjs` renders `tools/icon/scene.ts`) → `mobile/assets/`, `public/` | 1024 icon rendered with the game's 3D models (Lan + Golden Anchovy at sunset), Android adaptive + monochrome layers, splash; every platform size generated |
 
 The app id is **`com.mamvillage.app`** (`capacitor.config.ts`, Android `applicationId`, iOS bundle id,
 deep-link scheme). It can't change after the first store upload, so the founder should confirm it first.
 
 ## Everyday commands
 ```bash
-npm run cap:sync          # build the game, copy it into android/ and ios/
+npm run cap:sync          # build the game, copy it into mobile/android and mobile/ios
+npm run android:apk       # test APK; npm run android:release = Play bundle (.aab)
 npx cap open android      # Android Studio (any OS)
-npx cap open ios          # Xcode (macOS only)
+npx cap open ios          # Xcode (macOS only); npm run ios:open = sync + open
 npm run icons             # redraw icons/splash and regenerate every native size
 ```
 Run on a device: Android Studio ▶ with a phone in USB-debugging mode, or install the CI's debug APK.
@@ -39,7 +41,7 @@ Run on a device: Android Studio ▶ with a phone in USB-debugging mode, or insta
 https://github.com/ducnguyenhuynh90/Auto-game-studio/releases/download/android-latest/mam-village.apk
 on the phone (or the "Android test build (latest)" release page). Download it, then allow your browser or
 Files app to install unknown apps when Android asks, and install. Every push to the default branch
-refreshes this APK. Test builds are signed with the committed `android/app/tester.keystore`, so a new one
+refreshes this APK. Test builds are signed with the committed `mobile/android/app/tester.keystore`, so a new one
 installs over the old one and keeps the save. This is not the Play upload key.
 iOS: Xcode ▶ on a simulator, or on your iPhone with a free Apple ID (7-day signing) before paying for
 the developer account.

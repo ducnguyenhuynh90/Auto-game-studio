@@ -1,10 +1,10 @@
-name: React Native app (mobile/)
-# The React Native version of the game (Expo SDK 58, React Native 0.88). The rules are the web game's
+name: React Native app (archived)
+# ARCHIVED (D-030): the React Native version of the game (Expo SDK 58, React Native 0.88), kept in
+# archive/react-native/. The shipping mobile app is mobile/ (Capacitor). Runs only when started by hand.
+# The rules are the web game's
 # src/core, shared through Metro, so a change to either triggers this. Native projects are generated
 # fresh on every run (expo prebuild): nothing generated is committed. docs/REACT_NATIVE.md.
 on:
-  push:
-    paths: ['mobile/**', 'src/core/**', 'src/auth/**', 'src/analytics/**', 'src/render/audio.ts', 'src/render/ambience.ts', '.github/workflows/react-native.yml']
   workflow_dispatch:
     inputs:
       testflight:
@@ -18,7 +18,7 @@ concurrency:
   cancel-in-progress: true
 defaults:
   run:
-    working-directory: mobile
+    working-directory: archive/react-native
 jobs:
   check:
     runs-on: ubuntu-latest
@@ -28,7 +28,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: mobile/package-lock.json
+          cache-dependency-path: archive/react-native/package-lock.json
       - run: npm ci
       - run: npx tsc --noEmit
       # the same JS the phones run, bundled with Hermes for both platforms
@@ -45,7 +45,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: mobile/package-lock.json
+          cache-dependency-path: archive/react-native/package-lock.json
       - run: npm ci
       - run: npm install --no-save playwright@1.63.0 && npx playwright install --with-deps chromium
       - run: npm run web:setup && npx expo export --platform web --output-dir /tmp/rn-web
@@ -72,7 +72,7 @@ jobs:
         if: always()
         with:
           name: rn-play-screenshots-${{ github.run_number }}
-          path: mobile/shots
+          path: archive/react-native/shots
 
   android:
     needs: check
@@ -91,7 +91,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: mobile/package-lock.json
+          cache-dependency-path: archive/react-native/package-lock.json
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -111,20 +111,20 @@ jobs:
       # APK to install on any phone; with the upload key also the AAB for Google Play. Without the key
       # both are signed with the debug key (fine for testers, refused by Play).
       - name: Build release APK (+ AAB for Google Play when signed)
-        working-directory: mobile/android
+        working-directory: archive/react-native/android
         env:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: ./gradlew --no-daemon assembleRelease ${ANDROID_KEYSTORE_PATH:+bundleRelease}
       - name: Show which key signed the APK
-        run: keytool -printcert -jarfile mobile/android/app/build/outputs/apk/release/app-release.apk | head -8
+        run: keytool -printcert -jarfile archive/react-native/android/app/build/outputs/apk/release/app-release.apk | head -8
       - uses: actions/upload-artifact@v4
         with:
           name: mam-village-rn-android-${{ github.run_number }}
           path: |
-            mobile/android/app/build/outputs/apk/release/app-release.apk
-            mobile/android/app/build/outputs/bundle/release/app-release.aab
+            archive/react-native/android/app/build/outputs/apk/release/app-release.apk
+            archive/react-native/android/app/build/outputs/bundle/release/app-release.aab
           if-no-files-found: error
 
   ios:
@@ -144,7 +144,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: mobile/package-lock.json
+          cache-dependency-path: archive/react-native/package-lock.json
       - run: npm ci
       - run: npx expo prebuild --platform ios
       - name: Build for the iOS simulator (no signing)
@@ -193,7 +193,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: mobile/package-lock.json
+          cache-dependency-path: archive/react-native/package-lock.json
       - run: npm ci
       - run: npx expo prebuild --platform ios
       - name: Archive, sign and upload to TestFlight

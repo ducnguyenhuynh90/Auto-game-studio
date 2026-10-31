@@ -1,4 +1,4 @@
-// Market Sort (rules in ../src/core/sort.ts, shared with the web game): the 50-level map and the board.
+// Market Sort (rules in ../../src/core/sort.ts, shared with the web game): the 50-level map and the board.
 // Tap a good to pick it up, tap a shelf to put it there. Three of a kind sell. Boosters cost game coins.
 import { useEffect, useRef, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';

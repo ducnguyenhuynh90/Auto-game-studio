@@ -1,83 +1,85 @@
-# Build the app for Google Play and the App Store (on your own machine)
+# Build the app for Google Play and the App Store
 
-For the team that submits the React Native app (`mobile/`) with its own Google Play and Apple accounts.
-Everything needed is in the repository: the native projects are **generated** from `mobile/app.json` +
-`mobile/app.config.js` (Expo "prebuild"), so there are no `android/` or `ios/` folders to keep in sync.
-CI does the same thing on every push (`.github/workflows/react-native.yml`) if you'd rather download
-its builds; see docs/STORE_RELEASE.md for that route.
+For the team that submits **Mắm Village** with its own Google Play and Apple accounts.
 
-**Build settings:** copy `build.env.example` (repository root) to `.env.local` and fill it in. It lists every
-setting for both apps (Supabase, Google Analytics, Android upload key, App Store Connect key), where
-to get each value, and the matching GitHub secret names. Everything is optional except signing for
-store uploads.
+**The mobile app is `mobile/`.** It holds the two native projects, `mobile/android` (Android Studio /
+Gradle) and `mobile/ios` (Xcode), plus the icon and splash art (`mobile/assets`). The game itself is
+the 3D web game in `src/`, which runs inside the app (Capacitor). `npm run cap:sync` builds the game and
+copies it into both native projects. The app you install is the same game as the website, with the
+same features, and it matches the store screenshots and video in `store/`.
 
-## 0. Get the code
+> The older React Native version is kept in `archive/react-native/` for reference only. Don't ship it.
+
+## 0. Get the code and tools
 ```bash
 git clone https://github.com/ducnguyenhuynh90/Auto-game-studio.git
 cd Auto-game-studio
-cd mobile
-npm ci                                 # Node 22 LTS; only mobile/ needs installing
-cp .env.example .env.local             # then fill it in (step 1)
+npm ci                                 # Node 22 LTS, at the repository root
 ```
-The game rules live in `../src/core` and are compiled into the app from there: keep the whole repository,
-not only `mobile/`.
+- **Android:** JDK 21 and the Android SDK (easiest: install Android Studio).
+- **iOS:** a Mac with Xcode 16 or newer, signed in to your Apple Developer team.
 
-## 1. Settings for this build (`mobile/.env.local`)
-| Setting | What | Empty means |
+Work from the repository root: the game (`src/`) and the app (`mobile/`) belong together.
+
+## 1. Build settings (`.env.local`)
+Copy `build.env.example` to `.env.local` at the repository root. The public Supabase values (cloud saves,
+Google sign-in, friends) are already filled in. Add the signing values for the store you're building.
+Vite reads `.env.local` automatically. For the Android signing values, also export them to the shell:
+```bash
+set -a; source .env.local; set +a
+```
+
+| Setting | Turns on | If left empty |
 |---|---|---|
-| `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Cloud backup, Google / Apple sign-in, Delete account | Offline only; no sign-in |
-| `EXPO_PUBLIC_GA_MEASUREMENT_ID`, `EXPO_PUBLIC_GA_API_SECRET` | Google Analytics (asked once, opt-in) | No analytics |
-| `MAM_APP_ID` | Bundle id / package name. Default `com.mamvillage.rn`. **Can't change after the first upload** | `com.mamvillage.rn` |
-| `MAM_VERSION_NAME` | Version players see, e.g. `1.0.0` | `0.1.0` |
-| `MAM_VERSION_CODE` | Build number, **higher on every upload** (Android versionCode, iOS build) | `1` |
+| `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (filled in) | Cloud save, Google / Apple sign-in, Friends, invites, Delete account | Guest-only, saved on the phone |
+| `VITE_GA_MEASUREMENT_ID` | Google Analytics (players opt in) | No analytics |
+| `ANDROID_KEYSTORE_PATH`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD` | A Play-ready signed `.aab` | Unsigned release bundle |
+| `MAM_VERSION_NAME`, `MAM_VERSION_CODE` | The version shown and the build number | 1.0.0 / 1 |
 
-Supabase (once): Auth → URL Configuration → Redirect URLs → add `com.mamvillage.rn://auth/callback`, and
-enable Google and Apple under Auth → Providers (docs/SUPABASE.md). Apple sign-in is in the app because
-the App Store requires it next to Google sign-in.
-
-Check before building: `npx tsc --noEmit && npm run bundle:check` (both must pass).
-
-## 2. Android → Google Play (any OS, Android Studio installed)
-1. Use the team's **upload key** (`.jks`). Never commit it (`*.jks` is git-ignored). In the same terminal:
+## 2. Google Play (Android)
+1. Create the upload key once and keep it safe (Google Play App Signing holds the real app key; a lost
+   upload key can be reset through Play support):
    ```bash
-   export ANDROID_KEYSTORE_PATH=/full/path/upload.jks
-   export ANDROID_KEYSTORE_PASSWORD=...  ANDROID_KEY_ALIAS=...  ANDROID_KEY_PASSWORD=...
-   npm run release:android
+   keytool -genkeypair -v -keystore upload.jks -alias upload -keyalg RSA -keysize 2048 -validity 10000
    ```
-   `mobile/plugins/withReleaseSigning.js` wires these into the generated Gradle project; without them the
-   build is signed with the debug key (fine for testers, refused by Play).
-2. Upload `mobile/android/app/build/outputs/bundle/release/app-release.aab` in Play Console (Internal
-   testing first). `.../apk/release/app-release.apk` installs directly on a phone.
-3. Prefer Android Studio? `npm run native:android`, open `mobile/android`, then Build → Generate Signed
-   App Bundle with your key.
+   Put its path and passwords in `.env.local`. Raise `MAM_VERSION_CODE` by 1 for every upload.
+2. Build the release bundle:
+   ```bash
+   set -a; source .env.local; set +a
+   npm run android:release        # → mobile/android/app/build/outputs/bundle/release/app-release.aab
+   ```
+3. Play Console → create the app (`com.mamvillage.app`) → **Testing → Internal testing → Create release**
+   → upload the `.aab`. Google requires the first upload to be done by hand.
+4. Prefer Android Studio? `npm run cap:sync`, then `npx cap open android` → Build → Generate Signed Bundle.
+5. A test APK for any phone: `npm run android:apk` → `mobile/android/app/build/outputs/apk/debug/`.
 
-## 3. iOS → App Store (a Mac with a current Xcode and CocoaPods)
-1. `npm run native:ios` (generates `mobile/ios` and installs the pods).
-2. `open ios/*.xcworkspace` (the workspace, not the project). In the app target → Signing & Capabilities:
-   choose your **Team**, keep "Automatically manage signing". The bundle id is `MAM_APP_ID`.
-3. Product → Destination → Any iOS Device, then Product → **Archive** → Distribute App → App Store
-   Connect → Upload. The build shows in TestFlight after Apple's processing.
-4. Export compliance is pre-answered (`ITSAppUsesNonExemptEncryption = false`: standard HTTPS only).
+## 3. App Store (iOS)
+1. App Store Connect → Apps → **+** → New app, bundle id **`com.mamvillage.app`**.
+2. On the Mac:
+   ```bash
+   npm run ios:open               # builds the game, syncs it, opens mobile/ios in Xcode
+   ```
+3. In Xcode: the **App** target → *Signing & Capabilities* → choose your Team (automatic signing). Under
+   *General*, set **Version** (e.g. 1.0.0) and **Build** (raise it for every upload).
+4. Pick **Any iOS Device (arm64)** → **Product → Archive** → Organizer → **Distribute App → App Store
+   Connect → Upload**. The build appears in TestFlight after Apple's processing (10-30 minutes).
 
-After changing `.env.local`, `app.json` or any native setting, run the `native:*` script again: it
-regenerates the native folder from scratch (`--clean`; it may ask to continue because the repo has
-uncommitted changes).
+Or let GitHub do it: add the App Store Connect secrets (docs/STORE_RELEASE.md), then **Actions →
+Native apps (Android + iOS) → Run workflow → tick testflight**.
 
-## 4. Or with Expo's cloud builds (EAS), no Mac needed for iOS
-`mobile/eas.json` is ready: `npx eas-cli login`, `npx eas-cli init` (once, adds the project id),
-`npx eas-cli build --platform all --profile production`, then `npx eas-cli submit`. EAS keeps the
-signing keys and raises build numbers itself. Put the `EXPO_PUBLIC_*` values in EAS environment variables
-(or `.env.local` when building from your machine). Expo's free plan has a monthly build quota.
+## 4. Before the first submission
+- Supabase → Authentication → URL Configuration → Redirect URLs must include
+  `com.mamvillage.app://auth/callback` (sign-in returns to the app through it).
+- Store listing, screenshots, video and SEO copy: `store/listing.md`.
+- Privacy answers (Data safety / App Privacy): docs/STORE_RELEASE.md §5.
+- Account deletion is in the app (Settings), as both stores require.
 
-## 5. Store forms
-Privacy / Data safety answers, account deletion and what the app collects: docs/STORE_RELEASE.md §5.
-In short: no ads, no ad ids, no payments; anonymous gameplay statistics only after the player says yes;
-name and email only if they sign in with Google / Apple; Settings → Delete account removes everything.
-
-## Troubleshooting
-- **"Unable to resolve @core/…" or "../src not found":** the build was started from a copy of `mobile/`
-  alone; build inside the full repository.
-- **Play: "Version code 1 has already been used":** raise `MAM_VERSION_CODE`, run the `native:*` script
-  again, rebuild.
-- **iOS: signing errors on Pods targets:** sign only the app target; open the `.xcworkspace`.
-- **Sign-in returns to a blank browser page:** the redirect URL in step 1 is missing in Supabase.
+## When something goes wrong
+- **The app shows an old version of the game:** run `npm run cap:sync` again (it rebuilds `dist/` and
+  copies it into `mobile/android` and `mobile/ios`).
+- **Gradle can't find `@capacitor/android`:** run `npm ci` at the repository root. The native projects
+  load Capacitor from the root `node_modules`.
+- **Release build is unsigned:** the `ANDROID_*` variables weren't exported in this shell (`set -a; source .env.local; set +a`).
+- **iOS "No signing certificate":** pick your Team in Signing & Capabilities, and make sure the Apple
+  ID in Xcode → Settings → Accounts belongs to that team.
+- **Google sign-in doesn't return to the app:** the redirect URL above is missing in Supabase.

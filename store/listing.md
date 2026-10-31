@@ -4,10 +4,9 @@ Everything the uploader needs for App Store Connect and Google Play Console. The
 store's character limits, and `node tools/store-copy-check.mjs` checks them again.
 
 > **Important: these assets show the 3D game.** The screenshots and video were captured from the
-> web/3D build, which is what the **Capacitor app** (`android/`, `ios/`, `com.mamvillage.app`,
-> `native.yml`) ships. If you upload the React Native app (`mobile/`), its screens look different and
-> Apple/Google can reject listings whose screenshots don't match the app. Either ship the Capacitor
-> app with this pack, or re-shoot from the RN app (`node tools/store-raw.mjs` makes raw RN captures).
+> web/3D build, which is exactly what the **mobile app** (`mobile/`, `com.mamvillage.app`,
+> `native.yml`) ships. The archived React Native version (`archive/react-native/`) looks different and
+> is not shipped. Build and upload `mobile/` (docs/BUILD_FOR_STORES.md) with this pack.
 
 | Asset | File | Store slot |
 |---|---|---|
@@ -18,7 +17,7 @@ store's character limits, and `node tools/store-copy-check.mjs` checks them agai
 | Feature graphic 1024×500 | `store/feature-graphic.png` (VI: `store/screenshots/vi/feature-graphic.png`) | Play: Feature graphic (required) |
 | App preview 886×1920, 27.6 s, H.264 30 fps, AAC | `store/video/app-preview-886x1920.mp4` | App Store: App Preview (6.9"); poster frame `store/video/poster.jpg` |
 | Promo video 1080×1920 | `store/video/promo-1080x1920.mp4` | Play: upload to YouTube (unlisted is fine) and paste the link; also for socials |
-| App icon | `assets/icon-only.png` (1024×1024) / native projects | already in the apps |
+| App icon | `mobile/assets/icon-only.png` (1024×1024) / native projects | already in the apps |
 
 The screenshot order is deliberate. The first three are what most people see in search results, so
 they show the loop: village → fishing → the jar reveal. The listing frames carry no prices, review
