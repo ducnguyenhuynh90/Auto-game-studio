@@ -18,13 +18,20 @@ the biggest problem and the next action. Then read PRODUCT.md and SUCCESS.yaml.
 - Store pack (`store/listing.md`): `npx vite-node tools/store-save.ts`, then against the preview build
   `node tools/store-shots.mjs` (screenshots), `node tools/store-trailer.mjs && node tools/store-audio.mjs` (preview film).
 - `node tools/build-artifact.mjs`: single-file build for the claude.ai playtest artifact (then publish it).
-- **Mobile app = `mobile/`** (`mobile/android`, `mobile/ios`, Capacitor wrapping the game in `src/`). `npm run cap:sync`
-  builds + copies the game into both; `npm run android:apk` / `android:release` / `ios:open`. docs/BUILD_FOR_STORES.md.
-  CI (`.github/workflows/native.yml`) builds the Android APK/AAB and an iOS simulator build.
+- **Mobile app = `mobile/`**: React Native (Expo 58, RN 0.88), native drawing, no WebView. It runs the game's
+  own code (`src/boot.ts`): the UI through a Canvas2D stand-in on Skia (`mobile/src/canvas2d.ts`), the 3D
+  world with three.js on expo-gl (`mobile/src/glhost.ts`), phone services via `src/platform.ts`. Inside
+  `mobile/`: `npm ci`, `npx tsc --noEmit`, `npx expo export --platform android` (bundle check),
+  `npx expo prebuild` + gradle/Xcode. Web build of the app for quick checks in Chromium:
+  `npm run web:setup && npx expo export --platform web`. docs/BUILD_FOR_STORES.md, mobile/README.md.
+  CI (`.github/workflows/native.yml`): test APK (`android-latest` release), Play AAB, the bot on an Android
+  emulator (`android-test-latest` release: screenshots + report), iOS simulator build.
 - **Phone testing (Mac + Android over USB)**: `npm run phone:setup` once, then `npm run phone` (install + open),
-  `phone:live` (live reload), `phone:test` (bot plays on the real phone, fps/errors → `playtest-output/phone/`),
+  `phone:live` (live reload), `phone:test` (bot plays natively on the phone → `playtest-output/phone/`),
   `phone:logs`. Test mode uses its own save slot (`src/core/testmode.ts`). docs/PHONE_TESTING.md.
-- `archive/react-native/`: the archived React Native version (D-030), not shipped; docs/REACT_NATIVE.md.
+- Shared code must stay platform-neutral: no `document`/`window` outside `src/main.ts`; use `platform.makeCanvas()`,
+  `platform.share/copy/ask/openUrl` (`src/platform.ts`) and `glHost` (`src/render3d/gl.ts`).
+- `archive/capacitor/`: the old WebView app (D-033), not shipped.
 - Player data: see docs/ANALYTICS.md ("Pull & analyse").
 
 ## Architecture
@@ -34,7 +41,8 @@ the biggest problem and the next action. Then read PRODUCT.md and SUCCESS.yaml.
   Gameplay positions are 390×844 screen space; the world raycasts them onto the water and ground.
 - `src/auth/`: accounts + cloud save (claude.ai identity; Firebase social login when configured).
 - `src/render3d/quality.ts`: quality tiers + FPS governor. `src/sw/`: service worker template.
-- `src/native/`: iOS/Android glue (Capacitor): back button, pause/resume, haptics, sign-in deep link.
+- `src/boot.ts`: start-up shared by the browser (`src/main.ts`) and the app (`mobile/App.tsx`). `src/platform.ts`: platform hooks.
+- `src/native/`: Android back-button rules (`back.ts`) and sharing (`share.ts`), used by both hosts.
 - `src/game.ts`: scene stack, immediate-mode buttons and hit areas, toasts. `src/main.ts`: bootstrap.
 
 ## Rules of the studio

@@ -302,3 +302,22 @@ built, but as ONE connected system rather than separate features:
   progress or polluting player data. Verified in Chromium: a full bot trip left the real save unchanged.
 - Debug builds are WebView-inspectable (`webContentsDebuggingEnabled` unset → Capacitor default); release
   builds are not.
+
+## D-033 · 2026-11-02 · The shipping app is native React Native running the game's own code (no WebView)
+Founder: "I want the app native not webview … make it with react native latest version … all features."
+- `mobile/` is now the React Native app (Expo SDK 58.0.22, React Native 0.88.1, `com.mamvillage.app`).
+  It doesn't re-write the game: it boots the same code as the web page (`src/boot.ts`) and draws it
+  natively. The 2D UI goes through a `CanvasRenderingContext2D` stand-in on Skia (`mobile/src/canvas2d.ts`),
+  the 3D world is three.js on expo-gl (`mobile/src/glhost.ts`). Every feature (fishing, jars, island
+  business, story, Market Sort, friends, invites, brag cards, accounts) is the web game's, so the two can't
+  drift apart. Hand-writing each screen (the first React Native app) had already fallen behind.
+- Shared code became platform-neutral: `src/platform.ts` (share sheet, clipboard, sign-in browser, text box,
+  canvases, language), `src/render3d/gl.ts` (offscreen pictures, canvas textures). The browser keeps its
+  defaults; the web game is unchanged (bot playtest: no errors).
+- Text: Nunito (OFL, with Vietnamese) is bundled; symbols and emoji fall back to the phone's fonts through
+  Skia's paragraph engine.
+- Proof: the app's web build (same JS, Skia/CanvasKit + WebGL) played a full trip with the bot in Chromium,
+  no errors, screens matching the web game. CI builds the APK and the bot plays it on an Android emulator
+  (`mobile/src/autotest.ts`, `tools/android-autotest.sh`); iOS builds for the simulator.
+- The Capacitor app moves to `archive/capacitor/`. The test APK keeps the same app id and test key, so it
+  installs over the Capacitor test build; local saves don't carry over (different storage), cloud saves do.

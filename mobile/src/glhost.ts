@@ -21,8 +21,16 @@ export function standInCanvas(gl: ExpoWebGLRenderingContext): HTMLCanvasElement 
   } as unknown as HTMLCanvasElement;
 }
 
-/** expo-gl doesn't support every pixelStorei setting three.js sends; the unsupported ones are no-ops here. */
-export function quietPixelStore(gl: ExpoWebGLRenderingContext): void {
+/**
+ * Fills the gaps between expo-gl and what three.js expects from a browser WebGL2 context: unsupported
+ * pixelStorei settings become no-ops; context attributes and shader precision get browser-like answers.
+ */
+export function prepareGl(gl: ExpoWebGLRenderingContext): void {
+  const g = gl as unknown as Record<string, unknown>;
+  if (typeof g.getContextAttributes !== 'function' || !(gl.getContextAttributes as () => unknown)())
+    g.getContextAttributes = () => ({ alpha: true, antialias: false, depth: true, stencil: true, premultipliedAlpha: true, preserveDrawingBuffer: false, powerPreference: 'default', failIfMajorPerformanceCaveat: false, desynchronized: false });
+  const precision = typeof g.getShaderPrecisionFormat === 'function' ? gl.getShaderPrecisionFormat.bind(gl) : null;
+  g.getShaderPrecisionFormat = (shader: number, type: number) => precision?.(shader, type) ?? { rangeMin: 127, rangeMax: 127, precision: 23 };
   const raw = gl.pixelStorei.bind(gl);
   const ok = new Set<number>([gl.UNPACK_ALIGNMENT, gl.PACK_ALIGNMENT, gl.UNPACK_FLIP_Y_WEBGL, gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL]);
   gl.pixelStorei = (p: number, v: number | boolean) => {
@@ -43,7 +51,7 @@ let ctx: ExpoWebGLRenderingContext | null = null;
 /** One headless GL context for icons, portraits and stage previews; call once before the game boots. */
 export async function installGlHost(): Promise<void> {
   ctx = await GLView.createContextAsync();
-  quietPixelStore(ctx);
+  prepareGl(ctx);
   renderer = new THREE.WebGLRenderer({ canvas: standInCanvas(ctx), context: ctx as unknown as WebGL2RenderingContext, alpha: true });
   setGlHost({
     offscreenRenderer: () => renderer!,

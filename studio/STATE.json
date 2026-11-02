@@ -51,8 +51,8 @@
   "playtest_link": "https://claude.ai/artifact/Vmwfyv5LjKtVFc31t6mdwG (private claude.ai Artifact; the founder shares it from the page's Share menu)",
   "analytics": "Each signed-in player at Contributor level or above (or an org member) writes one summary doc to plays/<viewer id> in the artifact store; only the owner can read it. Pull: ArtifactData list collection=plays out_dir=<dir>, then node tools/analyze-plays.mjs <dir>. Viewers without write access still play; their data stays local only.",
   "how_to_publish": "node tools/build-artifact.mjs, then Artifact publish of dist-artifact/mam-village.html to the URL above (pass url from a new session after an Artifact read).",
-  "react_native": "Archived in archive/react-native/ (D-030). Still typechecks/bundles; CI react-native.yml runs only on manual dispatch.",
+  "react_native": "SHIPPING APP (D-033): mobile/ = React Native (Expo 58, RN 0.88), native drawing, no WebView, running the game's own code (src/boot.ts) with Skia (UI) and expo-gl (3D). Capacitor archived in archive/capacitor/. CI native.yml: test APK (android-latest), Play AAB, bot on Android emulator (android-test-latest), iOS simulator build.",
   "web_link": "https://ducnguyenhuynh90.github.io/Auto-game-studio/ (GitHub Pages, deployed by pages.yml on every push to ccr-833d8974-lkhlcm, the repository default branch)",
   "store_pack": "store/listing.md (copy + file list). Regenerate: npm run build; npx vite preview --port 4173 & ; npx vite-node tools/store-save.ts; node tools/store-shots.mjs; node tools/store-trailer.mjs && node tools/store-audio.mjs; node tools/store-copy-check.mjs",
-  "android_test_apk": "https://github.com/ducnguyenhuynh90/Auto-game-studio/releases/download/android-latest/mam-village.apk (native.yml publishes it from the default branch; signed with the committed tester key so updates keep the save)"
+  "android_test_apk": "https://github.com/ducnguyenhuynh90/Auto-game-studio/releases/download/android-latest/mam-village.apk (React Native app since D-033; same id + test key as before)"
 }

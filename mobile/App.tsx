@@ -26,7 +26,7 @@ import { saveState } from '@core/save';
 import { backAction } from '@web/native/back';
 import { setVibrator } from '@web/render/audio';
 import { FrameRecorder, SkiaCanvasElement, setFonts } from './src/canvas2d';
-import { installGlHost, quietPixelStore, standInCanvas } from './src/glhost';
+import { installGlHost, prepareGl, standInCanvas } from './src/glhost';
 import { startAudio } from './src/audio';
 import { ga } from './src/ga';
 import { runAutotest, wantsAutotest } from './src/autotest';
@@ -158,32 +158,39 @@ function GameView() {
   layout.current.oy = oy;
 
   const onContext = async (gl: ExpoWebGLRenderingContext) => {
-    quietPixelStore(gl);
-    const url = (await Linking.getInitialURL().catch(() => null)) ?? null;
-    const params = paramsOf(url);
-    const autotest = wantsAutotest(params);
-    const relayout = () => {
-      const world = booted.current?.game.world;
-      if (!world) return;
-      const dpr = PixelRatio.get();
-      // the quality tier's resolution: the GL view is laid out smaller and scaled up to the game's size
-      const f = Math.min(1, world.pixelRatioFor(dpr) / dpr);
-      setGlFactor(f);
-    };
-    const b = bootGame({
-      params,
-      makeWorld: (q) => new World(standInCanvas(gl), q, gl as unknown as WebGL2RenderingContext),
-      relayout,
-      loadGa: async () => {
-        if (!ga.configured) return null;
-        ga.setState(() => b.game.state);
-        return ga;
-      },
-    });
-    booted.current = b;
-    relayout();
-    runLoop(gl, b);
-    if (autotest) void runAutotest(autotest, frameMs, Number(params.get('speed') ?? 2));
+    let autotest = 0;
+    try {
+      prepareGl(gl);
+      const url = (await Linking.getInitialURL().catch(() => null)) ?? null;
+      const params = paramsOf(url);
+      autotest = wantsAutotest(params);
+      const relayout = () => {
+        const world = booted.current?.game.world;
+        if (!world) return;
+        const dpr = PixelRatio.get();
+        // the quality tier's resolution: the GL view is laid out smaller and scaled up to the game's size
+        const f = Math.min(1, world.pixelRatioFor(dpr) / dpr);
+        setGlFactor(f);
+      };
+      const b = bootGame({
+        params,
+        makeWorld: (q) => new World(standInCanvas(gl), q, gl as unknown as WebGL2RenderingContext),
+        relayout,
+        loadGa: async () => {
+          if (!ga.configured) return null;
+          ga.setState(() => b.game.state);
+          return ga;
+        },
+      });
+      booted.current = b;
+      relayout();
+      runLoop(gl, b);
+      if (autotest) void runAutotest(autotest, frameMs, Number(params.get('speed') ?? 2));
+    } catch (e) {
+      // a start-up failure must be visible: in the log, and to the autotest
+      console.error('Game start failed', e);
+      if (autotest) console.log(`MAM_AUTOTEST ${JSON.stringify({ errors: [`boot: ${String((e as Error)?.stack ?? e).slice(0, 600)}`] })}\nMAM_AUTOTEST_DONE`);
+    }
   };
 
   const runLoop = (gl: ExpoWebGLRenderingContext, b: Booted) => {
@@ -192,8 +199,18 @@ function GameView() {
     let active = true;
     let bufW = 0;
     let bufH = 0;
+    let failed = 0;
     const frame = (now: number) => {
       if (!active) return;
+      try {
+        step(now);
+      } catch (e) {
+        // one bad frame mustn't freeze the game: report it (a few times) and carry on
+        if (failed++ < 3) console.error('Frame failed', e);
+      }
+      requestAnimationFrame(frame);
+    };
+    const step = (now: number) => {
       const dt = Math.min(0.25, (now - last) / 1000);
       last = now;
       frameMs.push(dt * 1000);
@@ -238,7 +255,6 @@ function GameView() {
         sx.canvas.drawPicture(pic);
         for (const done of shots) done(shot as unknown as HTMLCanvasElement);
       }
-      requestAnimationFrame(frame);
     };
     requestAnimationFrame(frame);
 

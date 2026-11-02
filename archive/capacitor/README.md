@@ -1,3 +1,7 @@
+> **Archived (D-033, 2026-11-02).** This was the Capacitor app: the web game inside a WebView. The
+> shipping app is now `mobile/` (React Native, native drawing, no WebView). Kept for reference only; its
+> paths below are from when it lived in `mobile/`, and the root no longer has its Capacitor packages.
+
 # Mắm Village: the mobile app (Android + iOS)
 
 This folder is the app that ships to Google Play and the App Store.
