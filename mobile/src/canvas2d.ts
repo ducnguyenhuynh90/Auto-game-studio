@@ -651,7 +651,7 @@ export class SkiaCanvasElement implements ImageSourceLike {
     c.height = h;
     const data = Skia.Data.fromBytes(px);
     const img = Skia.Image.MakeImage({ width: w, height: h, colorType: ColorType.RGBA_8888, alphaType: AlphaType.Unpremul }, data, w * 4);
-    if (img) c.getContext('2d')!.drawImage({ width: w, height: h, skImage: () => img });
+    if (img) c.getContext('2d')!.drawImage({ width: w, height: h, skImage: () => img }, 0, 0);
     return c;
   }
 
