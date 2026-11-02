@@ -26,14 +26,37 @@
         "monochromeImage": "./assets/android-icon-monochrome.png",
         "backgroundColor": "#ff8a3d"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "permissions": [
+        "android.permission.INTERNET",
+        "android.permission.VIBRATE"
+      ],
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_MEDIA_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "expo-sqlite",
-      "react-native-audio-api",
+      [
+        "react-native-audio-api",
+        {
+          "iosBackgroundMode": false,
+          "androidPermissions": [],
+          "androidForegroundService": false,
+          "disableFFmpeg": true
+        }
+      ],
       "expo-web-browser"
     ],
     "scheme": "com.mamvillage.app",

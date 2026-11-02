@@ -48,11 +48,16 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: mobile/package-lock.json
+          cache-dependency-path: |
+            package-lock.json
+            mobile/package-lock.json
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
+      # the game's own packages (src/ is type-checked with them), then the app's
+      - run: npm ci
+        working-directory: .
       - run: npm ci
       - run: npx tsc --noEmit
       - run: npx expo prebuild --platform android --no-install
@@ -155,7 +160,12 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: mobile/package-lock.json
+          cache-dependency-path: |
+            package-lock.json
+            mobile/package-lock.json
+      # the game's own packages (src/ is type-checked with them), then the app's
+      - run: npm ci
+        working-directory: .
       - run: npm ci
       - run: npx expo prebuild --platform ios
       - name: Build for the iOS simulator (no signing)
@@ -193,7 +203,12 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: mobile/package-lock.json
+          cache-dependency-path: |
+            package-lock.json
+            mobile/package-lock.json
+      # the game's own packages (src/ is type-checked with them), then the app's
+      - run: npm ci
+        working-directory: .
       - run: npm ci
       - run: npx expo prebuild --platform ios
       - name: Archive, sign and upload to TestFlight

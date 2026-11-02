@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # One-time setup of a Mac to build Mắm Village for Android and run it / test it on a phone over USB.
 #   npm run phone:setup        (or: bash tools/mac-android-setup.sh)
-# Installs (only what's missing): Homebrew, Node 22, Java 21, the Android SDK command-line tools,
+# Installs (only what's missing): Homebrew, Node 22, Java 17, the Android SDK command-line tools,
 # platform-tools (adb), Android 16 (API 36) platform + build tools. Re-running it is safe.
 # See docs/PHONE_TESTING.md.
 set -euo pipefail
@@ -33,18 +33,18 @@ if [[ "${NODE_MAJOR:-0}" -lt 20 ]]; then
 fi
 ok "Node $(node -v)"
 
-# --- Java 21 (the Android build needs it) --------------------------------------------------------------
-if ! /usr/libexec/java_home -v 21 >/dev/null 2>&1 && [[ ! -d "$BREW_PREFIX/opt/openjdk@21" ]]; then
-  say "Installing Java 21"
-  brew install openjdk@21
+# --- Java 17 (React Native's Android build uses it) ----------------------------------------------------
+if ! /usr/libexec/java_home -v 17 >/dev/null 2>&1 && [[ ! -d "$BREW_PREFIX/opt/openjdk@17" ]]; then
+  say "Installing Java 17"
+  brew install openjdk@17
 fi
-if /usr/libexec/java_home -v 21 >/dev/null 2>&1; then
-  JAVA_HOME_VALUE="$(/usr/libexec/java_home -v 21)"
+if /usr/libexec/java_home -v 17 >/dev/null 2>&1; then
+  JAVA_HOME_VALUE="$(/usr/libexec/java_home -v 17)"
 else
-  JAVA_HOME_VALUE="$BREW_PREFIX/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home"
+  JAVA_HOME_VALUE="$BREW_PREFIX/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home"
 fi
 export JAVA_HOME="$JAVA_HOME_VALUE"
-ok "Java 21 ($JAVA_HOME)"
+ok "Java 17 ($JAVA_HOME)"
 
 # --- Android SDK ----------------------------------------------------------------------------------------
 # Reuse Android Studio's SDK when it's installed, else install the command-line tools only.
@@ -87,12 +87,11 @@ export PATH="\$ANDROID_HOME/platform-tools:\$PATH"
 EOF
   ok "Saved JAVA_HOME / ANDROID_HOME to ~/.zshrc (open a new Terminal window to pick them up)"
 fi
-# Gradle reads the SDK location from here too
-echo "sdk.dir=$SDK" > mobile/android/local.properties
 
 # --- the game's packages --------------------------------------------------------------------------------
-say "Installing the game's packages (npm ci)"
+say "Installing the game's and the app's packages (npm ci)"
 npm ci
+(cd mobile && npm ci)
 ok "Packages"
 
 # --- the phone ------------------------------------------------------------------------------------------
