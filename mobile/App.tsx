@@ -113,7 +113,13 @@ function paramsOf(url: string | null): URLSearchParams {
 }
 
 /** The UI picture the Skia <Canvas> shows; replaced every frame from the game loop. */
-const picture = makeMutable<SkPicture>(Skia.PictureRecorder().finishRecordingAsPicture());
+const picture = makeMutable<SkPicture>(emptyPicture());
+function emptyPicture(): SkPicture {
+  // a recording must be begun before it's finished (Android crashes on an unbegun one)
+  const r = Skia.PictureRecorder();
+  r.beginRecording(Skia.XYWHRect(0, 0, 1, 1));
+  return r.finishRecordingAsPicture();
+}
 
 function GameView() {
   const insets = useSafeAreaInsets();

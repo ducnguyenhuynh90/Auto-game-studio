@@ -147,7 +147,8 @@ jobs:
           zip -q shots.zip *.png
           gh release view android-test-latest >/dev/null 2>&1 || gh release create android-test-latest --prerelease --title "Android emulator test (latest)" --notes "Screenshots and report of the bot playing the latest test APK on an Android emulator."
           gh release edit android-test-latest --notes "Run ${{ github.run_number }}: the bot playing the test APK on an Android 14 emulator (software graphics, so frame rates are lower than on a phone)."
-          gh release upload android-test-latest shots.zip report.json js.log --clobber 2>/dev/null || gh release upload android-test-latest shots.zip js.log --clobber
+          files=$(ls shots.zip report.json js.log 2>/dev/null)
+          gh release upload android-test-latest $files --clobber
 
   ios:
     runs-on: macos-latest
