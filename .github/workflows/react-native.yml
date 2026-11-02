@@ -77,14 +77,16 @@ jobs:
   android:
     needs: check
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # publishes the phone download to the "rn-android-latest" release
     # the services turn on when the repository has these secrets (docs/REACT_NATIVE.md); unset = off
     env:
       EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
       EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
       EXPO_PUBLIC_GA_MEASUREMENT_ID: ${{ secrets.VITE_GA_MEASUREMENT_ID }}
       EXPO_PUBLIC_GA_API_SECRET: ${{ secrets.GA_API_SECRET }}
-      # the store app id, once the founder picks it (docs/STORE_RELEASE.md); unset = com.mamvillage.rn
-      MAM_APP_ID: ${{ vars.MAM_APP_ID }}
+      # its own app id, so this archived app installs next to the shipping app (com.mamvillage.app) on a phone
+      MAM_APP_ID: com.mamvillage.rn
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -126,6 +128,17 @@ jobs:
             archive/react-native/android/app/build/outputs/apk/release/app-release.apk
             archive/react-native/android/app/build/outputs/bundle/release/app-release.aab
           if-no-files-found: error
+      # A direct download link for phones:
+      # https://github.com/<repo>/releases/download/rn-android-latest/mam-village-rn.apk
+      - name: Publish the APK for phones
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp android/app/build/outputs/apk/release/app-release.apk mam-village-rn.apk
+          notes="React Native version (archived, D-030), build 1.0.${{ github.run_number }} from ${GITHUB_REF_NAME}. Installs next to the main Mắm Village app (its own app id, com.mamvillage.rn). Open on an Android phone, download mam-village-rn.apk, allow installs from this source, install."
+          gh release view rn-android-latest >/dev/null 2>&1 || gh release create rn-android-latest --prerelease --title "React Native Android build (latest)" --notes "$notes"
+          gh release edit rn-android-latest --notes "$notes"
+          gh release upload rn-android-latest mam-village-rn.apk --clobber
 
   ios:
     needs: check
@@ -136,8 +149,8 @@ jobs:
       EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
       EXPO_PUBLIC_GA_MEASUREMENT_ID: ${{ secrets.VITE_GA_MEASUREMENT_ID }}
       EXPO_PUBLIC_GA_API_SECRET: ${{ secrets.GA_API_SECRET }}
-      # the store app id, once the founder picks it (docs/STORE_RELEASE.md); unset = com.mamvillage.rn
-      MAM_APP_ID: ${{ vars.MAM_APP_ID }}
+      # its own app id, so this archived app installs next to the shipping app (com.mamvillage.app) on a phone
+      MAM_APP_ID: com.mamvillage.rn
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -173,8 +186,8 @@ jobs:
       EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
       EXPO_PUBLIC_GA_MEASUREMENT_ID: ${{ secrets.VITE_GA_MEASUREMENT_ID }}
       EXPO_PUBLIC_GA_API_SECRET: ${{ secrets.GA_API_SECRET }}
-      # the store app id, once the founder picks it (docs/STORE_RELEASE.md); unset = com.mamvillage.rn
-      MAM_APP_ID: ${{ vars.MAM_APP_ID }}
+      # its own app id, so this archived app installs next to the shipping app (com.mamvillage.app) on a phone
+      MAM_APP_ID: com.mamvillage.rn
       MAM_VERSION_CODE: ${{ github.run_number }}
       MAM_VERSION_NAME: 1.0.${{ github.run_number }}
       APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
