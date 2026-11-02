@@ -25,7 +25,8 @@ const CONFIGS = `
             }
         }`;
 
-const CHOICE = '(System.getenv("ANDROID_KEYSTORE_PATH") && System.getenv("MAM_SIGN") != "tester") ? signingConfigs.release : signingConfigs.tester';
+// wrapped in parentheses: Groovy would otherwise pass only the condition to signingConfig
+const CHOICE = '((System.getenv("ANDROID_KEYSTORE_PATH") && System.getenv("MAM_SIGN") != "tester") ? signingConfigs.release : signingConfigs.tester)';
 
 function applySigning(gradle) {
   if (gradle.includes('plugins/withReleaseSigning.js')) return gradle;
