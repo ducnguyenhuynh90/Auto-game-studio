@@ -15,7 +15,12 @@
     "icons": "node tools/make-icons.mjs && npx -y @capacitor/assets@3.0.5 generate --assetPath mobile/assets --androidProject mobile/android --iosProject mobile/ios/App --iconBackgroundColor '#ff8a3d' --splashBackgroundColor '#0e3d4f' --splashBackgroundColorDark '#0e3d4f' --android --ios",
     "android:apk": "npm run cap:sync && cd mobile/android && ./gradlew assembleDebug",
     "android:release": "npm run cap:sync && cd mobile/android && ./gradlew bundleRelease",
-    "ios:open": "npm run cap:sync && cap open ios"
+    "ios:open": "npm run cap:sync && cap open ios",
+    "phone:setup": "bash tools/mac-android-setup.sh",
+    "phone": "npm run cap:sync && cd mobile/android && ./gradlew installDebug && adb shell monkey -p com.mamvillage.app -c android.intent.category.LAUNCHER 1",
+    "phone:live": "node tools/phone-live.mjs",
+    "phone:test": "node tools/phone-test.mjs",
+    "phone:logs": "adb logcat -v time -s Capacitor/Console:* Capacitor:* AndroidRuntime:E chromium:E"
   },
   "devDependencies": {
     "@capacitor/cli": "8.5.3",

@@ -292,3 +292,13 @@ built, but as ONE connected system rather than separate features:
 - Privacy policy and account-deletion pages are published on the website (`public/privacy.html`,
   `public/delete-account.html`), with a Privacy policy link in Settings. Drafted from what the code and
   database actually collect; the founder should review the wording (legal/compliance).
+
+## D-032 · 2026-11-02 · Real-phone testing from a Mac
+- `npm run phone:setup` (tools/mac-android-setup.sh) prepares a Mac; `npm run phone` installs a debug build
+  over USB; `phone:live` live-reloads from the dev server; `phone:test` runs the playtest bot inside the
+  app on the real phone (Playwright `_android` + the shared `tools/bot.mjs`) and reports fps, memory, errors.
+- Test mode (`src/core/testmode.ts`, a sessionStorage flag) plays in its own save slot, keeps analytics in
+  memory and skips cloud sync and GA, so a founder can test on their own phone without touching their
+  progress or polluting player data. Verified in Chromium: a full bot trip left the real save unchanged.
+- Debug builds are WebView-inspectable (`webContentsDebuggingEnabled` unset → Capacitor default); release
+  builds are not.

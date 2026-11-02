@@ -1,6 +1,7 @@
 // Minimal behavioural analytics. Events are stored locally (ring buffer) and, when
 // VITE_ANALYTICS_URL is configured, sent with sendBeacon. No personal data is collected:
 // only an anonymous random install id. See docs/ANALYTICS.md for the event spec.
+import { isPhoneTest } from './testmode';
 
 export interface AnalyticsEvent {
   e: string;
@@ -10,6 +11,8 @@ export interface AnalyticsEvent {
   p?: Record<string, string | number | boolean>;
 }
 
+// phone test mode: the bot's events stay in memory, never stored or sent
+const PHONE_TEST = isPhoneTest();
 const STORE_KEY = 'mam_events';
 const FUNNEL_KEY = 'mam_funnel';
 const MAX_EVENTS = 3000;
@@ -34,6 +37,7 @@ function rid(): string {
 }
 
 function safeGet(key: string): string | null {
+  if (PHONE_TEST && key !== 'mam_iid') return null;
   try {
     return localStorage.getItem(key);
   } catch {
@@ -41,6 +45,7 @@ function safeGet(key: string): string | null {
   }
 }
 function safeSet(key: string, v: string): void {
+  if (PHONE_TEST) return;
   try {
     localStorage.setItem(key, v);
   } catch {
@@ -53,7 +58,7 @@ class Analytics {
   readonly iid: string;
   readonly events: AnalyticsEvent[] = [];
   private funnel: Record<string, number>;
-  private readonly endpoint: string | undefined = import.meta.env?.VITE_ANALYTICS_URL;
+  private readonly endpoint: string | undefined = PHONE_TEST ? undefined : import.meta.env?.VITE_ANALYTICS_URL;
   private listeners: ((ev: AnalyticsEvent) => void)[] = [];
 
   constructor() {

@@ -21,6 +21,9 @@ the biggest problem and the next action. Then read PRODUCT.md and SUCCESS.yaml.
 - **Mobile app = `mobile/`** (`mobile/android`, `mobile/ios`, Capacitor wrapping the game in `src/`). `npm run cap:sync`
   builds + copies the game into both; `npm run android:apk` / `android:release` / `ios:open`. docs/BUILD_FOR_STORES.md.
   CI (`.github/workflows/native.yml`) builds the Android APK/AAB and an iOS simulator build.
+- **Phone testing (Mac + Android over USB)**: `npm run phone:setup` once, then `npm run phone` (install + open),
+  `phone:live` (live reload), `phone:test` (bot plays on the real phone, fps/errors → `playtest-output/phone/`),
+  `phone:logs`. Test mode uses its own save slot (`src/core/testmode.ts`). docs/PHONE_TESTING.md.
 - `archive/react-native/`: the archived React Native version (D-030), not shipped; docs/REACT_NATIVE.md.
 - Player data: see docs/ANALYTICS.md ("Pull & analyse").
 

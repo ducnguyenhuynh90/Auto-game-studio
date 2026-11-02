@@ -34,9 +34,13 @@ import { addCatch, agingLevel, canFerment, sealJar, upgradeCost } from './core/s
 import { UPGRADES } from './core/data';
 import { SEAS, SEAS_BY_ID, seaComplete, seaLock } from './core/seas';
 import type { SeaId } from './core/data';
+import { isPhoneTest } from './core/testmode';
 
 const params = new URLSearchParams(location.search);
-if (params.has('reset')) resetSave();
+// Phone test mode (tools/phone-test.mjs): a fresh village in its own save slot, no cloud sync, no analytics
+// sent (core/testmode.ts), so testing on your own phone never touches your real progress.
+const phoneTest = isPhoneTest();
+if (params.has('reset') || phoneTest) resetSave();
 
 const canvas = document.getElementById('game') as HTMLCanvasElement;
 const ctx = canvas.getContext('2d')!;
@@ -115,7 +119,7 @@ game.goVillage();
 
 // Google Analytics 4 on self-hosted builds with a Measurement ID (analytics/ga.ts, docs/ANALYTICS.md).
 declare const __GA__: boolean;
-if (__GA__)
+if (__GA__ && !phoneTest)
   void import('./analytics/ga').then(({ initGa, playerProps }) => {
     const ga = initGa();
     if (!ga) return;
@@ -142,10 +146,11 @@ game.account = new AccountManager({
 });
 // an invite link (?invite=CODE) is redeemed once the account is ready
 captureInvite(location.search);
-void game.account.init().then(() => {
-  if (game.account?.conflict) game.toast('Two saves found', '#a35bd6', 'Open Settings (≡) to choose one');
-  void checkSocial(game);
-});
+if (!phoneTest)
+  void game.account.init().then(() => {
+    if (game.account?.conflict) game.toast('Two saves found', '#a35bd6', 'Open Settings (≡) to choose one');
+    void checkSocial(game);
+  });
 
 // Dev-only shortcuts for visual QA: ?scene=fishing | reef | reveal
 if (import.meta.env.DEV && params.has('scene')) {

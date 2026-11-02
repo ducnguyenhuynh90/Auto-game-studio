@@ -1,7 +1,10 @@
 import { newState, type GameState } from './state';
 import { LAYOUT_VERSION, migrateIsland } from './island';
+import { isPhoneTest } from './testmode';
 
-const KEY = 'mam_save_v1';
+// phone test mode plays in its own slot, so the player's real save is never read or written
+const PHONE_TEST = isPhoneTest();
+const KEY = PHONE_TEST ? 'mam_save_phone_test' : 'mam_save_v1';
 
 export function loadState(): GameState {
   try {
@@ -63,7 +66,7 @@ export function saveState(s: GameState): void {
 export function resetSave(): void {
   try {
     localStorage.removeItem(KEY);
-    localStorage.removeItem('mam_funnel');
+    if (!PHONE_TEST) localStorage.removeItem('mam_funnel');
   } catch {
     /* ignore */
   }

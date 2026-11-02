@@ -12,7 +12,7 @@ const config: CapacitorConfig = {
     path: 'mobile/android',
     // the game draws everything itself; no text selection or overscroll glow
     allowMixedContent: false,
-    webContentsDebuggingEnabled: false,
+    // left unset: debug builds can be inspected and driven by tools/phone-test.mjs, store (release) builds can't
   },
   ios: {
     path: 'mobile/ios',
