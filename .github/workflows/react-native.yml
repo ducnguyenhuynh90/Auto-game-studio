@@ -1,10 +1,14 @@
 name: React Native app (archived)
 # ARCHIVED (D-030): the React Native version of the game (Expo SDK 58, React Native 0.88), kept in
-# archive/react-native/. The shipping mobile app is mobile/ (Capacitor). Runs only when started by hand.
+# archive/react-native/. The shipping mobile app is mobile/ (Capacitor). Runs when started by hand, or when
+# the React Native code itself changes on main (not on every push).
 # The rules are the web game's
 # src/core, shared through Metro, so a change to either triggers this. Native projects are generated
 # fresh on every run (expo prebuild): nothing generated is committed. docs/REACT_NATIVE.md.
 on:
+  push:
+    branches: [main]
+    paths: ['archive/react-native/**', '.github/workflows/react-native.yml']
   workflow_dispatch:
     inputs:
       testflight:
