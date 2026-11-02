@@ -11,6 +11,6 @@ module.exports = ({ config }) => {
     scheme: id,
     ios: { ...config.ios, bundleIdentifier: id, buildNumber: String(code) },
     android: { ...config.android, package: id, versionCode: code },
-    plugins: [...config.plugins, './plugins/withReleaseSigning'],
+    plugins: [...config.plugins, './plugins/withReleaseSigning', './plugins/withProguardKeeps'],
   };
 };
