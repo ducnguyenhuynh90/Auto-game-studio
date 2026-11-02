@@ -56,7 +56,7 @@ export function startPuzzle(game: Game, section: Section, index: number): void {
 /** Shared result card: stars, first-clear reward, retry / next / back. */
 function drawResult(game: Game, ctx: Ctx, t: number, r: { section: Section; index: number; stars: number; coins: number; salt: number; detail: string }, close: () => void, retry: () => void): void {
   ctx.fillStyle = 'rgba(20,15,10,0.55)';
-  ctx.fillRect(0, 0, W, H);
+  ctx.fillRect(-W, -H, W * 3, H * 3); // the whole screen, past the game view on tall phones
   const k = ease.outBack(clamp01(t / 0.35));
   ctx.save();
   ctx.translate(W / 2, 400);
@@ -100,7 +100,7 @@ export class PuzzleHubOverlay implements Scene {
 
   draw(ctx: Ctx): void {
     ctx.fillStyle = '#f6ead2';
-    ctx.fillRect(0, 0, W, H);
+    ctx.fillRect(-W, -H, W * 3, H * 3); // the whole screen, past the game view on tall phones
     outlinedText(ctx, 'Puzzles', W / 2, 40, 30, '#fff', COLORS.ink, 6);
     text(ctx, 'Staff do the routine. You solve the hard problems.', W / 2, 72, 12, COLORS.ink, 'center', 700);
     this.game.button(ctx, 'close', W - 62, 18, 48, 40, 'x', () => this.game.pop(this), { color: '#8a7a66', dark: '#5f5244', size: 18 });
@@ -230,7 +230,7 @@ export class SaltPuzzleOverlay implements Scene {
   draw(ctx: Ctx): void {
     const lvl = SALT_LEVELS[this.index];
     ctx.fillStyle = '#efe0bd';
-    ctx.fillRect(0, 0, W, H);
+    ctx.fillRect(-W, -H, W * 3, H * 3); // the whole screen, past the game view on tall phones
     outlinedText(ctx, `Salt ${this.index + 1} · ${lvl.title}`, W / 2, 40, 22, '#fff', COLORS.ink, 5);
     ctx.font = font(13, 700);
     text(ctx, lvl.hint, W / 2, 76, 12.5, COLORS.ink, 'center', 700);
@@ -401,7 +401,7 @@ export class ShopPuzzleOverlay implements Scene {
   draw(ctx: Ctx): void {
     const l = this.level;
     ctx.fillStyle = '#f6ead2';
-    ctx.fillRect(0, 0, W, H);
+    ctx.fillRect(-W, -H, W * 3, H * 3); // the whole screen, past the game view on tall phones
     outlinedText(ctx, `Shop ${this.index + 1} · ${l.title}`, W / 2, 36, 22, '#fff', COLORS.ink, 5);
     text(ctx, l.hint, W / 2, 66, 12.5, COLORS.ink, 'center', 700);
     this.game.button(ctx, 'sh_back', 12, 84, 92, 36, '‹ Back', () => this.game.pop(this), { color: '#8a7a66', dark: '#5f5244', size: 14 });

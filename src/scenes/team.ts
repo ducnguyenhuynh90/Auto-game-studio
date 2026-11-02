@@ -38,7 +38,7 @@ export class TeamOverlay implements Scene {
   draw(ctx: Ctx): void {
     const s = this.game.state;
     ctx.fillStyle = '#f6ead2';
-    ctx.fillRect(0, 0, W, H);
+    ctx.fillRect(-W, -H, W * 3, H * 3); // the whole screen, past the game view on tall phones
     outlinedText(ctx, 'Your Team', W / 2 - 16, 38, 26, '#fff', COLORS.ink, 6);
     this.game.button(ctx, 'team_close', W - 58, 14, 44, 40, 'x', () => this.game.pop(this), { color: '#8a7a66', dark: '#5f5244', size: 18 });
 

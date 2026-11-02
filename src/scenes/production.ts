@@ -127,7 +127,7 @@ export class ProductionOverlay implements Scene {
     const s = this.game.state;
     const now = Date.now();
     ctx.fillStyle = '#f6ead2';
-    ctx.fillRect(0, 0, W, H);
+    ctx.fillRect(-W, -H, W * 3, H * 3); // the whole screen, past the game view on tall phones
     outlinedText(ctx, 'How fish sauce is made', W / 2 - 18, 40, 21, '#fff', COLORS.ink, 6);
     text(ctx, 'Catch → Salt → Fill jars → Ferment → Bottle → Sell', W / 2, 72, 12, 'rgba(43,33,24,0.7)', 'center', 800);
     this.game.button(ctx, 'prod_close', W - 58, 14, 44, 40, 'x', () => this.game.pop(this), { color: '#8a7a66', dark: '#5f5244', size: 18 });

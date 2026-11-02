@@ -184,7 +184,7 @@ export class FriendsOverlay implements Scene {
 
   draw(ctx: Ctx): void {
     ctx.fillStyle = 'rgba(20,15,10,0.6)';
-    ctx.fillRect(0, 0, W, H);
+    ctx.fillRect(-W, -H, W * 3, H * 3); // the whole screen, past the game view on tall phones
     const k = ease.outBack(clamp01(this.t / 0.3));
     ctx.save();
     ctx.translate(W / 2, H / 2);
@@ -466,7 +466,7 @@ export class FriendVisitOverlay implements Scene {
 
   draw(ctx: Ctx): void {
     ctx.fillStyle = 'rgba(20,15,10,0.6)';
-    ctx.fillRect(0, 0, W, H);
+    ctx.fillRect(-W, -H, W * 3, H * 3); // the whole screen, past the game view on tall phones
     panel(ctx, 12, 40, W - 24, 780, COLORS.paper, 24);
     outlinedText(ctx, `${this.row.name}'s village`, W / 2, 78, 24, '#fff', COLORS.ink, 6);
     this.game.button(ctx, 'close', W - 66, 54, 44, 40, 'x', () => this.game.pop(this), { color: '#8a7a66', dark: '#5f5244', size: 18 });
@@ -590,7 +590,7 @@ export class InviteWelcomeOverlay implements Scene {
 
   draw(ctx: Ctx): void {
     ctx.fillStyle = 'rgba(20,15,10,0.65)';
-    ctx.fillRect(0, 0, W, H);
+    ctx.fillRect(-W, -H, W * 3, H * 3); // the whole screen, past the game view on tall phones
     const k = ease.outBack(clamp01(this.t / 0.4));
     ctx.save();
     ctx.translate(W / 2, H / 2);

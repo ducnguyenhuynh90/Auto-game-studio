@@ -51,8 +51,8 @@ export interface Booted {
   game: Game;
   /** Island staff caught up for the time the game was closed or in the background. */
   welcomeBack(): void;
-  /** One frame: rules + 3D world. The host then draws the UI layer with game.draw(ctx). */
-  tick(dt: number): void;
+  /** One frame: rules + 3D world (true when the 3D layer drew). The host then draws the UI with game.draw(ctx). */
+  tick(dt: number): boolean;
 }
 
 export function bootGame(opts: BootOptions): Booted {
@@ -183,7 +183,7 @@ export function bootGame(opts: BootOptions): Booted {
     tick(dt: number) {
       governor.frame(dt);
       game.update(dt);
-      game.world?.render(game, Math.min(0.05, dt) * game.timeScale);
+      return game.world?.render(game, Math.min(0.05, dt) * game.timeScale) ?? false;
     },
   };
 }

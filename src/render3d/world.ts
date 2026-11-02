@@ -376,7 +376,7 @@ class FishingRig {
   }
 
   screenToWater(x: number, y: number, out = new THREE.Vector3()): THREE.Vector3 {
-    const ndc = new THREE.Vector2((x / W) * 2 - 1, -(y / H) * 2 + 1);
+    const ndc = this.world.toNdc(x, y);
     this.raycaster.setFromCamera(ndc, this.camera);
     this.raycaster.ray.intersectPlane(this.plane, out);
     return out;
@@ -1248,13 +1248,14 @@ class Showcase {
       this.bottleKey = key;
       discard(this.bottle);
       this.bottle = makeBottle(RECIPES_BY_ID[r.recipeId].color, r.phase === 'done' ? tier.color : '#fff8ec');
-      this.bottle.scale.setScalar(1.55);
+      // sized to sit between the tier ladder (y≈300) and the tip line (y≈668) of the reveal card
+      this.bottle.scale.setScalar(1.3);
       this.scene.add(this.bottle);
     }
     const b = this.bottle!;
     b.visible = true;
     const rise = 1 + 2.70158 * Math.pow(popK - 1, 3) + 1.70158 * Math.pow(popK - 1, 2);
-    b.position.set(0, -0.6 + rise * 0.95, 0.3);
+    b.position.set(0, -0.6 + rise * 1.05, 0.3);
     b.rotation.y = r.phase === 'done' ? Math.sin(t * 1.2) * 0.5 : t * 2;
     burstMat.color.set(r.phase === 'pop' ? '#ffe6a0' : tier.color);
     burstMat.opacity = 0.12 + ti * 0.05;
@@ -1308,10 +1309,28 @@ export class World {
     return Math.min(dpr, this.profile.maxDpr) * this.profile.scale;
   }
 
-  resize(cssW: number, cssH: number, dpr: number): void {
+  /**
+   * The 3D layer's size in CSS pixels. The game's 390×844 view sits inside it at (ox, oy), scaled by
+   * `scale`; the world simply extends beyond it on screens of another shape (no bars on tall phones),
+   * while everything inside the view stays exactly where the game puts it.
+   */
+  resize(cssW: number, cssH: number, dpr: number, ox = 0, oy = 0, scale = cssW / W): void {
     this.css = { w: cssW, h: cssH, dpr };
+    this.view = { ox, oy, scale };
     this.renderer.setPixelRatio(Math.min(dpr, this.profile.maxDpr) * this.profile.scale);
     this.renderer.setSize(cssW, cssH, false);
+    for (const cam of [this.fishing.camera, this.village.camera, this.map.camera, this.showcase.camera]) {
+      cam.setViewOffset(W * scale, H * scale, -ox, -oy, cssW, cssH);
+      cam.updateProjectionMatrix();
+    }
+  }
+
+  private view = { ox: 0, oy: 0, scale: 1 };
+
+  /** Game coordinates (390×844) → the 3D layer's normalised device coordinates. */
+  toNdc(x: number, y: number, out = new THREE.Vector2()): THREE.Vector2 {
+    const v = this.view;
+    return out.set(((x * v.scale + v.ox) / this.css.w) * 2 - 1, -((y * v.scale + v.oy) / this.css.h) * 2 + 1);
   }
 
   /** Apply a quality tier live (antialiasing is fixed at creation; everything else changes here). */
@@ -1327,7 +1346,7 @@ export class World {
     }
     setOutlinesEnabled(p.outlines);
     for (const w of [this.fishing.water, this.village.water, this.map.water]) w.setSegments(p.waterSegs);
-    this.resize(this.css.w, this.css.h, this.css.dpr);
+    this.resize(this.css.w, this.css.h, this.css.dpr, this.view.ox, this.view.oy, this.view.scale);
   }
 
   get particleScale(): number {
@@ -1342,29 +1361,33 @@ export class World {
 
   project(p: THREE.Vector3, cam: THREE.Camera): ScreenPt {
     const v = p.clone().project(cam);
-    return { x: ((v.x + 1) / 2) * W, y: ((1 - v.y) / 2) * H };
+    const vw = this.view;
+    return { x: (((v.x + 1) / 2) * this.css.w - vw.ox) / vw.scale, y: (((1 - v.y) / 2) * this.css.h - vw.oy) / vw.scale };
   }
 
-  render(game: Game, dt: number): void {
+  /** Draws a frame; false when this frame was skipped (the last image stays on screen). */
+  render(game: Game, dt: number): boolean {
     // Only what is on screen counts: an opaque layer (the jar reveal) hides everything under it, even a
     // full-screen menu it was opened from (the production line).
     const opaqueIdx = game.overlays.map((o) => !!o.opaque).lastIndexOf(true);
     const visible = game.overlays.slice(Math.max(0, opaqueIdx));
     // Full-screen menus hide the world: keep the last frame on screen and save the GPU.
-    if (visible.some((o) => o.covers3d)) return;
+    if (visible.some((o) => o.covers3d)) return false;
     // Low tier draws the 3D layer at half rate; the 2D UI still runs every frame.
-    if (++this.frame % this.profile.frameSkip !== 0) return;
+    if (++this.frame % this.profile.frameSkip !== 0) return false;
     dt *= this.profile.frameSkip;
     const reveal = visible.find((o) => o.name === 'reveal') as RevealOverlay | undefined;
     if (reveal) {
       this.showcase.sync(reveal, game.time);
       this.renderer.render(this.showcase.scene, this.showcase.camera);
-      return;
+      return true;
     }
     this.mode = game.scene.name === 'fishing' ? 'fishing' : game.scene.name === 'map' ? 'map' : 'village';
     this.village.root.visible = this.mode === 'village';
     this.fishing.root.visible = this.mode === 'fishing';
     this.map.root.visible = this.mode === 'map';
+    // hidden rigs skip their matrix updates too (three.js would walk ~400 hidden objects every frame)
+    for (const r of [this.village.root, this.fishing.root, this.map.root]) r.matrixWorldAutoUpdate = r.visible;
     let cam: THREE.PerspectiveCamera;
     if (this.mode === 'map') {
       this.map.sync(game, game.scene as unknown as MapView, dt);
@@ -1377,6 +1400,7 @@ export class World {
       cam = this.village.camera;
     }
     this.renderer.render(this.scene, cam);
+    return true;
   }
 }
 

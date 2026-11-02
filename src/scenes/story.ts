@@ -84,11 +84,11 @@ export class StoryOverlay implements Scene {
 
   draw(ctx: Ctx): void {
     ctx.fillStyle = 'rgba(15,10,5,0.62)';
-    ctx.fillRect(0, 0, W, H);
+    ctx.fillRect(-W, -H, W * 3, H * 3); // the whole screen, past the game view on tall phones
     // letterbox bars: it's a scene, not a menu
     ctx.fillStyle = '#120c08';
-    ctx.fillRect(0, 0, W, 36);
-    ctx.fillRect(0, H - 22, W, 22);
+    ctx.fillRect(-W, -H, W * 3, H + 36); // cinematic bars reach the screen edges
+    ctx.fillRect(-W, H - 22, W * 3, H);
     this.game.button(ctx, 'story_skip', W - 92, 44, 80, 34, 'Skip ›', () => this.finishScene(true), { color: '#5f5244', dark: '#3a3028', size: 14 });
 
     if (this.showingCard) return this.drawCard(ctx);

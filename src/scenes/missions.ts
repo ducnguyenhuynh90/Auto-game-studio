@@ -64,7 +64,7 @@ export class MissionsOverlay implements Scene {
   draw(ctx: Ctx): void {
     const s = this.game.state;
     ctx.fillStyle = 'rgba(20,15,10,0.6)';
-    ctx.fillRect(0, 0, W, H);
+    ctx.fillRect(-W, -H, W * 3, H * 3); // the whole screen, past the game view on tall phones
     const k = ease.outBack(clamp01(this.t / 0.35));
     ctx.save();
     ctx.translate(W / 2, H / 2);
@@ -200,7 +200,7 @@ export class RelicOverlay implements Scene {
     const r = RELICS[this.relic];
     const sea = SEAS.find((x) => x.relic === this.relic)!;
     ctx.fillStyle = `rgba(15,10,5,${0.8 * clamp01(this.t * 3)})`;
-    ctx.fillRect(0, 0, W, H);
+    ctx.fillRect(-W, -H, W * 3, H * 3); // the whole screen, past the game view on tall phones
     ctx.save();
     ctx.translate(W / 2, 330);
     ctx.rotate(this.t * 0.3);

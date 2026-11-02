@@ -66,7 +66,7 @@ export class SortMenuOverlay implements Scene {
   draw(ctx: Ctx): void {
     const s = this.game.state;
     ctx.fillStyle = '#f3e0c0';
-    ctx.fillRect(0, 0, W, H);
+    ctx.fillRect(-W, -H, W * 3, H * 3); // the whole screen, past the game view on tall phones
     outlinedText(ctx, 'Market Sort', W / 2, 40, 30, '#fff', COLORS.ink, 6);
     text(ctx, "Bà Năm's stall is a mess! Three of a kind on a shelf sell.", W / 2, 72, 12, COLORS.ink, 'center', 700);
     this.game.button(ctx, 'close', W - 62, 18, 48, 40, 'x', () => this.game.pop(this), { color: '#8a7a66', dark: '#5f5244', size: 18 });
@@ -247,7 +247,7 @@ export class SortGameOverlay implements Scene {
     const b = this.board;
     const s = this.game.state;
     ctx.fillStyle = '#c98f5c';
-    ctx.fillRect(0, 0, W, H);
+    ctx.fillRect(-W, -H, W * 3, H * 3); // the whole screen, past the game view on tall phones
     ctx.fillStyle = '#f3e0c0';
     ctx.fillRect(0, 100, W, 610);
     // top bar: level, timer, goods left, close
@@ -349,7 +349,7 @@ export class SortGameOverlay implements Scene {
 
   private drawResult(ctx: Ctx, r: Result): void {
     ctx.fillStyle = 'rgba(20,15,10,0.55)';
-    ctx.fillRect(0, 0, W, H);
+    ctx.fillRect(-W, -H, W * 3, H * 3); // the whole screen, past the game view on tall phones
     const k = ease.outBack(clamp01(r.t / 0.35));
     ctx.save();
     ctx.translate(W / 2, 380);

@@ -44,7 +44,7 @@ export class InfoOverlay implements Scene {
   draw(ctx: Ctx): void {
     const h = this.help;
     ctx.fillStyle = `rgba(20,15,10,${0.55 * clamp01(this.t * 4)})`;
-    ctx.fillRect(0, 0, W, H);
+    ctx.fillRect(-W, -H, W * 3, H * 3); // the whole screen, past the game view on tall phones
     const size = 13;
     const lines = h.lines.flatMap((l) => wrap(ctx, l, W - 96, size));
     const boxH = 96 + lines.length * 19 + (h.actions.length ? 56 : 0) + 50;

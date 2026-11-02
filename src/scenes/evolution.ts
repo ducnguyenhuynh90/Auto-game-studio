@@ -43,7 +43,7 @@ export class EvolutionOverlay implements Scene {
     const st = stages(this.track);
     const cur = currentStage(s, this.track);
     ctx.fillStyle = 'rgba(20,15,10,0.6)';
-    ctx.fillRect(0, 0, W, H);
+    ctx.fillRect(-W, -H, W * 3, H * 3); // the whole screen, past the game view on tall phones
     const k = ease.outBack(clamp01(this.t / 0.3));
     ctx.save();
     ctx.translate(W / 2, H / 2);

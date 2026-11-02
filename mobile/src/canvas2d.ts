@@ -25,6 +25,7 @@ import {
   type SkShader,
   type SkSurface,
   type SkTypeface,
+  type SkRect,
   type SkTypefaceFontProvider,
   type SkParagraph,
 } from '@shopify/react-native-skia';
@@ -198,6 +199,9 @@ const initial = (): State => ({
 
 const DEG = 180 / Math.PI;
 
+/** A rectangle as a plain object: Skia reads it directly, no native object made per draw. */
+const rect = (x: number, y: number, width: number, height: number): SkRect => ({ x, y, width, height }) as SkRect;
+
 /** CanvasRenderingContext2D (the parts the game uses) on a Skia canvas. */
 export class SkiaContext2D {
   canvas: SkCanvas;
@@ -351,7 +355,7 @@ export class SkiaContext2D {
 
   // ----- paths -----
   beginPath(): void {
-    this.path = Skia.PathBuilder.Make();
+    this.path.reset();
   }
   closePath(): void {
     this.path.close();
@@ -424,43 +428,99 @@ export class SkiaContext2D {
   }
 
   // ----- paint setup -----
+  /**
+   * The paint, set up for this draw. Every setter is a call into native code, so only what changed since
+   * the last draw is sent (the UI makes hundreds of draws a frame).
+   */
   private setupPaint(style: Style | null, stroke: boolean): SkPaint {
     const p = this.paint;
-    p.setShader(null);
-    p.setPathEffect(null);
+    const ap = this.applied;
+    let colKey: string;
+    let shader: SkShader | null = null;
+    let alpha: number;
     if (style instanceof Gradient) {
-      p.setColor(color('#000'));
-      p.setShader(style.toShader());
-      p.setAlphaf(this.st.globalAlpha);
-    } else if (style !== null) {
-      p.setColor(color(style));
-      p.setAlphaf(p.getAlphaf() * this.st.globalAlpha);
+      colKey = '#000';
+      shader = style.toShader();
+      alpha = this.st.globalAlpha;
     } else {
-      p.setColor(color('#000'));
-      p.setAlphaf(this.st.globalAlpha);
+      colKey = style ?? '#000';
+      alpha = (style === null ? 1 : color(colKey)[3]) * this.st.globalAlpha;
+    }
+    if (ap.color !== colKey) {
+      p.setColor(color(colKey));
+      ap.color = colKey;
+      ap.alpha = -1; // setColor brings its own alpha
+    }
+    if (ap.alpha !== alpha) {
+      p.setAlphaf(alpha);
+      ap.alpha = alpha;
+    }
+    if (ap.shader !== shader) {
+      p.setShader(shader);
+      ap.shader = shader;
     }
     if (this.filterKey !== this.st.filter) {
       this.filterKey = this.st.filter;
       this.colorFilter = filterOf(this.st.filter);
     }
-    p.setColorFilter(this.colorFilter);
+    if (ap.filter !== this.colorFilter) {
+      p.setColorFilter(this.colorFilter);
+      ap.filter = this.colorFilter;
+    }
+    let effect: SkPathEffect | null = null;
     if (stroke) {
-      p.setStyle(PaintStyle.Stroke);
-      p.setStrokeWidth(this.st.lineWidth);
-      p.setStrokeCap(this.st.lineCap === 'round' ? StrokeCap.Round : this.st.lineCap === 'square' ? StrokeCap.Square : StrokeCap.Butt);
-      p.setStrokeJoin(this.st.lineJoin === 'round' ? StrokeJoin.Round : this.st.lineJoin === 'bevel' ? StrokeJoin.Bevel : StrokeJoin.Miter);
-      p.setStrokeMiter(this.miterLimit);
+      if (ap.stroke !== 1) {
+        p.setStyle(PaintStyle.Stroke);
+        ap.stroke = 1;
+      }
+      if (ap.width !== this.st.lineWidth) {
+        p.setStrokeWidth(this.st.lineWidth);
+        ap.width = this.st.lineWidth;
+      }
+      const cap = this.st.lineCap === 'round' ? StrokeCap.Round : this.st.lineCap === 'square' ? StrokeCap.Square : StrokeCap.Butt;
+      if (ap.cap !== cap) {
+        p.setStrokeCap(cap);
+        ap.cap = cap;
+      }
+      const join = this.st.lineJoin === 'round' ? StrokeJoin.Round : this.st.lineJoin === 'bevel' ? StrokeJoin.Bevel : StrokeJoin.Miter;
+      if (ap.join !== join) {
+        p.setStrokeJoin(join);
+        ap.join = join;
+      }
+      if (ap.miter !== this.miterLimit) {
+        p.setStrokeMiter(this.miterLimit);
+        ap.miter = this.miterLimit;
+      }
       if (this.st.dash.length) {
         const key = this.st.dash.join(',') + '|' + this.st.lineDashOffset;
         if (key !== this.dashKey) {
           this.dashKey = key;
           this.dashEffect = Skia.PathEffect.MakeDash(this.st.dash, this.st.lineDashOffset);
         }
-        p.setPathEffect(this.dashEffect);
+        effect = this.dashEffect;
       }
-    } else p.setStyle(PaintStyle.Fill);
+    } else if (ap.stroke !== 0) {
+      p.setStyle(PaintStyle.Fill);
+      ap.stroke = 0;
+    }
+    if (ap.effect !== effect) {
+      p.setPathEffect(effect);
+      ap.effect = effect;
+    }
     return p;
   }
+  private applied = {
+    color: '',
+    alpha: -1,
+    shader: null as SkShader | null,
+    filter: null as SkColorFilter | null,
+    effect: null as SkPathEffect | null,
+    stroke: -1,
+    width: -1,
+    cap: -1 as number,
+    join: -1 as number,
+    miter: -1,
+  };
 
   // ----- drawing -----
   fill(): void {
@@ -475,15 +535,15 @@ export class SkiaContext2D {
     this.canvas.clipPath(this.path.build(), ClipOp.Intersect, true);
   }
   fillRect(x: number, y: number, w: number, h: number): void {
-    this.canvas.drawRect(Skia.XYWHRect(x, y, w, h), this.setupPaint(this.st.fillStyle, false));
+    this.canvas.drawRect(rect(x, y, w, h), this.setupPaint(this.st.fillStyle, false));
     this.onDraw?.();
   }
   strokeRect(x: number, y: number, w: number, h: number): void {
-    this.canvas.drawRect(Skia.XYWHRect(x, y, w, h), this.setupPaint(this.st.strokeStyle, true));
+    this.canvas.drawRect(rect(x, y, w, h), this.setupPaint(this.st.strokeStyle, true));
     this.onDraw?.();
   }
   clearRect(x: number, y: number, w: number, h: number): void {
-    this.canvas.drawRect(Skia.XYWHRect(x, y, w, h), this.clearPaint);
+    this.canvas.drawRect(rect(x, y, w, h), this.clearPaint);
     this.onDraw?.();
   }
 
@@ -565,13 +625,14 @@ export class SkiaContext2D {
     // the source's own size in CSS terms (a canvas may be drawn at a different pixel size)
     const kx = iw / (img.width || iw);
     const ky = ih / (img.height || ih);
-    let src = Skia.XYWHRect(0, 0, iw, ih);
-    let dst: ReturnType<typeof Skia.XYWHRect>;
-    if (a.length === 2) dst = Skia.XYWHRect(a[0], a[1], img.width, img.height);
-    else if (a.length === 4) dst = Skia.XYWHRect(a[0], a[1], a[2], a[3]);
+    let src = rect(0, 0, iw, ih);
+    let dst: SkRect;
+    if (a.length === 0) dst = rect(0, 0, img.width, img.height);
+    else if (a.length === 2) dst = rect(a[0], a[1], img.width, img.height);
+    else if (a.length === 4) dst = rect(a[0], a[1], a[2], a[3]);
     else {
-      src = Skia.XYWHRect(a[0] * kx, a[1] * ky, a[2] * kx, a[3] * ky);
-      dst = Skia.XYWHRect(a[4], a[5], a[6], a[7]);
+      src = rect(a[0] * kx, a[1] * ky, a[2] * kx, a[3] * ky);
+      dst = rect(a[4], a[5], a[6], a[7]);
     }
     const p = this.setupPaint(null, false);
     this.canvas.drawImageRect(sk, src, dst, p);

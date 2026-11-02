@@ -142,7 +142,7 @@ function GameView() {
   const [ask, setAsk] = useState<Ask | null>(null);
   const [askText, setAskText] = useState('');
   const booted = useRef<Booted | null>(null);
-  const layout = useRef({ scale: 1, ox: 0, oy: 0, glW: 0, glH: 0, f: 1 });
+  const layout = useRef({ scale: 1, ox: 0, oy: 0, boxW: 1, boxH: 1, dirty: true });
   const [glFactor, setGlFactor] = useState(1);
 
   showAsk = (a) => {
@@ -168,9 +168,12 @@ function GameView() {
   const gh = H * scale;
   const ox = (availW - gw) / 2;
   const oy = insets.top + (availH - gh) / 2;
+  if (layout.current.boxW !== box.w || layout.current.boxH !== box.h || layout.current.scale !== scale) layout.current.dirty = true;
   layout.current.scale = scale;
   layout.current.ox = ox;
   layout.current.oy = oy;
+  layout.current.boxW = box.w;
+  layout.current.boxH = box.h;
 
   const onContext = async (gl: ExpoWebGLRenderingContext) => {
     let autotest = 0;
@@ -235,14 +238,17 @@ function GameView() {
       if (frameMs.length > 6000) frameMs.splice(0, 3000);
       const world = b.game.world;
       // keep three.js's viewport on the GL view's real drawing buffer
-      if (world && (gl.drawingBufferWidth !== bufW || gl.drawingBufferHeight !== bufH)) {
+      if (world && (gl.drawingBufferWidth !== bufW || gl.drawingBufferHeight !== bufH || layout.current.dirty)) {
+        layout.current.dirty = false;
         bufW = gl.drawingBufferWidth;
         bufH = gl.drawingBufferHeight;
-        world.resize(W, H, 1);
+        // the world fills the screen; the 390×844 game view sits inside it (src/render3d/world.ts resize)
+        const l = layout.current;
+        world.resize(l.boxW, l.boxH, 1, l.ox, l.oy, l.scale);
         world.renderer.setPixelRatio(1);
         world.renderer.setSize(bufW, bufH, false);
       }
-      b.tick(dt);
+      const drew3d = b.tick(dt);
       if (frameMs.length === 1) mark('first 3D frame');
       // a brag card wants this frame: the 3D picture is still in its buffer
       const shots = b.game.snapshots.length ? b.game.snapshots.splice(0) : null;
@@ -255,10 +261,13 @@ function GameView() {
         for (let y = 0; y < bufH; y++) flipped.set(px.subarray(y * row, y * row + row), (bufH - 1 - y) * row);
         world3d = SkiaCanvasElement.fromPixels(flipped, bufW, bufH);
       }
-      gl.endFrameEXP();
+      // present only a frame that was drawn (an unpresented one keeps the last image; an empty one flickers)
+      if (drew3d) gl.endFrameEXP();
       // the UI layer, recorded in game coordinates (390×844) and scaled to the screen
       const { scale: s } = layout.current;
-      const ctx = rec.begin(W * s, H * s);
+      const { ox: lx, oy: ly, boxW, boxH } = layout.current;
+      const ctx = rec.begin(boxW, boxH);
+      ctx.translate(lx, ly);
       ctx.scale(s, s);
       b.game.draw(ctx as unknown as CanvasRenderingContext2D);
       const pic = rec.end();
@@ -270,8 +279,11 @@ function GameView() {
         shot.width = W * k;
         shot.height = H * k;
         const sx = shot.getContext('2d')!;
-        if (world3d) sx.drawImage(world3d, 0, 0, W * k, H * k);
+        // just the game view, from both layers
+        const px = bufW / boxW;
+        if (world3d) sx.drawImage(world3d, lx * px, ly * px, W * s * px, H * s * px, 0, 0, W * k, H * k);
         sx.scale(k / s, k / s);
+        sx.translate(-lx, -ly);
         sx.canvas.drawPicture(pic);
         for (const done of shots) done(shot as unknown as HTMLCanvasElement);
       }
@@ -372,11 +384,11 @@ function GameView() {
       {ready && box.w > 0 ? (
         <>
           {/* the 3D world: laid out at the quality tier's resolution, scaled up to the game's size */}
-          <View pointerEvents="none" style={{ position: 'absolute', left: ox + (gw - gw * f) / 2, top: oy + (gh - gh * f) / 2, width: gw * f, height: gh * f, transform: [{ scale: 1 / f }] }}>
+          <View pointerEvents="none" style={{ position: 'absolute', left: (box.w - box.w * f) / 2, top: (box.h - box.h * f) / 2, width: box.w * f, height: box.h * f, transform: [{ scale: 1 / f }] }}>
             <GLView style={StyleSheet.absoluteFill} onContextCreate={onContext} />
           </View>
           {/* the UI layer */}
-          <Canvas pointerEvents="none" style={{ position: 'absolute', left: ox, top: oy, width: gw, height: gh }}>
+          <Canvas pointerEvents="none" style={StyleSheet.absoluteFill}>
             <Picture picture={picture} />
           </Canvas>
           <View
