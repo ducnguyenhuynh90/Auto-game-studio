@@ -31,6 +31,10 @@ import { startAudio } from './src/audio';
 import { ga } from './src/ga';
 import { runAutotest, wantsAutotest } from './src/autotest';
 
+/** A start-up milestone in the log (tools/android-autotest.sh prints them when the app fails to start). */
+const mark = (name: string) => console.log(`MAM_STEP ${name}`);
+mark('app code loaded');
+
 /** Recent frame times (ms), for the autotest's frame-rate report. */
 const frameMs: number[] = [];
 
@@ -123,7 +127,10 @@ function GameView() {
   const f900 = useTypeface(require('./assets/fonts/Nunito_900Black.ttf'));
   const fonts = f400 && f600 && f700 && f800 && f900;
   useEffect(() => {
-    if (f400 && f600 && f700 && f800 && f900) setFonts([[400, f400], [600, f600], [700, f700], [800, f800], [900, f900]]);
+    if (f400 && f600 && f700 && f800 && f900) {
+      setFonts([[400, f400], [600, f600], [700, f700], [800, f800], [900, f900]]);
+      mark('fonts');
+    }
   }, [f400, f600, f700, f800, f900]);
   const ready = glReady && !!fonts;
   const [ask, setAsk] = useState<Ask | null>(null);
@@ -140,7 +147,9 @@ function GameView() {
   // the offscreen 3D renderer and the platform hooks, before the game starts
   useEffect(() => {
     installPlatform();
+    mark('platform hooks');
     void installGlHost()
+      .then(() => mark('offscreen 3D ready'))
       .catch((e) => console.warn('3D pictures unavailable', e))
       .then(() => setGlReady(true));
   }, []);
@@ -160,6 +169,7 @@ function GameView() {
   const onContext = async (gl: ExpoWebGLRenderingContext) => {
     let autotest = 0;
     try {
+      mark('3D view ready');
       prepareGl(gl);
       const url = (await Linking.getInitialURL().catch(() => null)) ?? null;
       const params = paramsOf(url);
@@ -172,6 +182,7 @@ function GameView() {
         const f = Math.min(1, world.pixelRatioFor(dpr) / dpr);
         setGlFactor(f);
       };
+      mark('boot');
       const b = bootGame({
         params,
         makeWorld: (q) => new World(standInCanvas(gl), q, gl as unknown as WebGL2RenderingContext),
@@ -183,6 +194,7 @@ function GameView() {
         },
       });
       booted.current = b;
+      mark('booted');
       relayout();
       runLoop(gl, b);
       if (autotest) void runAutotest(autotest, frameMs, Number(params.get('speed') ?? 2));
@@ -225,6 +237,7 @@ function GameView() {
         world.renderer.setSize(bufW, bufH, false);
       }
       b.tick(dt);
+      if (frameMs.length === 1) mark('first 3D frame');
       // a brag card wants this frame: the 3D picture is still in its buffer
       const shots = b.game.snapshots.length ? b.game.snapshots.splice(0) : null;
       let world3d: SkiaCanvasElement | null = null;
@@ -244,6 +257,7 @@ function GameView() {
       b.game.draw(ctx as unknown as CanvasRenderingContext2D);
       const pic = rec.end();
       picture.value = pic;
+      if (frameMs.length === 1) mark('first UI frame');
       if (shots) {
         const shot = new SkiaCanvasElement();
         const k = 2; // brag cards are drawn from a 780×1688 frame

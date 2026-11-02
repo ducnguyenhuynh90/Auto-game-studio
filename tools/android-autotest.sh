@@ -42,8 +42,12 @@ grep -o 'MAM_SHOT .*' "$OUT/js.log" | sed 's/MAM_SHOT //' | tr '\n' ' '
 echo
 echo "---- JavaScript errors and warnings ----"
 grep -E " [EW] ReactNativeJS" "$OUT/logcat.txt" | grep -v MAM_ | head -40
-echo "---- native crashes ----"
-grep -E "FATAL EXCEPTION|AndroidRuntime: |libc +: Fatal|SIGSEGV" "$OUT/logcat.txt" | head -40
+echo "---- app start-up steps ----"
+grep -o 'MAM_STEP .*' "$OUT/js.log" | head -30
+echo "---- native crashes (with the crash backtrace) ----"
+grep -E "FATAL EXCEPTION|AndroidRuntime: |libc +: Fatal|SIGSEGV|F DEBUG" "$OUT/logcat.txt" | head -80
+echo "---- last app log lines ----"
+grep -E "ReactNative|expo|Skia|EXGL|GLView|mamvillage" "$OUT/logcat.txt" | tail -40
 
 if [ ! -s "$OUT/report.json" ]; then
   echo "::error::No autotest report (see $OUT/logcat.txt)"
