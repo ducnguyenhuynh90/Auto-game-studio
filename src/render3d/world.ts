@@ -7,12 +7,14 @@ import { SEAS_BY_ID, seaLock } from '../core/seas';
 import { agingLevel, villageLevel, type GameState } from '../core/state';
 import { villageStage } from '../core/evolution';
 import { H, W } from '../render/draw';
+import { glHost } from './gl';
 import type { Game } from '../game';
 import type { FishingScene } from '../scenes/fishing';
 import type { RevealOverlay } from '../scenes/jar';
 import { PROFILES, type Quality, type QualityProfile } from './quality';
 import { Estate, SEA_Y, plotCenter } from './estate';
 import { dogAboard, dogPresent } from '../core/dog';
+import { platform } from '../platform';
 import {
   discard,
   makeDog,
@@ -58,12 +60,12 @@ export interface ScreenPt {
   y: number;
 }
 
-const skyCache = new Map<string, THREE.CanvasTexture>();
-function skyTexture(top: string, bottom: string): THREE.CanvasTexture {
+const skyCache = new Map<string, THREE.Texture>();
+function skyTexture(top: string, bottom: string): THREE.Texture {
   const key = top + bottom;
   const hit = skyCache.get(key);
   if (hit) return hit;
-  const c = document.createElement('canvas');
+  const c = platform.makeCanvas();
   c.width = 2;
   c.height = 256;
   const g = c.getContext('2d')!;
@@ -72,7 +74,7 @@ function skyTexture(top: string, bottom: string): THREE.CanvasTexture {
   grad.addColorStop(1, bottom);
   g.fillStyle = grad;
   g.fillRect(0, 0, 2, 256);
-  const t = new THREE.CanvasTexture(c);
+  const t = glHost.canvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
   skyCache.set(key, t);
   return t;
@@ -1276,10 +1278,11 @@ export class World {
   private css = { w: 390, h: 844, dpr: 1 };
   private frame = 0;
 
-  constructor(canvas: HTMLCanvasElement, quality: Quality) {
+  /** context: a ready WebGL context (the app's expo-gl view); the browser lets three make its own. */
+  constructor(canvas: HTMLCanvasElement, quality: Quality, context?: WebGL2RenderingContext) {
     this.quality = quality;
     this.profile = PROFILES[quality];
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: this.profile.antialias, powerPreference: 'high-performance' });
+    this.renderer = new THREE.WebGLRenderer({ canvas, context, antialias: this.profile.antialias, powerPreference: 'high-performance' });
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = quality === 'high' ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
     this.scene.add(new THREE.HemisphereLight(0xfff4e0, 0x6a8f6a, 1.5));
@@ -1298,6 +1301,11 @@ export class World {
     this.map = new MapRig(this);
     this.scene.add(this.village.root, this.fishing.root, this.map.root);
     this.applyQuality(quality);
+  }
+
+  /** The 3D layer's pixels per CSS pixel for this quality tier on a screen of this density. */
+  pixelRatioFor(dpr: number): number {
+    return Math.min(dpr, this.profile.maxDpr) * this.profile.scale;
   }
 
   resize(cssW: number, cssH: number, dpr: number): void {

@@ -1,11 +1,14 @@
 name: Native apps (Android + iOS)
-# Builds the mobile app (mobile/android + mobile/ios, Capacitor) from the same game build (docs/NATIVE.md).
-# Android: a debug APK to sideload on any phone, plus a signed release AAB for Google Play when the
-# upload-key secrets exist. iOS: a simulator build that proves the project compiles, and on request
-# (Run workflow → testflight) a signed archive uploaded to TestFlight (docs/STORE_RELEASE.md).
+# The mobile app: mobile/ (React Native + Expo), which runs the game's own code (src/) natively, with
+# no WebView (docs/BUILD_FOR_STORES.md, D-033). On every push:
+#  - android: a test APK (signed with the committed test key, published to the "android-latest" release
+#    for phones) and a Google Play bundle (.aab, signed with the upload key when its secrets exist)
+#  - android-test: the APK on an Android emulator; the playtest bot plays it (tools/android-autotest.sh)
+#  - ios: a simulator build that proves the project compiles
+# On request (Run workflow): TestFlight upload, Google Play upload.
 on:
   push:
-    paths: ['src/**', 'mobile/**', 'capacitor.config.ts', 'package*.json', 'public/**', '.github/workflows/native.yml']
+    paths: ['src/**', 'mobile/**', 'tools/bot.mjs', 'tools/android-autotest.sh', '.github/workflows/native.yml']
   workflow_dispatch:
     inputs:
       testflight:
@@ -22,11 +25,18 @@ concurrency:
   group: native-${{ github.ref }}
   cancel-in-progress: true
 env:
-  # player accounts + cloud saves (docs/TECHNICAL.md); empty = guest-only app
+  # player accounts + cloud saves (docs/SUPABASE.md); empty = guest-only app
   VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
   VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-  # Google Analytics 4 (docs/ANALYTICS.md); empty = no GA
-  VITE_GA_MEASUREMENT_ID: ${{ secrets.VITE_GA_MEASUREMENT_ID }}
+  # Google Analytics 4 through the Measurement Protocol (docs/ANALYTICS.md); empty = no GA
+  EXPO_PUBLIC_GA_MEASUREMENT_ID: ${{ secrets.VITE_GA_MEASUREMENT_ID }}
+  EXPO_PUBLIC_GA_API_SECRET: ${{ secrets.GA_API_SECRET }}
+  # store version numbers: each upload needs a higher one (continues the Capacitor app's numbering)
+  MAM_VERSION_CODE: ${{ github.run_number }}
+  MAM_VERSION_NAME: 1.0.${{ github.run_number }}
+defaults:
+  run:
+    working-directory: mobile
 jobs:
   android:
     runs-on: ubuntu-latest
@@ -38,14 +48,14 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: mobile/package-lock.json
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 21
+          java-version: 17
       - run: npm ci
-      - run: npm test
-      - run: npm run build
-      - run: npx cap sync android
+      - run: npx tsc --noEmit
+      - run: npx expo prebuild --platform android --no-install
       - name: Upload key (only when the secrets are set)
         env:
           KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -53,36 +63,89 @@ jobs:
         run: |
           echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/upload.jks"
           echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/upload.jks" >> "$GITHUB_ENV"
-      - name: Build APK + AAB
+      - name: Test APK (test key; phones and the emulator)
         working-directory: mobile/android
         env:
-          MAM_VERSION_CODE: ${{ github.run_number }}
-          MAM_VERSION_NAME: 1.0.${{ github.run_number }}
+          MAM_SIGN: tester
+        run: ./gradlew --no-daemon assembleRelease -PreactNativeArchitectures=arm64-v8a,armeabi-v7a,x86_64
+      - name: Google Play bundle (upload key when set)
+        working-directory: mobile/android
+        env:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: ./gradlew --no-daemon assembleDebug bundleRelease
+        run: ./gradlew --no-daemon bundleRelease
+      - run: |
+          mkdir -p ../out
+          cp android/app/build/outputs/apk/release/app-release.apk ../out/mam-village.apk
+          cp android/app/build/outputs/bundle/release/app-release.aab ../out/mam-village.aab
+          ls -la ../out
       - uses: actions/upload-artifact@v4
         with:
           name: mam-village-android-${{ github.run_number }}
-          path: |
-            mobile/android/app/build/outputs/apk/debug/app-debug.apk
-            mobile/android/app/build/outputs/bundle/release/app-release.aab
+          path: out
           if-no-files-found: error
       # A direct download link for phones: the release "android-latest" always holds the newest test APK
       # from the default branch (https://github.com/<repo>/releases/download/android-latest/mam-village.apk).
       - name: Publish the test APK for phones
         if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        working-directory: .
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp mobile/android/app/build/outputs/apk/debug/app-debug.apk mam-village.apk
           cloud=$([ -n "$VITE_SUPABASE_URL" ] && echo "on (Supabase)" || echo "off (guest only)")
-          ga=$([ -n "$VITE_GA_MEASUREMENT_ID" ] && echo "on (opt-in)" || echo "off")
-          notes="Test build 1.0.${{ github.run_number }} ($(git log -1 --format=%s | cut -c1-80)). Cloud saves + sign-in: $cloud. Analytics: $ga. Open on an Android phone, download mam-village.apk, allow installs from this source, install. New versions install over the old one and keep your save."
+          notes="Test build 1.0.${{ github.run_number }}, native app (React Native) ($(git log -1 --format=%s | cut -c1-80)). Cloud saves + sign-in: $cloud. Open on an Android phone, download mam-village.apk, allow installs from this source, install. New versions install over the old one."
           gh release view android-latest >/dev/null 2>&1 || gh release create android-latest --prerelease --title "Android test build (latest)" --notes "$notes"
           gh release edit android-latest --notes "$notes"
-          gh release upload android-latest mam-village.apk --clobber
+          gh release upload android-latest out/mam-village.apk --clobber
+
+  # The APK on an Android emulator: the playtest bot plays fishing trips, jars and the market natively and
+  # reports what it reached, the frame rate and any error (tools/android-autotest.sh).
+  android-test:
+    needs: android
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # screenshots to the "android-test-latest" release, for review
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: mam-village-android-${{ github.run_number }}
+          path: out
+      - name: Enable KVM (hardware-accelerated emulator)
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          ram-size: 4096M
+          disk-size: 4096M
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          disable-animations: true
+          script: bash tools/android-autotest.sh out/mam-village.apk playtest-output/android 2
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-test-${{ github.run_number }}
+          path: playtest-output/android
+      - name: Publish the screenshots and report
+        if: always() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd playtest-output/android
+          ls *.png >/dev/null 2>&1 || exit 0
+          zip -q shots.zip *.png
+          gh release view android-test-latest >/dev/null 2>&1 || gh release create android-test-latest --prerelease --title "Android emulator test (latest)" --notes "Screenshots and report of the bot playing the latest test APK on an Android emulator."
+          gh release edit android-test-latest --notes "Run ${{ github.run_number }}: the bot playing the test APK on an Android 14 emulator (software graphics, so frame rates are lower than on a phone)."
+          gh release upload android-test-latest shots.zip report.json js.log --clobber 2>/dev/null || gh release upload android-test-latest shots.zip js.log --clobber
 
   ios:
     runs-on: macos-latest
@@ -92,16 +155,16 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: mobile/package-lock.json
       - run: npm ci
-      - run: npm run build
-      - run: npx cap sync ios
+      - run: npx expo prebuild --platform ios
       - name: Build for the iOS simulator (no signing)
         run: |
-          xcodebuild -project mobile/ios/App/App.xcodeproj -scheme App -configuration Debug \
-            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
-            -derivedDataPath build CODE_SIGNING_ALLOWED=NO \
-            CURRENT_PROJECT_VERSION=${{ github.run_number }} build
-      - run: cd build/Build/Products/Debug-iphonesimulator && zip -qr "$GITHUB_WORKSPACE/MamVillage-simulator.zip" App.app
+          WS=$(ls -d ios/*.xcworkspace | head -1)
+          SCHEME=$(basename "$WS" .xcworkspace)
+          xcodebuild -workspace "$WS" -scheme "$SCHEME" -configuration Release -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' -derivedDataPath build CODE_SIGNING_ALLOWED=NO build
+          cd build/Build/Products/Release-iphonesimulator && zip -qr "$GITHUB_WORKSPACE/MamVillage-simulator.zip" *.app
       - uses: actions/upload-artifact@v4
         with:
           name: mam-village-ios-simulator-${{ github.run_number }}
@@ -120,6 +183,7 @@ jobs:
       ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
     steps:
       - name: Check the App Store secrets
+        working-directory: .
         run: |
           for v in APPLE_TEAM_ID ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_P8_BASE64; do
             if [ -z "${!v}" ]; then echo "::error::Missing secret $v (docs/STORE_RELEASE.md)"; exit 1; fi
@@ -129,18 +193,18 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: mobile/package-lock.json
       - run: npm ci
-      - run: npm run build
-      - run: npx cap sync ios
+      - run: npx expo prebuild --platform ios
       - name: Archive, sign and upload to TestFlight
         run: |
           echo "$ASC_KEY_P8_BASE64" | base64 -d > "$RUNNER_TEMP/AuthKey.p8"
           AUTH=(-allowProvisioningUpdates -authenticationKeyPath "$RUNNER_TEMP/AuthKey.p8" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID")
-          mkdir -p build
-          xcodebuild -project mobile/ios/App/App.xcodeproj -scheme App -configuration Release -sdk iphoneos \
+          WS=$(ls -d ios/*.xcworkspace | head -1)
+          SCHEME=$(basename "$WS" .xcworkspace)
+          xcodebuild -workspace "$WS" -scheme "$SCHEME" -configuration Release -sdk iphoneos \
             -destination 'generic/platform=iOS' -archivePath build/MamVillage.xcarchive \
-            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" CODE_SIGN_STYLE=Automatic \
-            MARKETING_VERSION=1.0.${{ github.run_number }} CURRENT_PROJECT_VERSION=${{ github.run_number }} "${AUTH[@]}" archive
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" CODE_SIGN_STYLE=Automatic "${AUTH[@]}" archive
           cat > build/ExportOptions.plist <<PLIST
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -162,13 +226,16 @@ jobs:
     needs: android
     if: github.event_name == 'workflow_dispatch' && inputs.play_track != 'none'
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
     steps:
       - name: Check the secrets
         env:
           PLAY_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
           KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
         run: |
-          [ -n "$KEYSTORE_B64" ] || { echo "::error::ANDROID_KEYSTORE_BASE64 is missing: the bundle would be unsigned (docs/STORE_RELEASE.md)"; exit 1; }
+          [ -n "$KEYSTORE_B64" ] || { echo "::error::ANDROID_KEYSTORE_BASE64 is missing: the bundle would carry the test key (docs/STORE_RELEASE.md)"; exit 1; }
           [ -n "$PLAY_JSON" ] || { echo "::error::PLAY_SERVICE_ACCOUNT_JSON is missing (docs/STORE_RELEASE.md)"; exit 1; }
       - uses: actions/download-artifact@v4
         with:
@@ -178,6 +245,6 @@ jobs:
         with:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: com.mamvillage.app
-          releaseFiles: out/bundle/release/app-release.aab
+          releaseFiles: out/mam-village.aab
           track: ${{ inputs.play_track }}
           status: ${{ inputs.play_track == 'internal' && 'completed' || 'draft' }}

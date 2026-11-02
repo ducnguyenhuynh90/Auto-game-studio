@@ -1,6 +1,8 @@
 // Procedural low-poly "cute" models. Everything is built from primitives so art can iterate as fast as code.
 import * as THREE from 'three';
 import { SPECIES_BY_ID } from '../core/data';
+import { glHost } from './gl';
+import { platform } from '../platform';
 
 // ---------- Materials ----------
 let gradientMap: THREE.DataTexture | null = null;
@@ -314,7 +316,7 @@ function twoTone(top: string, belly: string): THREE.MeshToonMaterial {
   const key = top + belly;
   let m = twoToneCache.get(key);
   if (!m) {
-    const tex = document.createElement('canvas');
+    const tex = platform.makeCanvas();
     tex.width = 4;
     tex.height = 64;
     const c = tex.getContext('2d')!;
@@ -322,7 +324,7 @@ function twoTone(top: string, belly: string): THREE.MeshToonMaterial {
     c.fillRect(0, 0, 4, 36);
     c.fillStyle = belly;
     c.fillRect(0, 36, 4, 28);
-    const t = new THREE.CanvasTexture(tex);
+    const t = glHost.canvasTexture(tex);
     t.colorSpace = THREE.SRGBColorSpace;
     m = new THREE.MeshToonMaterial({ map: t, gradientMap: toonRamp() });
     twoToneCache.set(key, m);

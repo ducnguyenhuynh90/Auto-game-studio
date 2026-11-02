@@ -1,5 +1,7 @@
 // A small text box over the canvas (friend codes, captain names). The game UI is all canvas, but typing
 // needs a real input so phones show their keyboard. Resolves with the text, or null if cancelled.
+import { platform } from '../platform';
+
 export interface AskOptions {
   title: string;
   placeholder?: string;
@@ -11,6 +13,8 @@ export interface AskOptions {
 }
 
 export function askText(o: AskOptions): Promise<string | null> {
+  // the app shows its own native text box
+  if (platform.ask) return platform.ask(o);
   return new Promise((resolve) => {
     const wrap = document.createElement('div');
     wrap.style.cssText =

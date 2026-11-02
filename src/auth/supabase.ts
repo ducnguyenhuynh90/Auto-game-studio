@@ -5,13 +5,14 @@
 import { createClient, type SupabaseClient, type User } from '@supabase/supabase-js';
 import type { SocialProvider } from './account';
 import { makeBackend, nameOf, providerOf, type CloudBackend, type DbLike } from './cloudsave';
+import { platform } from '../platform';
 
 export { makeBackend, progressRow, type DbLike } from './cloudsave';
 
-/** Inside the iOS / Android app (Capacitor): sign-in runs in the system browser and returns by deep link. */
-const isNative = () => !!(window as unknown as { Capacitor?: { isNativePlatform?(): boolean } }).Capacitor?.isNativePlatform?.();
+/** Inside the iOS / Android app: sign-in runs in the system browser and returns by deep link. */
+const isNative = () => platform.native;
 /** Must be listed under Auth → URL Configuration → Redirect URLs (docs/NATIVE.md). */
-export const NATIVE_REDIRECT = 'com.mamvillage.app://auth/callback';
+export const nativeRedirect = () => `${platform.appScheme ?? 'com.mamvillage.app'}://auth/callback`;
 
 let client: SupabaseClient | null = null;
 function sb(): SupabaseClient {
@@ -72,11 +73,13 @@ export async function startSession(): Promise<Session | null> {
  * Connects Google / Apple / Facebook. From an anonymous account this *links* the identity, so the
  * same user (and save) gets a real login; the browser leaves for the provider and comes back.
  * If that identity already has its own account, we sign in to it instead (the merge rules then decide).
+ * In the app, returns the sign-in return link when the browser hands it straight back (else it comes by
+ * deep link later).
  */
-export async function signIn(p: SocialProvider): Promise<void> {
+export async function signIn(p: SocialProvider): Promise<string | null> {
   const auth = sb().auth;
   const native = isNative();
-  const redirectTo = native ? NATIVE_REDIRECT : location.href.split('#')[0];
+  const redirectTo = native ? nativeRedirect() : location.href.split('#')[0];
   // the app opens the provider in the system browser (Google refuses embedded web views)
   const options = { redirectTo, skipBrowserRedirect: native };
   let url: string | undefined;
@@ -90,18 +93,17 @@ export async function signIn(p: SocialProvider): Promise<void> {
     if (res.error) throw res.error;
     url = res.data.url ?? undefined;
   }
-  if (native && url) {
-    const { Browser } = await import('@capacitor/browser');
-    await Browser.open({ url, presentationStyle: 'popover' });
+  if (native && url && platform.openAuthBrowser) {
+    // the app either gets the return link straight back, or later through its deep link (finishNativeSignIn)
+    return platform.openAuthBrowser(url, redirectTo);
   }
+  return null;
 }
 
 /** The app was reopened by the sign-in deep link: trade its one-time code for a session. */
 export async function finishNativeSignIn(link: string): Promise<boolean> {
   const u = new URL(link);
   const code = u.searchParams.get('code');
-  const { Browser } = await import('@capacitor/browser');
-  void Browser.close().catch(() => undefined);
   if (!code) return false;
   const { error } = await sb().auth.exchangeCodeForSession(code);
   return !error;

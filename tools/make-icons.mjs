@@ -1,7 +1,7 @@
 // The app icon and splash, rendered with the game's own 3D models (tools/icon/scene.ts): Lan under her
 // nón lá with a glowing Golden Anchovy leaping in front of a Phú Quốc sunset. Writes the source art to
-// mobile/assets/ (the iOS / Android app) and the web icons to public/, then
-// `npm run icons` makes every iOS / Android size from them (docs/NATIVE.md).
+// mobile/assets/ (the iOS / Android app; Expo makes every size from them at build time) and the web
+// icons to public/.
 //   node tools/make-icons.mjs
 import { createRequire } from 'node:module';
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -60,12 +60,11 @@ const out = await p.evaluate(() => {
     });
     const scaled = async (src, s) => canvasOf(s, s, async (x) => x.drawImage(await img(src), 0, 0, s, s));
     return {
-      // the mobile app (mobile/android + mobile/ios): full-bleed opaque icon, adaptive layers, splash
-      'mobile/assets/icon-only.png': full,
-      'mobile/assets/icon-foreground.png': fg,
-      'mobile/assets/icon-background.png': bg,
-      'mobile/assets/splash.png': splash,
-      'mobile/assets/splash-dark.png': splash,
+      // the mobile app (mobile/app.json): full-bleed opaque icon, Android adaptive layers, splash
+      'mobile/assets/icon.png': full,
+      'mobile/assets/android-icon-foreground.png': fg,
+      'mobile/assets/android-icon-background.png': bg,
+      'mobile/assets/splash-icon.png': splash,
       // the web app (PWA, GitHub Pages)
       'public/icon-512.png': await scaled(full, 512),
       'public/icon-192.png': await scaled(full, 192),

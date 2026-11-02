@@ -1,42 +1,37 @@
 // Sharing an invite: the phone's share sheet (Facebook, Messenger, Zalo, WhatsApp… whatever is installed)
-// in the apps, the browser's share sheet where there is one, otherwise the clipboard.
-const isNative = () => !!(window as unknown as { Capacitor?: { isNativePlatform?(): boolean } }).Capacitor?.isNativePlatform?.();
+// in the app (src/platform.ts hooks), the browser's share sheet where there is one, otherwise the clipboard.
+import { platform } from '../platform';
+import { cardBlob } from '../render/bragcard';
 
 export type ShareResult = 'shared' | 'copied' | 'failed';
 
+const cancelled = (e: unknown) => /cancel|abort|dismiss/i.test(String((e as Error)?.message ?? e));
+
 export async function shareInvite(text: string, url: string): Promise<ShareResult> {
   try {
-    if (isNative()) {
-      const { Share } = await import('@capacitor/share');
-      await Share.share({ title: 'Mắm Village', text, url, dialogTitle: 'Invite a friend' });
-      return 'shared';
-    }
-    if (navigator.share) {
+    if (platform.share) {
+      if (await platform.share({ title: 'Mắm Village', text, url })) return 'shared';
+    } else if (navigator.share) {
       await navigator.share({ title: 'Mắm Village', text, url });
       return 'shared';
     }
   } catch (e) {
     // closing the share sheet is not an error worth reporting
-    if (String((e as Error)?.message ?? e).match(/cancel|abort/i)) return 'failed';
+    if (cancelled(e)) return 'failed';
   }
   return (await copyText(`${text}\n${url}`)) ? 'copied' : 'failed';
 }
 
 /** Shares a picture (a brag card) with its message: the share sheet, or a download where there is none. */
-export async function shareImage(blob: Blob, text: string, url: string): Promise<ShareResult> {
+export async function shareImage(card: HTMLCanvasElement, text: string, url: string): Promise<ShareResult> {
   try {
-    if (isNative()) {
-      const [{ Filesystem, Directory }, { Share }] = await Promise.all([import('@capacitor/filesystem'), import('@capacitor/share')]);
-      const data = await new Promise<string>((resolve, reject) => {
-        const r = new FileReader();
-        r.onload = () => resolve(String(r.result).split(',')[1] ?? '');
-        r.onerror = () => reject(r.error);
-        r.readAsDataURL(blob);
-      });
-      const file = await Filesystem.writeFile({ path: `mam-village-${Date.now()}.jpg`, data, directory: Directory.Cache });
-      await Share.share({ title: 'Mắm Village', text: `${text} ${url}`, files: [file.uri], dialogTitle: 'Share' });
-      return 'shared';
+    if (platform.share) {
+      const base64 = card.toDataURL('image/jpeg', 0.9).split(',')[1] ?? '';
+      const ok = await platform.share({ title: 'Mắm Village', text: `${text} ${url}`, url, file: { base64, name: `mam-village-${Date.now()}.jpg` } });
+      return ok ? 'shared' : 'failed';
     }
+    const blob = await cardBlob(card);
+    if (!blob) return shareInvite(text, url);
     const file = new File([blob], 'mam-village.jpg', { type: 'image/jpeg' });
     if (navigator.canShare?.({ files: [file] })) {
       await navigator.share({ files: [file], title: 'Mắm Village', text: `${text} ${url}` });
@@ -52,18 +47,14 @@ export async function shareImage(blob: Blob, text: string, url: string): Promise
     setTimeout(() => URL.revokeObjectURL(a.href), 5000);
     return (await copyText(`${text} ${url}`)) ? 'copied' : 'shared';
   } catch (e) {
-    if (String((e as Error)?.message ?? e).match(/cancel|abort/i)) return 'failed';
+    if (cancelled(e)) return 'failed';
     return shareInvite(text, url);
   }
 }
 
 export async function copyText(text: string): Promise<boolean> {
   try {
-    if (isNative()) {
-      const { Clipboard } = await import('@capacitor/clipboard');
-      await Clipboard.write({ string: text });
-      return true;
-    }
+    if (platform.copy) return await platform.copy(text);
     await navigator.clipboard.writeText(text);
     return true;
   } catch {
@@ -73,10 +64,8 @@ export async function copyText(text: string): Promise<boolean> {
 
 /** Opens a sharing page (e.g. Facebook's) outside the game. */
 export async function openShareUrl(url: string): Promise<void> {
-  if (isNative()) {
-    const { Browser } = await import('@capacitor/browser');
-    await Browser.open({ url });
-  } else window.open(url, '_blank', 'noopener');
+  if (platform.openUrl) platform.openUrl(url);
+  else window.open(url, '_blank', 'noopener');
 }
 
 export const facebookShareUrl = (url: string) => `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`;

@@ -1,6 +1,7 @@
 // Renders each species' 3D model once into a 2D image so UI cards match the 3D world.
 import * as THREE from 'three';
 import type { Track } from '../core/evolution';
+import { glHost } from './gl';
 import { makeBaitModel, makeBoat, makeBuilding, makeCharacter, makeFish, makeHookModel, makeJar, makeMarket, makeRod, makeSaltPile, makeSpool, makeVillageDiorama, makeWorker } from './models';
 
 const SIZE = 160;
@@ -10,10 +11,7 @@ let scene: THREE.Scene | null = null;
 let camera: THREE.OrthographicCamera | null = null;
 
 function setup(): void {
-  const canvas = document.createElement('canvas');
-  renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: true });
-  renderer.setSize(SIZE, SIZE, false);
-  renderer.setClearColor(0x000000, 0);
+  renderer = glHost.offscreenRenderer();
   scene = new THREE.Scene();
   scene.add(new THREE.HemisphereLight(0xfff4e0, 0x6a8f6a, 1.6));
   const sun = new THREE.DirectionalLight(0xfff0d8, 2);
@@ -34,12 +32,8 @@ export function fishIcon(speciesId: string): HTMLCanvasElement | null {
     fm.group.rotation.y = -0.35;
     fm.group.rotation.x = 0.15;
     scene!.add(fm.group);
-    renderer!.render(scene!, camera!);
+    const out = glHost.snapshot(renderer!, scene!, camera!, SIZE);
     scene!.remove(fm.group);
-    const out = document.createElement('canvas');
-    out.width = SIZE;
-    out.height = SIZE;
-    out.getContext('2d')!.drawImage(renderer!.domElement, 0, 0);
     cache.set(speciesId, out);
     return out;
   } catch {
@@ -59,10 +53,7 @@ export function characterPortrait(id: 'lan' | 'nam' | 'rua' | 'toc' | 'tu' | 'ha
   if (hit) return hit;
   try {
     if (!pRenderer) {
-      const canvas = document.createElement('canvas');
-      pRenderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: true });
-      pRenderer.setSize(PORTRAIT, PORTRAIT, false);
-      pRenderer.setClearColor(0x000000, 0);
+      pRenderer = glHost.offscreenRenderer();
       pScene = new THREE.Scene();
       pScene.add(new THREE.HemisphereLight(0xfff4e0, 0x8a6a5a, 1.7));
       const key = new THREE.DirectionalLight(0xfff0d8, 2);
@@ -78,12 +69,8 @@ export function characterPortrait(id: 'lan' | 'nam' | 'rua' | 'toc' | 'tu' | 'ha
     pScene!.add(g);
     pCamera!.position.set(0, turtle ? 0.8 : dog ? 1.2 : 1.0, turtle ? 2.5 : dog ? 2.6 : 2.9);
     pCamera!.lookAt(0, turtle ? 0.36 : dog ? 0.75 : 0.86, 0);
-    pRenderer!.render(pScene!, pCamera!);
+    const out = glHost.snapshot(pRenderer!, pScene!, pCamera!, PORTRAIT);
     pScene!.remove(g);
-    const out = document.createElement('canvas');
-    out.width = PORTRAIT;
-    out.height = PORTRAIT;
-    out.getContext('2d')!.drawImage(pRenderer!.domElement, 0, 0);
     portraitCache.set(id, out);
     return out;
   } catch {
@@ -154,10 +141,7 @@ export function stagePreview(track: Track | 'building' | 'worker', level: number
   if (hit) return hit;
   try {
     if (!sRenderer) {
-      const canvas = document.createElement('canvas');
-      sRenderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: true });
-      sRenderer.setSize(STAGE, STAGE, false);
-      sRenderer.setClearColor(0x000000, 0);
+      sRenderer = glHost.offscreenRenderer();
       sScene = new THREE.Scene();
       sScene.add(new THREE.HemisphereLight(0xfff4e0, 0x6a8f6a, 1.6));
       const key2 = new THREE.DirectionalLight(0xfff0d8, 2);
@@ -173,12 +157,8 @@ export function stagePreview(track: Track | 'building' | 'worker', level: number
     const dir = new THREE.Vector3(0.55, 0.55, 1).normalize();
     sCamera!.position.copy(sphere.center).addScaledVector(dir, dist);
     sCamera!.lookAt(sphere.center);
-    sRenderer!.render(sScene!, sCamera!);
+    const out = glHost.snapshot(sRenderer!, sScene!, sCamera!, STAGE);
     sScene!.remove(obj);
-    const out = document.createElement('canvas');
-    out.width = STAGE;
-    out.height = STAGE;
-    out.getContext('2d')!.drawImage(sRenderer!.domElement, 0, 0);
     stageCache.set(key, out);
     return out;
   } catch {

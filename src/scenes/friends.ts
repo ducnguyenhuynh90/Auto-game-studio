@@ -6,10 +6,11 @@ import { GAME_URL, GIFT_COINS, bragMessage, INVITE_MILESTONES, INVITE_REWARD, WE
 import { GADGETS, type GadgetId } from '../core/items';
 import { BUILDINGS_BY_ID, type BuildingId } from '../core/island';
 import { askText } from '../render/ask';
+import { platform } from '../platform';
 import { sfx } from '../render/audio';
 import { COLORS, H, W, clamp01, drawCoin, ease, islandImage, outlinedText, panel, rr, text, type Ctx } from '../render/draw';
 import { copyText, facebookShareUrl, openShareUrl, shareImage, shareInvite, whatsappShareUrl } from '../native/share';
-import { cardBlob, drawBragCard, type BragCard } from '../render/bragcard';
+import { drawBragCard, type BragCard } from '../render/bragcard';
 import type { BoardRow, GiftStatus, InvitePreview, MySocial, TopRow, Visit } from '../auth/social';
 import type { Game, Scene } from '../game';
 
@@ -94,11 +95,10 @@ export async function brag(game: Game, card: Omit<BragCard, 'code' | 'url'>, kin
   analytics.track('brag_tap', { kind });
   if (!myCode) myCode = (await (await game.account?.socialApi())?.mySocial().catch(() => null))?.code ?? null;
   const url = myCode ? inviteUrl(myCode) : GAME_URL;
-  const msg = bragMessage(card.headline, myCode, navigator.language);
+  const msg = bragMessage(card.headline, myCode, platform.language());
   try {
     const shot = await game.snapshot();
-    const blob = await cardBlob(drawBragCard(shot, { ...card, code: myCode, url }));
-    const r = blob ? await shareImage(blob, msg, url) : await shareInvite(msg, url);
+    const r = await shareImage(drawBragCard(shot, { ...card, code: myCode, url }), msg, url);
     analytics.track('brag_share', { kind, result: r });
     if (r === 'copied') game.toast('Picture saved, message copied', COLORS.good, 'Post it with the picture');
   } catch (e) {
@@ -370,7 +370,7 @@ export class FriendsOverlay implements Scene {
     } else text(ctx, `Village legend: ${played} invited friends play!`, 30, 384, 12, COLORS.gold, 'left', 900);
 
     // share
-    const msg = shareText(me.code, best, navigator.language);
+    const msg = shareText(me.code, best, platform.language());
     this.game.button(ctx, 'share_invite', 30, 402, W - 60, 52, '📤  Share invite (Zalo, Messenger…)', () => void this.share(msg, url, 'sheet'), { color: COLORS.good, dark: '#2f7a3b', size: 16, pulse: me.invites === 0 });
     this.game.button(ctx, 'share_fb', 30, 464, (W - 72) / 3, 42, 'Facebook', () => void this.share(msg, url, 'facebook'), { color: '#1877f2', dark: '#0f56b3', size: 14 });
     this.game.button(ctx, 'share_wa', 36 + (W - 72) / 3, 464, (W - 72) / 3, 42, 'WhatsApp', () => void this.share(msg, url, 'whatsapp'), { color: '#25a244', dark: '#1a7a32', size: 14 });

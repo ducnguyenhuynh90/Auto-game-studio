@@ -10,6 +10,7 @@ import { setOnSaved } from '../core/save';
 import type { GameState } from '../core/state';
 import { levelForXp } from '../core/progression';
 import { chooseSave, isFresh, type SaveBlob } from './merge';
+import { platform as platformInfo } from '../platform';
 
 export type { SocialProvider } from './cloudsave';
 import type { SocialProvider } from './cloudsave';
@@ -57,9 +58,10 @@ export class AccountManager {
       this.dirty = true;
     });
     setInterval(() => void this.flush(), 15000);
-    document.addEventListener('visibilitychange', () => {
-      if (document.hidden) void this.flush();
-    });
+    if (typeof document !== 'undefined' && document.addEventListener)
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) void this.flush();
+      });
   }
 
   /** Social sign-in buttons to show: only the providers this build lists as set up (VITE_AUTH_PROVIDERS). */
@@ -96,7 +98,7 @@ export class AccountManager {
 
   /** Silent sign-in at boot: claude.ai identity inside the playtest page, or a remembered social session. */
   async init(): Promise<void> {
-    const host = (window as unknown as { claude?: Host }).claude;
+    const host = (globalThis as unknown as { claude?: Host }).claude;
     if (host?.use) {
       const ok = await this.tryClaude(host).catch(() => false);
       if (ok) return;
@@ -210,7 +212,13 @@ export class AccountManager {
       try {
         const sb = await import('./supabase');
         analytics.track('login_start', { provider, link: this.canLink });
-        await sb.signIn(provider); // redirects; startSession() finishes it when the page comes back
+        // the web page redirects (startSession() finishes it when it comes back); the app may get the
+        // return link straight back from the system browser
+        const back = await sb.signIn(provider);
+        if (back) {
+          this.busy = false;
+          await this.finishNativeSignIn(back);
+        }
       } catch (e) {
         this.status = 'Sign-in did not finish. Please try again.';
         analytics.track('login_failed', { provider, code: String((e as { message?: string })?.message ?? 'unknown').slice(0, 60) });
@@ -327,10 +335,9 @@ function setSocialSession(on: boolean): void {
   }
 }
 
-/** Which platform the game runs on: the iOS / Android app (Capacitor) or a browser. */
+/** Which platform the game runs on: the iOS / Android app or a browser. */
 function platform(): 'ios' | 'android' | 'web' {
-  const p = (window as unknown as { Capacitor?: { getPlatform?(): string } }).Capacitor?.getPlatform?.();
-  return p === 'ios' || p === 'android' ? p : 'web';
+  return platformInfo.name;
 }
 
 /**

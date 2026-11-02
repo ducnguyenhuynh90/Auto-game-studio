@@ -1,0 +1,26 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "paths": {
+      "@core/*": [
+        "./../src/core/*"
+      ],
+      "@web/*": [
+        "./../src/*"
+      ]
+    }
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "../src/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "../src/main.ts",
+    "../src/auth/firebase.ts",
+    "../src/sw/**",
+    "tools/**"
+  ]
+}

@@ -1,156 +1,41 @@
+// The browser host: two canvases (3D world under, 2D UI over), pointer input, the frame loop. The game
+// itself starts in boot.ts, shared with the native app (mobile/).
 import { analytics } from './core/analytics';
 import { startPlaySummary } from './remote';
-import { loadFromBlob, loadState, resetSave, saveState } from './core/save';
-import { AccountManager } from './auth/account';
-import { Game } from './game';
-import { helpRoutes } from './scenes/info';
-import { MarketOverlay } from './scenes/market';
-import { ProductionOverlay } from './scenes/production';
-import { RoadOverlay } from './scenes/career';
-import { BrandOverlay } from './scenes/brand';
-import { MissionsOverlay } from './scenes/missions';
-import { DogOverlay } from './scenes/dog';
+import { bootGame } from './boot';
 import { H, W } from './render/draw';
 import { World } from './render3d/world';
-import { FpsGovernor, detectQuality, loadAutoQuality, loadQualitySetting, saveAutoQuality, saveQualitySetting, type Quality, type QualitySetting } from './render3d/quality';
-import { characterPortrait, fishIcon, stagePreview } from './render3d/icons';
-import type { Track } from './core/evolution';
-import type { CharacterId } from './core/story';
-import { setFishIconProvider, setIslandArtProvider, setPortraitProvider, setStageProvider } from './render/draw';
-import { FishingScene } from './scenes/fishing';
-import { VillageScene } from './scenes/village';
-import { MapScene } from './scenes/map';
-import { IslandScene } from './scenes/island';
 import { PuzzleHubOverlay, SaltPuzzleOverlay, ShopPuzzleOverlay } from './scenes/puzzles';
-import { FISHING_LEVELS } from './core/puzzles';
 import { SCENES } from './core/story';
 import { SortGameOverlay, SortMenuOverlay } from './scenes/sort';
-import { StoryOverlay } from './scenes/story';
-import { captureInvite, checkSocial } from './scenes/friends';
-import { smartHint } from './core/sort';
-import { build, buyPlot, canExpand, catchUp, hire, terrain, type BuildingId } from './core/island';
+import { build, buyPlot, canExpand, hire, terrain, type BuildingId } from './core/island';
 import { RevealOverlay } from './scenes/jar';
-import { addCatch, agingLevel, canFerment, sealJar, upgradeCost } from './core/state';
-import { UPGRADES } from './core/data';
-import { SEAS, SEAS_BY_ID, seaComplete, seaLock } from './core/seas';
+import { addCatch, sealJar } from './core/state';
+import { SEAS_BY_ID } from './core/seas';
 import type { SeaId } from './core/data';
-import { isPhoneTest } from './core/testmode';
 
 const params = new URLSearchParams(location.search);
-// Phone test mode (tools/phone-test.mjs): a fresh village in its own save slot, no cloud sync, no analytics
-// sent (core/testmode.ts), so testing on your own phone never touches your real progress.
-const phoneTest = isPhoneTest();
-if (params.has('reset') || phoneTest) resetSave();
-
 const canvas = document.getElementById('game') as HTMLCanvasElement;
 const ctx = canvas.getContext('2d')!;
 const worldCanvas = document.getElementById('world') as HTMLCanvasElement;
-const seed = Number(params.get('seed') ?? Date.now() % 1e9);
-const game = new Game(seed);
-// Graphics quality: a manual choice wins; else a remembered auto result; else device hints.
-const qualitySetting = (params.get('quality') as QualitySetting | null) ?? loadQualitySetting();
-const startQuality: Quality = qualitySetting !== 'auto' ? qualitySetting : (loadAutoQuality() ?? detectQuality());
-game.world = new World(worldCanvas, startQuality);
-game.particles.scale = game.world.particleScale;
-game.setQuality = (q) => {
-  saveQualitySetting(q);
-  const tier = q === 'auto' ? (loadAutoQuality() ?? detectQuality()) : q;
-  game.world?.applyQuality(tier);
-  game.particles.scale = game.world?.particleScale ?? 1;
-  resize();
-  analytics.track('quality', { setting: q, tier });
-};
-// Step down automatically when the device can't keep ~40 fps (only in auto mode).
-const governor = new FpsGovernor(() => {
-  const w = game.world;
-  if (!w || loadQualitySetting() !== 'auto' || w.quality === 'low') return false;
-  const next: Quality = w.quality === 'high' ? 'medium' : 'low';
-  w.applyQuality(next);
-  game.particles.scale = w.particleScale;
-  saveAutoQuality(next);
-  resize();
-  analytics.track('quality_auto_down', { to: next });
-  return true;
-});
-setFishIconProvider(fishIcon);
-setPortraitProvider((id) => characterPortrait(id as CharacterId));
-setStageProvider((track, level) => stagePreview(track as Track, level));
-setIslandArtProvider((kind, id, level) => stagePreview(kind, kind === 'worker' ? 0 : level, id));
-if (params.has('speed')) game.timeScale = Number(params.get('speed'));
 
-game.goVillage = () => game.setScene(new VillageScene(game));
-// where the ⓘ cards' buttons go (scenes/info.ts)
-Object.assign(helpRoutes, {
-  market: (g: Game) => g.push(new MarketOverlay(g)),
-  production: (g: Game) => g.push(new ProductionOverlay(g)),
-  island: (g: Game) => g.goIsland(),
-  road: (g: Game) => g.push(new RoadOverlay(g)),
-  puzzles: (g: Game) => g.goPuzzles(),
-  fish: (g: Game) => g.goFishing(g.state.sea),
-  map: (g: Game) => g.goMap(),
-  brand: (g: Game) => g.push(new BrandOverlay(g)),
-  missions: (g: Game) => g.push(new MissionsOverlay(g)),
-  dog: (g: Game) => g.push(new DogOverlay(g)),
-});
-game.goMap = () => game.setScene(new MapScene(game));
-game.goIsland = (tile) => game.setScene(new IslandScene(game, tile));
-game.goPuzzles = () => {
-  game.goIsland();
-  game.push(new PuzzleHubOverlay(game));
-};
-game.goFishingPuzzle = (i) => game.setScene(new FishingScene(game, FISHING_LEVELS[i].sea, i));
-// Island staff caught up for the time the game was closed or in the background (capped, see core/island.ts).
-function welcomeBack(): void {
-  const away = catchUp(game.state, game.rng, Date.now());
-  if (away.fish + away.salt + away.jars + away.bottles + away.tourists > 0) {
-    game.toast('While you were away…', '#3a8fd9', `Staff: +${away.fish} fish, +${away.salt} salt, ${away.jars} jars, ${away.tourists} tourists, +${away.coins} coins`);
-    analytics.track('island_offline', { fish: away.fish, salt: away.salt, jars: away.jars, bottles: away.bottles, coins: away.coins, tourists: away.tourists });
-    saveState(game.state);
-  }
-}
-welcomeBack();
-game.goFishing = (sea) => {
-  game.state.sea = sea;
-  game.setScene(new FishingScene(game, sea));
-};
-// A save from before the sea chart may point at a sea whose story is now locked.
-if (seaLock(game.state, SEAS_BY_ID[game.state.sea])) game.state.sea = 'lagoon';
-game.goVillage();
-
-// Google Analytics 4 on self-hosted builds with a Measurement ID (analytics/ga.ts, docs/ANALYTICS.md).
 declare const __GA__: boolean;
-if (__GA__ && !phoneTest)
-  void import('./analytics/ga').then(({ initGa, playerProps }) => {
-    const ga = initGa();
-    if (!ga) return;
-    game.ga = ga;
-    const platform = (window as unknown as { Capacitor?: { getPlatform?(): string } }).Capacitor?.getPlatform?.() ?? 'web';
-    // who the player is in the game: how far they got (GA user properties)
-    ga.setPropsProvider(() => playerProps(game.state, platform));
-  });
-
-// Accounts: claude.ai identity inside the playtest page, social login on configured builds.
-game.account = new AccountManager({
-  getState: () => game.state,
-  replaceState: (s) => {
-    game.state = loadFromBlob(s);
-    saveState(game.state);
-    game.goVillage();
-  },
-  toast: (msg, sub) => game.toast(msg, '#3a8fd9', sub),
-  resetLocal: () => {
-    resetSave();
-    game.state = loadState();
-    game.goVillage();
-  },
+const { game, welcomeBack, tick } = bootGame({
+  params,
+  makeWorld: (q) => new World(worldCanvas, q),
+  relayout: () => resize(),
+  // Google Analytics 4 on self-hosted builds with a Measurement ID (analytics/ga.ts, docs/ANALYTICS.md).
+  loadGa: __GA__
+    ? () =>
+        import('./analytics/ga').then(({ initGa, playerProps }) => {
+          const ga = initGa();
+          if (!ga) return null;
+          // who the player is in the game: how far they got (GA user properties)
+          ga.setPropsProvider(() => playerProps(game.state, 'web'));
+          return ga;
+        })
+    : undefined,
 });
-// an invite link (?invite=CODE) is redeemed once the account is ready
-captureInvite(location.search);
-if (!phoneTest)
-  void game.account.init().then(() => {
-    if (game.account?.conflict) game.toast('Two saves found', '#a35bd6', 'Open Settings (≡) to choose one');
-    void checkSocial(game);
-  });
 
 // Dev-only shortcuts for visual QA: ?scene=fishing | reef | reveal
 if (import.meta.env.DEV && params.has('scene')) {
@@ -221,8 +106,6 @@ const reportError = (msg: string) => {
 };
 window.addEventListener('error', (e) => reportError(String(e.message)));
 window.addEventListener('unhandledrejection', (e) => reportError(String((e as PromiseRejectionEvent).reason)));
-analytics.funnelStep('first_launch');
-analytics.track('session_start', { trips: game.state.stats.trips, coins: game.state.coins, returning: game.state.stats.catches > 0 });
 
 // Notches, camera holes and the home bar: the game fits inside the safe area (the app runs edge to edge).
 const safeProbe = document.createElement('div');
@@ -314,17 +197,11 @@ document.addEventListener('visibilitychange', () => {
   if (!document.hidden) welcomeBack();
 });
 
-// Inside the iOS / Android app (Capacitor injects window.Capacitor before the game loads).
-const isNativeApp = !!(window as unknown as { Capacitor?: { isNativePlatform?(): boolean } }).Capacitor?.isNativePlatform?.();
-if (isNativeApp) void import('./native').then((m) => m.initNative(game, { welcomeBack }));
-
 let last = performance.now();
 function frame(now: number): void {
   const dt = (now - last) / 1000;
   last = now;
-  governor.frame(dt);
-  game.update(dt);
-  game.world?.render(game, Math.min(0.05, dt) * game.timeScale);
+  tick(dt);
   ctx.clearRect(0, 0, W, H);
   game.draw(ctx);
   // a brag card wants this frame: copy it now, while the 3D picture is still in its buffer
@@ -341,20 +218,10 @@ function frame(now: number): void {
 }
 requestAnimationFrame(frame);
 
-// Test / QA hook (harmless in production: exposes nothing sensitive).
-(window as unknown as Record<string, unknown>).__mam = {
-  game,
-  analytics,
-  rules: { upgradeCost, UPGRADES, SEAS, seaLock, seaComplete, canFerment, agingLevel, sortHint: smartHint },
-  // store capture + QA: replay a story scene (never marks it seen), open a Market Sort level
-  story: (id: string) => game.push(new StoryOverlay(game, SCENES.filter((x) => x.id === id), true)),
-  sort: (level: number) => game.push(new SortGameOverlay(game, level)),
-};
-
 // Offline + instant repeat loads on self-hosted builds. Not inside the claude.ai artifact frame
 // (service workers aren't available there) and not in dev (it would cache stale modules).
 // The app ships its files inside the install, so it needs no service worker.
-if (import.meta.env.PROD && !isNativeApp && 'serviceWorker' in navigator && window.top === window.self && location.protocol !== 'file:') {
+if (import.meta.env.PROD && 'serviceWorker' in navigator && window.top === window.self && location.protocol !== 'file:') {
   navigator.serviceWorker.register('./sw.js').catch(() => {
     /* unsupported or blocked: the game works without it */
   });

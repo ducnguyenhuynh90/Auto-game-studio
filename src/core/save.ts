@@ -3,12 +3,12 @@ import { LAYOUT_VERSION, migrateIsland } from './island';
 import { isPhoneTest } from './testmode';
 
 // phone test mode plays in its own slot, so the player's real save is never read or written
-const PHONE_TEST = isPhoneTest();
-const KEY = PHONE_TEST ? 'mam_save_phone_test' : 'mam_save_v1';
+// (decided at each use: the app turns test mode on from its launch link, after this module loads)
+const keyOf = () => (isPhoneTest() ? 'mam_save_phone_test' : 'mam_save_v1');
 
 export function loadState(): GameState {
   try {
-    const raw = localStorage.getItem(KEY);
+    const raw = localStorage.getItem(keyOf());
     if (raw) return loadFromBlob(JSON.parse(raw) as GameState);
   } catch {
     /* corrupted or unavailable save: start fresh */
@@ -57,7 +57,7 @@ export function saveState(s: GameState): void {
   s.savedAt = Date.now();
   onSaved?.(s);
   try {
-    localStorage.setItem(KEY, JSON.stringify(s));
+    localStorage.setItem(keyOf(), JSON.stringify(s));
   } catch {
     /* ignore */
   }
@@ -65,8 +65,8 @@ export function saveState(s: GameState): void {
 
 export function resetSave(): void {
   try {
-    localStorage.removeItem(KEY);
-    if (!PHONE_TEST) localStorage.removeItem('mam_funnel');
+    localStorage.removeItem(keyOf());
+    if (!isPhoneTest()) localStorage.removeItem('mam_funnel');
   } catch {
     /* ignore */
   }

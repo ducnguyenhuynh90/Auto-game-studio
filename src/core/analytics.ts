@@ -12,7 +12,6 @@ export interface AnalyticsEvent {
 }
 
 // phone test mode: the bot's events stay in memory, never stored or sent
-const PHONE_TEST = isPhoneTest();
 const STORE_KEY = 'mam_events';
 const FUNNEL_KEY = 'mam_funnel';
 const MAX_EVENTS = 3000;
@@ -37,7 +36,7 @@ function rid(): string {
 }
 
 function safeGet(key: string): string | null {
-  if (PHONE_TEST && key !== 'mam_iid') return null;
+  if (key !== 'mam_iid' && isPhoneTest()) return null;
   try {
     return localStorage.getItem(key);
   } catch {
@@ -45,7 +44,7 @@ function safeGet(key: string): string | null {
   }
 }
 function safeSet(key: string, v: string): void {
-  if (PHONE_TEST) return;
+  if (isPhoneTest()) return;
   try {
     localStorage.setItem(key, v);
   } catch {
@@ -58,7 +57,7 @@ class Analytics {
   readonly iid: string;
   readonly events: AnalyticsEvent[] = [];
   private funnel: Record<string, number>;
-  private readonly endpoint: string | undefined = PHONE_TEST ? undefined : import.meta.env?.VITE_ANALYTICS_URL;
+  private readonly endpoint: string | undefined = import.meta.env?.VITE_ANALYTICS_URL;
   private listeners: ((ev: AnalyticsEvent) => void)[] = [];
 
   constructor() {
@@ -74,7 +73,7 @@ class Analytics {
     stored.push(ev);
     safeSet(STORE_KEY, JSON.stringify(stored.slice(-MAX_EVENTS)));
     for (const fn of this.listeners) fn(ev);
-    if (this.endpoint && typeof navigator !== 'undefined' && navigator.sendBeacon) {
+    if (this.endpoint && !isPhoneTest() && typeof navigator !== 'undefined' && navigator.sendBeacon) {
       navigator.sendBeacon(this.endpoint, JSON.stringify(ev));
     }
   }

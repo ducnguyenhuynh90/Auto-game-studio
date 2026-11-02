@@ -2,6 +2,7 @@
 // itself, with the headline, "Can you beat it?", the player's friend code and the free link. Every share
 // is an invitation that carries its sender's code.
 import { H, W } from './draw';
+import { platform } from '../platform';
 
 export interface BragCard {
   headline: string;
@@ -19,7 +20,7 @@ const CH = 1350;
 const FONT = '"Trebuchet MS", "Segoe UI", system-ui, sans-serif';
 
 export function drawBragCard(shot: HTMLCanvasElement, card: BragCard): HTMLCanvasElement {
-  const c = document.createElement('canvas');
+  const c = platform.makeCanvas();
   c.width = CW;
   c.height = CH;
   const x = c.getContext('2d')!;
@@ -29,7 +30,7 @@ export function drawBragCard(shot: HTMLCanvasElement, card: BragCard): HTMLCanva
   const ch = card.crop.y1 - card.crop.y0;
   const photoH = 1000;
   // the backdrop: drawn tiny, then stretched back up (a cheap blur, quick even on slow phones)
-  const tiny = document.createElement('canvas');
+  const tiny = platform.makeCanvas();
   tiny.width = 27;
   tiny.height = 25;
   tiny.getContext('2d')!.drawImage(shot, 0, card.crop.y0 * sy, W * sx, ch * sy, 0, 0, tiny.width, tiny.height);
