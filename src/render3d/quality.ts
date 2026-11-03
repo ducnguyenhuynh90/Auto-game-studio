@@ -45,19 +45,27 @@ export function saveQualitySetting(q: QualitySetting): void {
   }
 }
 
-/** Remembered result of a previous auto step-down, so weak devices start right next time. */
+/** Remembered result of a previous auto step-down, so weak devices start right next time. It expires:
+ * one slow session (battery saver, a hot phone, a busy background app) must not keep a fast phone on a
+ * lower tier for good. After AUTO_TTL_MS the game starts from its usual guess again; a genuinely weak
+ * device steps back down within seconds (FpsGovernor) and the fresh result is remembered again. */
 const AUTO_KEY = 'mam_quality_auto';
-export function loadAutoQuality(): Quality | null {
+export const AUTO_TTL_MS = 3 * 24 * 3600 * 1000;
+export function loadAutoQuality(now = Date.now()): Quality | null {
   try {
-    const v = localStorage.getItem(AUTO_KEY);
-    return v === 'low' || v === 'medium' || v === 'high' ? v : null;
+    const raw = localStorage.getItem(AUTO_KEY);
+    if (!raw) return null;
+    // a bare tier is from before results were dated: treat it as expired
+    const v = JSON.parse(raw) as { q?: unknown; at?: unknown };
+    if (typeof v !== 'object' || v === null || typeof v.at !== 'number' || now - v.at > AUTO_TTL_MS || now < v.at) return null;
+    return v.q === 'low' || v.q === 'medium' || v.q === 'high' ? v.q : null;
   } catch {
     return null;
   }
 }
-export function saveAutoQuality(q: Quality): void {
+export function saveAutoQuality(q: Quality, now = Date.now()): void {
   try {
-    localStorage.setItem(AUTO_KEY, q);
+    localStorage.setItem(AUTO_KEY, JSON.stringify({ q, at: now }));
   } catch {
     /* ignore */
   }

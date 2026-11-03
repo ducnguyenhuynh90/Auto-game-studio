@@ -164,3 +164,9 @@ Only [PLAYER] entries count as product evidence.
   names and colours for 27 models). Simulator, low tier, same bot: 7-8 → 14-15 fps, GPU wait 300 →
   146 ms, 3D JavaScript 2.8 → 1.3 ms. The web benchmark did not move (software GPU, pixel-bound), so
   the real proof is a cheap Android phone: run npm run phone:test and read stages in report.json.
+- [SIM] 2026-11-03 · First bot run on a real phone (founder's OnePlus 13, over Wi-Fi debugging, battery
+  saver on: 60 Hz, throttled): 2 trips, no errors, village 54 fps, fishing 41 fps, 96 draw calls, low
+  tier. The game's own work is small (fishing: 3D 5.6 ms, UI 3 ms, GPU wait 0.3 ms of a ~24 ms frame),
+  so the gap is the screen and the throttling, not our code. It also showed a trap: an auto step-down
+  was remembered forever, so one battery-saver session kept a flagship on low for good. The remembered
+  tier now expires after 3 days (weak phones step back down within seconds). Still unmeasured: a cheap phone.
