@@ -44,19 +44,32 @@ function fpsOf(ms: number[]): { fps: number; p95FrameMs: number; worstFrameMs: n
 }
 
 /** Plays `trips` fishing trips with the bot and logs the report. frameMs: the app's frame times. */
-export async function runAutotest(trips: number, frameMs: number[], speed = 2): Promise<void> {
+type FramePerf = { wait: number; logic: number; render: number; ui: number; n: number; n3d: number };
+// mean ms per frame in each stage since the last reset (frames3d: frames that drew the 3D layer)
+function perfOf(p: FramePerf): Record<string, number> {
+  const k = (v: number) => Math.round((v / Math.max(1, p.n)) * 10) / 10;
+  return { waitGl: k(p.wait), logic: k(p.logic), render3d: k(p.render), ui: k(p.ui), frames: p.n, frames3d: p.n3d };
+}
+function resetPerf(p: FramePerf): void {
+  p.wait = p.logic = p.render = p.ui = p.n = p.n3d = 0;
+}
+
+export async function runAutotest(trips: number, frameMs: number[], speed = 2, perf?: FramePerf): Promise<void> {
   catchErrors();
   const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
   // the bot talks to a browser page; here the "page" is this JavaScript runtime
   const page = { evaluate: async (fn: (a: unknown) => unknown, arg?: unknown) => fn(arg), waitForTimeout: wait };
   await wait(4000); // let the first frames settle
   frameMs.length = 0;
+  if (perf) resetPerf(perf);
   await wait(4000);
   const village = fpsOf(frameMs);
+  const villagePerf = perf ? perfOf(perf) : null;
   const mam = (globalThis as unknown as { __mam: { game: { timeScale: number } } }).__mam;
   mam.game.timeScale = speed;
   await installBot(page, 0.75);
   frameMs.length = 0;
+  if (perf) resetPerf(perf);
   let report: Record<string, unknown> = {};
   try {
     report = await runBot(page, { trips, timeoutMs: 25 * 60 * 1000, onShot: (name: string) => console.log(`MAM_SHOT ${name}`) });
@@ -71,6 +84,8 @@ export async function runAutotest(trips: number, frameMs: number[], speed = 2): 
     funnel: report.funnel,
     gpu: report.gpu,
     fps: { village, play },
+    stages: { village: villagePerf, play: perf ? perfOf(perf) : null },
+    quality: (globalThis as unknown as { __mam: { game: { world?: { quality: string } } } }).__mam.game.world?.quality,
     errors: [...new Set([...errors, ...((report.errors as string[]) ?? [])])].slice(0, 20),
   };
   console.log(`MAM_AUTOTEST ${JSON.stringify(out)}`);

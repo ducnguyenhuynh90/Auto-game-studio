@@ -12,6 +12,7 @@ import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-cont
 import { Canvas, Picture, Skia, useTypeface, type SkPicture } from '@shopify/react-native-skia';
 import { makeMutable } from 'react-native-reanimated';
 import { GLView, type ExpoWebGLRenderingContext } from 'expo-gl';
+import { Vector2 } from 'three';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import * as Sharing from 'expo-sharing';
@@ -37,6 +38,10 @@ mark('app code loaded');
 
 /** Recent frame times (ms), for the autotest's frame-rate report. */
 const frameMs: number[] = [];
+/** Most UI-only frames between two 3D frames when the GPU can't keep up (the 3D layer then runs at ≥ 1/5 rate). */
+const MAX_GAP_3D = 4;
+/** Summed ms per frame stage (GL wait, rules, 3D render, UI), for the autotest report: where a phone's frame goes. */
+const framePerf = { wait: 0, logic: 0, render: 0, ui: 0, n: 0, n3d: 0 };
 
 /** The app's own link scheme (= its app id): sign-in and invite links come back through it. */
 const SCHEME = (Array.isArray(Constants.expoConfig?.scheme) ? Constants.expoConfig?.scheme[0] : Constants.expoConfig?.scheme) ?? 'com.mamvillage.app';
@@ -207,10 +212,19 @@ function GameView() {
         },
       });
       booted.current = b;
+      const w3 = b.game.world;
+      if (w3 && autotest) {
+        const render = w3.render.bind(w3);
+        w3.render = (g, d) => {
+          const t = performance.now();
+          render(g, d);
+          framePerf.render += performance.now() - t;
+        };
+      }
       mark('booted');
       relayout();
       runLoop(gl, b);
-      if (autotest) void runAutotest(autotest, frameMs, Number(params.get('speed') ?? 2));
+      if (autotest) void runAutotest(autotest, frameMs, Number(params.get('speed') ?? 2), framePerf);
     } catch (e) {
       // a start-up failure must be visible: in the log, and to the autotest
       console.error('Game start failed', e);
@@ -224,6 +238,9 @@ function GameView() {
     let active = true;
     let bufW = 0;
     let bufH = 0;
+    const drawnSize = new Vector2();
+    let gap3d = 0; // UI-only frames between 3D frames while the GPU lags
+    let skip3d = 0; // UI-only frames left before the next 3D frame
     let failed = 0;
     const frame = (now: number) => {
       if (!active) return;
@@ -241,17 +258,39 @@ function GameView() {
       frameMs.push(dt * 1000);
       if (frameMs.length > 6000) frameMs.splice(0, 3000);
       const world = b.game.world;
-      // keep three.js's viewport on the GL view's real drawing buffer
+      // At most one 3D frame in flight. expo-gl queues GL calls for its own thread without a limit, so when
+      // that thread is slower than this loop the 3D picture falls ever further behind the UI (seen on the iOS
+      // simulator: the village still showing under the fishing HUD). getError waits for the queue to drain.
+      // A GPU that can't keep up shouldn't hold the UI and touch back too: while that wait keeps coming back
+      // long, the gap between 3D frames widens and the frames between draw the UI only (the world keeps its
+      // last picture); it narrows again as soon as the GPU is idle when asked.
+      const draw3d = skip3d <= 0 || b.game.snapshots.length > 0;
+      const t0 = performance.now();
+      if (draw3d) {
+        gl.getError();
+        const waited = performance.now() - t0;
+        if (waited > 4) gap3d = Math.min(MAX_GAP_3D, gap3d + 1);
+        else if (waited < 1 && gap3d > 0) gap3d--;
+        skip3d = gap3d;
+      } else skip3d--;
+      const t1 = performance.now();
+      // keep three.js's viewport on the GL view's real drawing buffer. Checked every frame, not only when the
+      // view's size changes: a quality change (World.applyQuality → resize) resets the renderer to 390×844 at
+      // the tier's pixel ratio, and medium → low keeps the same glFactor (both clamp to 0.6), which left the
+      // 3D drawn into the bottom-left 48% of the screen.
       const realW = glPx.current.w || gl.drawingBufferWidth;
       const realH = glPx.current.h || gl.drawingBufferHeight;
-      if (world && (realW !== bufW || realH !== bufH)) {
+      const drawn = world?.renderer.getDrawingBufferSize(drawnSize);
+      if (world && (realW !== bufW || realH !== bufH || drawn!.x !== realW || drawn!.y !== realH)) {
         bufW = realW;
         bufH = realH;
         world.resize(W, H, 1);
         world.renderer.setPixelRatio(1);
         world.renderer.setSize(bufW, bufH, false);
       }
-      b.tick(dt);
+      const r0 = framePerf.render;
+      b.tick(dt, draw3d);
+      const t2 = performance.now();
       if (frameMs.length === 1) mark('first 3D frame');
       // a brag card wants this frame: the 3D picture is still in its buffer
       const shots = b.game.snapshots.length ? b.game.snapshots.splice(0) : null;
@@ -264,7 +303,7 @@ function GameView() {
         for (let y = 0; y < bufH; y++) flipped.set(px.subarray(y * row, y * row + row), (bufH - 1 - y) * row);
         world3d = SkiaCanvasElement.fromPixels(flipped, bufW, bufH);
       }
-      gl.endFrameEXP();
+      if (draw3d) gl.endFrameEXP();
       // the UI layer, recorded in game coordinates (390×844) and scaled to the screen
       const { scale: s } = layout.current;
       const ctx = rec.begin(W * s, H * s);
@@ -272,6 +311,12 @@ function GameView() {
       b.game.draw(ctx as unknown as CanvasRenderingContext2D);
       const pic = rec.end();
       picture.value = pic;
+      const t3 = performance.now();
+      framePerf.wait += t1 - t0;
+      framePerf.logic += t2 - t1 - (framePerf.render - r0);
+      framePerf.ui += t3 - t2;
+      framePerf.n++;
+      if (draw3d) framePerf.n3d++;
       if (frameMs.length === 1) mark('first UI frame');
       if (shots) {
         const shot = new SkiaCanvasElement();

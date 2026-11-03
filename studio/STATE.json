@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-02",
+  "updated": "2026-11-03",
   "product_state": "INTERNAL_ALPHA",
   "real_player_evidence": "2 players. 2026-10-24: stalled at the first sale. 2026-10-26 (founder, Android, several sessions): production-line bugs, no salt button, unclear brand/hiring requirements, hard-to-hit X (all addressed in 3.7.1-3.10). Too small to conclude anything about fun; see LEARNINGS.",
   "build": "Vite + TypeScript. three.js 3D world (src/render3d) under a 2D canvas UI layer (src/scenes). Pure rules in src/core (unit-tested).",
@@ -40,7 +40,8 @@
     "New app icon (founder: not attractive): Lan's face under her nón lá with a glowing Golden Anchovy against a Phú Quốc sunset, rendered with the game's 3D models (tools/icon/scene.ts, npm run icons). Every iOS/Android/web/React Native size, adaptive + monochrome Android layers and a new splash regenerated.",
     "D-030: one mobile app. mobile/ now holds the shipping app (mobile/android + mobile/ios, Capacitor wrapping the 3D game in src/, com.mamvillage.app); the React Native app moved to archive/react-native/ (manual CI only). New build guide docs/BUILD_FOR_STORES.md, mobile/README.md, npm scripts android:apk / android:release / ios:open, TestFlight job in native.yml.",
     "2026-10-31 Founder applied the friends + viral migrations on the live Supabase project (checked: friends, referrals, gifts tables with row-level security; 19 functions; friend-code guard trigger; game functions callable by signed-in players only, not anon). Advisor warnings are the intended ones (player functions callable when signed in; anonymous accounts by design).",
-    "Store-readiness audit (D-031): sign-in buttons only for set-up providers (iOS hides social login until Sign in with Apple), iPhone-only, export-compliance key, privacy policy + account-deletion pages on the website with a Settings link, ready-to-upload checklist in docs/BUILD_FOR_STORES.md."
+    "Store-readiness audit (D-031): sign-in buttons only for set-up providers (iOS hides social login until Sign in with Apple), iPhone-only, export-compliance key, privacy policy + account-deletion pages on the website with a Settings link, ready-to-upload checklist in docs/BUILD_FOR_STORES.md.",
+    "2026-11-03 Smoothness pass for low-end phones (founder: 'not smooth, poor pixels'): 3D layer lined up with the UI on Android (expo-gl's stale drawing-buffer size), sharper UI/3D, fewer per-frame allocations, a native audio crash fixed (react-native-audio-api lock, patch-package), 3D no longer squeezed into a corner after a quality drop, at most one 3D frame in flight with UI-only frames while the GPU lags, and rigid models merged into one draw per look (village 148 → 64 draw calls, fishing 139 → 63). [SIM] iOS simulator low tier 7-8 → 14-15 fps. Founder confirmed the Android layout fix on a OnePlus 13; a cheap-phone measurement is still to do."
   ],
   "constraints": [
     "No real-money gambling, no randomized paid rewards (needs founder/legal approval).",

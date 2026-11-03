@@ -147,3 +147,20 @@ Only [PLAYER] entries count as product evidence.
   device hints, so detectQuality() read every phone as "medium"; it now starts at "high" and lets the
   FpsGovernor step down. Founder confirmed on the phone that labels, caught fish and jar reveal now
   look right. Lesson: never trust expo-gl's drawingBuffer numbers after a relayout.
+- [SIM] 2026-11-03 · First run on the iOS simulator (iPhone 18 Pro, iOS 27.2) found three app bugs the
+  Android phone had not shown, all fixed: (1) a native crash (SIGSEGV) in react-native-audio-api: its
+  runtime-listener table had no lock, and JSI runs host-object destructors on the GC's thread, so sounds
+  freed in the background corrupted it (patched with a recursive mutex, mobile/patches/, applied by
+  patch-package on every install; the same code ships on Android). (2) After a quality step medium → low
+  the 3D drew into the bottom-left 48% of the screen: World.applyQuality resets the renderer's size and
+  both tiers clamp to the same glFactor, so the view size never changed; the app now checks the
+  renderer's real drawing size every frame. (3) expo-gl queues GL calls for its own thread without
+  limit, so a slow GPU let the 3D fall seconds behind the UI; the app now keeps one 3D frame in flight
+  and, while the GPU lags, draws UI-only frames between 3D frames (the FpsGovernor judges the 3D rate).
+- [SIM] 2026-11-03 · Where a native frame goes (stage timers now in the bot report): on the simulator the
+  game's JavaScript is cheap (rules 0.1 ms, 3D render 2.8 ms, UI 1.3 ms) and the GPU wait is everything.
+  Merging each rigid model's parts into one mesh per look (mergeRigid, colours baked into vertices) cut
+  the village from 148 to 64 draw calls and fishing from 139 to 63, identical pictures (tested shape,
+  names and colours for 27 models). Simulator, low tier, same bot: 7-8 → 14-15 fps, GPU wait 300 →
+  146 ms, 3D JavaScript 2.8 → 1.3 ms. The web benchmark did not move (software GPU, pixel-bound), so
+  the real proof is a cheap Android phone: run npm run phone:test and read stages in report.json.

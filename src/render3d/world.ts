@@ -40,6 +40,7 @@ import {
   makeRaftHouse,
   makeSunburst,
   makeTrongMai,
+  mergeRigid,
   mesh,
   outline,
   toon,
@@ -219,12 +220,13 @@ class FishingRig {
         this.islands.add(p);
       }
     }
-    this.root.add(this.islands);
+    this.root.add(mergeRigid(this.islands));
     this.buildZoneProps();
     // boat + fisherman + rod
     this.boat.position.set(-0.35, 0, 3.6);
     this.boat.scale.setScalar(0.8);
     this.root.add(this.boat);
+    mergeRigid(this.fisher);
     this.fisher.position.set(0.15, 0.2, 0.1);
     this.fisher.rotation.y = Math.PI + 0.25;
     this.boat.add(this.fisher);
@@ -242,7 +244,7 @@ class FishingRig {
     outline(top, 1.12);
     outline(bot, 1.12);
     this.bobber.add(top, bot);
-    this.root.add(this.bobber);
+    this.root.add(mergeRigid(this.bobber));
     // aim reticle
     this.reticle = new THREE.Mesh(new THREE.RingGeometry(0.42, 0.52, 32), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9, depthWrite: false }));
     this.reticle.rotation.x = -Math.PI / 2;
@@ -398,6 +400,8 @@ class FishingRig {
       jelly.name = 'jelly';
       trench.add(jelly);
     });
+    // each sea's scenery as a handful of draw calls (the named buoys, rafts, junk and jellies still move)
+    for (const g of this.props.values()) mergeRigid(g);
   }
 
   screenToWater(x: number, y: number, out = new THREE.Vector3()): THREE.Vector3 {
@@ -412,7 +416,7 @@ class FishingRig {
     if (level === this.rodLevel) return;
     this.rodLevel = level;
     for (const c of [...this.rod.children]) discard(c);
-    const r = makeRod(level);
+    const r = mergeRigid(makeRod(level));
     this.rod.add(r);
     this.rodTip = r.getObjectByName('tip')!;
   }
@@ -421,7 +425,7 @@ class FishingRig {
     if (kind === this.boatKind) return;
     this.boatKind = kind;
     for (const c of [...this.boat.children]) if (c !== this.fisher && c !== this.rod && c !== this.turtle && c !== this.dog) this.boat.remove(c);
-    const b = makeBoat(kind);
+    const b = mergeRigid(makeBoat(kind));
     if (kind >= 1) {
       b.rotation.y = Math.PI / 2;
       b.position.y = -0.1;
@@ -460,7 +464,7 @@ class FishingRig {
     this.setRod(game.state.upgrades.rod);
     // Rùa rides along once the Lagoon story is done
     if (hasRelic(game.state.relics, 'turtle') && !this.turtle) {
-      this.turtle = makeTurtle();
+      this.turtle = mergeRigid(makeTurtle());
       this.turtle.scale.setScalar(0.5);
       this.turtle.position.set(-0.5, 0.18, 0.15);
       this.turtle.rotation.y = Math.PI - 0.4;
@@ -468,7 +472,7 @@ class FishingRig {
     }
     // Mực rides at the bow once he has a home
     if (dogAboard(game.state) && !this.dog) {
-      this.dog = makeDog();
+      this.dog = mergeRigid(makeDog());
       this.dog.scale.setScalar(0.9);
       this.dog.position.set(0.45, 0.2, -0.35);
       this.dog.rotation.y = Math.PI / 2 + 0.3;
@@ -746,23 +750,23 @@ class VillageRig {
         dock.add(post);
       }
     dock.position.set(2.6, 0, -6.6);
-    this.root.add(dock);
+    this.root.add(mergeRigid(dock));
     // palms
     for (const [x, z, h] of [
       [-3.3, -3.4, 2.6],
       [-2.9, 4.2, 2.0],
       [3.4, 1.6, 2.2],
     ] as const) {
-      const p = makePalm(h);
+      const p = mergeRigid(makePalm(h));
       p.position.set(x, 0.15, z);
       this.palms.push(p);
       this.root.add(p);
     }
     this.fisher.position.set(-1.6, 0.2, 0.6);
     this.fisher.scale.setScalar(0.85);
-    this.root.add(this.fisher);
+    this.root.add(mergeRigid(this.fisher));
     // Phú Quốc landmarks: the shrine rock by the dock, wooden mắm barrels beside the house
-    const shrine = makeShrine();
+    const shrine = mergeRigid(makeShrine());
     shrine.position.set(-2.3, SEA_Y + 0.15, -6.6);
     shrine.scale.setScalar(0.9);
     this.root.add(shrine);
@@ -770,7 +774,7 @@ class VillageRig {
       [-3.0, -1.4],
       [-2.55, -1.15],
     ] as const) {
-      const b = makeBarrel();
+      const b = mergeRigid(makeBarrel());
       b.position.set(x, 0.15, z);
       b.scale.setScalar(0.55);
       this.root.add(b);
@@ -788,11 +792,11 @@ class VillageRig {
     if (key === this.key) return;
     this.key = key;
     for (const c of [...this.dyn.children]) discard(c);
-    const house = makeHouse(stage >= 2 ? 6 : 1);
+    const house = mergeRigid(makeHouse(stage >= 2 ? 6 : 1));
     house.position.set(-1.7, 0.15, -2.9);
     house.rotation.y = 0.25;
     this.dyn.add(house);
-    this.market = makeMarket(s.upgrades.stall);
+    this.market = mergeRigid(makeMarket(s.upgrades.stall));
     this.market.position.copy(this.marketPos).setY(0.15);
     this.market.rotation.y = -0.3;
     this.dyn.add(this.market);
@@ -809,16 +813,16 @@ class VillageRig {
     rack.add(bar);
     rack.position.set(1.4, 0.15, -3.6);
     rack.name = 'rack';
-    this.dyn.add(rack);
+    this.dyn.add(mergeRigid(rack));
     // boat at dock
-    this.boat = makeBoat(s.upgrades.boat);
+    this.boat = mergeRigid(makeBoat(s.upgrades.boat));
     this.boat.position.set(0.6, SEA_Y + 0.05, -7.6);
     this.boat.scale.setScalar(s.upgrades.boat >= 1 ? 0.8 : 0.75);
     this.boat.rotation.y = s.upgrades.boat >= 1 ? Math.PI / 2 : 0;
     this.dyn.add(this.boat);
     // salt piles
     for (let i = 0; i < (s.upgrades.salt > 0 ? s.upgrades.salt + 1 : 0); i++) {
-      const p = makeSaltPile();
+      const p = mergeRigid(makeSaltPile());
       p.position.set(-3.0 + i * 0.5, 0.15, -0.7 + (i % 2) * 0.3);
       this.dyn.add(p);
     }
@@ -826,23 +830,25 @@ class VillageRig {
     this.lanterns = [];
     if (stage >= 3) {
       // Pearl of Phú Quốc: a second house and festival bunting
-      const h2 = makeHouse(6);
+      const h2 = mergeRigid(makeHouse(6));
       h2.scale.setScalar(0.75);
       h2.position.set(2.9, 0.15, 3.4);
       h2.rotation.y = -0.6;
       this.dyn.add(h2);
       const colors = ['#e8443a', '#f2c14e', '#3aa0d9', '#5fae52', '#a35bd6'];
+      const bunting = new THREE.Group();
       for (let i = 0; i < 12; i++) {
         const tri = mesh(new THREE.ConeGeometry(0.12, 0.26, 3), toon(colors[i % colors.length]), false);
         tri.rotation.z = Math.PI;
         const u = i / 11;
         tri.position.set(-3 + u * 6, 3.0 - Math.sin(u * Math.PI) * 0.5, 0.6);
-        this.dyn.add(tri);
+        bunting.add(tri);
       }
+      this.dyn.add(mergeRigid(bunting));
     }
     if (stage >= 2) {
       // Busy Harbour: a second boat at the dock
-      const extra = makeBoat(1);
+      const extra = mergeRigid(makeBoat(1));
       extra.scale.setScalar(0.6);
       extra.rotation.y = Math.PI / 2;
       extra.position.set(3.6, SEA_Y + 0.05, -5.4);
@@ -852,7 +858,7 @@ class VillageRig {
       const n = Math.min(9, lvl + 1);
       for (let i = 0; i < n; i++) {
         const u = (i + 1) / (n + 1);
-        const l = makeLantern(i % 2 ? '#f2b233' : '#e8443a');
+        const l = mergeRigid(makeLantern(i % 2 ? '#f2b233' : '#e8443a'));
         l.position.set(-3 + u * 6, 2.6 - 4 * 0.5 * u * (1 - u), -1.6);
         this.lanterns.push(l);
         this.dyn.add(l);
@@ -987,12 +993,12 @@ class VillageRig {
     }
     // Mực trots around between Bà Năm and the jars; he sleeps by his house once he has one
     if (dogPresent(s) && !this.dog) {
-      this.dog = makeDog();
+      this.dog = mergeRigid(makeDog());
       this.dog.scale.setScalar(1.1);
       this.root.add(this.dog);
     }
     if (s.dog.house && !this.dogHouse) {
-      this.dogHouse = makeDogHouse();
+      this.dogHouse = mergeRigid(makeDogHouse());
       this.dogHouse.position.set(-3.2, 0.2, 1.4);
       this.dogHouse.rotation.y = 0.5;
       this.dogHouse.scale.setScalar(1.2);
@@ -1205,7 +1211,7 @@ class MapRig {
     if (this.boatKind !== s.upgrades.boat) {
       discard(this.boat);
       this.boatKind = s.upgrades.boat;
-      this.boat = makeBoat(s.upgrades.boat);
+      this.boat = mergeRigid(makeBoat(s.upgrades.boat));
       this.boat.scale.setScalar(0.45);
       this.root.add(this.boat);
     }

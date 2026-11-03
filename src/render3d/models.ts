@@ -1,5 +1,6 @@
 // Procedural low-poly "cute" models. Everything is built from primitives so art can iterate as fast as code.
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { SPECIES_BY_ID } from '../core/data';
 import { glHost } from './gl';
 import { platform } from '../platform';
@@ -62,6 +63,142 @@ export function discard(obj: THREE.Object3D | null | undefined): void {
     if (m.geometry && !m.userData.outline && !m.userData.sharedGeo) m.geometry.dispose();
     if (m.userData.disposeMat) (m.material as THREE.Material).dispose();
   });
+}
+
+// ---------- Draw-call merging ----------
+/** Plain (untextured) toon and flat materials: their colour can move into the vertices. */
+function paintable(m: THREE.Material): m is THREE.MeshBasicMaterial | THREE.MeshToonMaterial {
+  return m !== OUTLINE && !m.userData.disposeMat && (m instanceof THREE.MeshBasicMaterial || m instanceof THREE.MeshToonMaterial) && !m.map && !m.vertexColors;
+}
+
+/** Everything about a paintable material except its colour: parts that differ only in colour share a draw. */
+function lookKey(m: THREE.MeshBasicMaterial | THREE.MeshToonMaterial): string {
+  const t = m as Partial<THREE.MeshToonMaterial>;
+  return [m.type, t.emissive?.getHex() ?? '', m.opacity, m.transparent, m.side, m.depthWrite, m.fog, t.gradientMap?.uuid ?? ''].join('|');
+}
+
+/** One vertex-coloured material per look, shared by every merged model (nothing recolours these at runtime). */
+const painted = new Map<string, THREE.Material>();
+function paintedMaterial(sample: THREE.MeshBasicMaterial | THREE.MeshToonMaterial): THREE.Material {
+  const key = lookKey(sample);
+  let m = painted.get(key);
+  if (!m) {
+    m = sample.clone();
+    (m as THREE.MeshBasicMaterial).color.set(0xffffff);
+    m.vertexColors = true;
+    painted.set(key, m);
+  }
+  return m;
+}
+
+const KEEP_ATTRS = new Set(['position', 'normal', 'uv']); // 'color' is added for painted parts
+
+/** A mirrored part (negative scale) baked into world space turns inside out unless its triangles flip. */
+function flipWinding(g: THREE.BufferGeometry): void {
+  for (const a of Object.values(g.attributes)) {
+    const s = a.itemSize;
+    const arr = a.array as Float32Array;
+    for (let t = 0; t + 3 * s <= arr.length; t += 3 * s)
+      for (let k = 0; k < s; k++) {
+        const tmp = arr[t + s + k];
+        arr[t + s + k] = arr[t + 2 * s + k];
+        arr[t + 2 * s + k] = tmp;
+      }
+  }
+}
+
+/**
+ * Folds the parts of a rigid model (a boat, a house, a character, a stretch of scenery) into one mesh per
+ * look, in place: plain parts that differ only in colour share one vertex-coloured material. Every mesh costs
+ * three.js its own matrix, culling and uniform work in JavaScript and the GPU its own draw call, which weak
+ * phones feel most (the village drew ~150). The model keeps its own
+ * transform, so code that bobs, turns or scales it still works. Named parts are what animation code looks
+ * up (a palm's 'top', the market 'star', a 'buoy'), so each stays its own object and is folded the same way
+ * inside. Fish clones (shared template geometry, silhouette material swaps) are left alone.
+ * Call it before the model is first drawn, and only on models whose unnamed parts never move on their own.
+ */
+export function mergeRigid<T extends THREE.Object3D>(obj: T): T {
+  const parts: THREE.Mesh[] = [];
+  const nested: THREE.Object3D[] = [];
+  const walk = (o: THREE.Object3D): void => {
+    for (const c of o.children) {
+      if (c.userData.sharedGeo) continue;
+      if (c.name) {
+        nested.push(c);
+        continue;
+      }
+      const m = c as THREE.Mesh;
+      if (m.isMesh && m.visible && !Array.isArray(m.material) && !(m as THREE.InstancedMesh).isInstancedMesh && !(m as THREE.SkinnedMesh).isSkinnedMesh) parts.push(m);
+      walk(c);
+    }
+  };
+  walk(obj);
+  for (const n of nested) mergeRigid(n);
+  if (parts.length < 2) return obj;
+  obj.updateMatrixWorld(true);
+  const inv = obj.matrixWorld.clone().invert();
+  const local = new THREE.Matrix4();
+  const groups = new Map<string, { mat: THREE.Material; mesh: THREE.Mesh; geos: THREE.BufferGeometry[]; parts: THREE.Mesh[] }>();
+  for (const m of parts) {
+    local.multiplyMatrices(inv, m.matrixWorld);
+    let g = m.geometry.clone();
+    g.applyMatrix4(local);
+    if (g.index) {
+      const ni = g.toNonIndexed();
+      g.dispose();
+      g = ni;
+    }
+    if (local.determinant() < 0) flipWinding(g);
+    for (const name of Object.keys(g.attributes)) if (!KEEP_ATTRS.has(name)) g.deleteAttribute(name);
+    if (!g.attributes.uv) g.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2));
+    if (!g.attributes.normal) g.computeVertexNormals();
+    g.morphAttributes = {};
+    let mat = m.material as THREE.Material;
+    let look: string;
+    if (paintable(mat)) {
+      // the part's colour moves into its vertices (linear, as three.js keeps material colours)
+      const c = mat.color;
+      const n = g.attributes.position.count;
+      const rgb = new Float32Array(n * 3);
+      for (let i = 0; i < n; i++) rgb.set([c.r, c.g, c.b], i * 3);
+      g.setAttribute('color', new THREE.Float32BufferAttribute(rgb, 3));
+      look = `paint|${lookKey(mat)}`;
+      mat = paintedMaterial(mat);
+    } else look = mat === OUTLINE ? 'outline' : mat.uuid;
+    const key = `${look}|${m.castShadow}|${m.receiveShadow}|${m.renderOrder}`;
+    const grp = groups.get(key) ?? { mat, mesh: m, geos: [], parts: [] };
+    grp.geos.push(g);
+    grp.parts.push(m);
+    groups.set(key, grp);
+  }
+  const done = new Set<THREE.Mesh>();
+  for (const grp of groups.values()) {
+    const merged = grp.geos.length > 1 ? mergeGeometries(grp.geos, false) : grp.geos[0];
+    if (grp.geos.length > 1) for (const g of grp.geos) g.dispose();
+    if (!merged) continue; // incompatible attributes: these parts stay as they were
+    const mm = new THREE.Mesh(merged, grp.mat);
+    mm.castShadow = grp.mesh.castShadow;
+    mm.receiveShadow = grp.mesh.receiveShadow;
+    mm.renderOrder = grp.mesh.renderOrder;
+    mm.matrixAutoUpdate = false;
+    obj.add(mm);
+    for (const p of grp.parts) done.add(p);
+  }
+  for (const p of done) {
+    // anything under a folded part that wasn't folded with it (a named piece) moves up to the model
+    for (const c of [...p.children]) if (!done.has(c as THREE.Mesh)) obj.attach(c);
+    const parent = p.parent;
+    parent?.remove(p);
+    if (!p.userData.outline) p.geometry.dispose();
+    // drop the plain groups left empty
+    let g = parent;
+    while (g && g !== obj && !g.name && !(g as THREE.Mesh).isMesh && g.children.length === 0) {
+      const up: THREE.Object3D | null = g.parent;
+      up?.remove(g);
+      g = up;
+    }
+  }
+  return obj;
 }
 
 // ---------- Fish ----------

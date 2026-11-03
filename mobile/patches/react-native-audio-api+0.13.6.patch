@@ -1,0 +1,56 @@
+diff --git a/node_modules/react-native-audio-api/common/cpp/audioapi/jsi/RuntimeLifecycleMonitor.cpp b/node_modules/react-native-audio-api/common/cpp/audioapi/jsi/RuntimeLifecycleMonitor.cpp
+index 53d259b..e32fd38 100644
+--- a/node_modules/react-native-audio-api/common/cpp/audioapi/jsi/RuntimeLifecycleMonitor.cpp
++++ b/node_modules/react-native-audio-api/common/cpp/audioapi/jsi/RuntimeLifecycleMonitor.cpp
+@@ -1,5 +1,6 @@
+ #include <audioapi/jsi/RuntimeLifecycleMonitor.h>
+ #include <memory>
++#include <mutex>
+ #include <unordered_map>
+ #include <unordered_set>
+ #include <utility>
+@@ -7,11 +8,17 @@
+ namespace audioapi {
+ 
+ static std::unordered_map<jsi::Runtime *, std::unordered_set<RuntimeLifecycleListener *>> listeners;
++// JSI runs host object destructors on whatever thread the GC finalizes them (Hermes: often its
++// background collector), so removeListener races addListener on the JS thread; unguarded, that
++// corrupted the set and crashed the app (seen on the iOS simulator). Recursive: allocating the
++// monitor object in addListener can run a GC finalizer on this same thread, which calls removeListener.
++static std::recursive_mutex listenersMutex;
+ 
+ struct RuntimeLifecycleMonitorObject : public jsi::HostObject {
+   jsi::Runtime *rt_;
+   explicit RuntimeLifecycleMonitorObject(jsi::Runtime *rt) : rt_(rt) {}
+   ~RuntimeLifecycleMonitorObject() override {
++    std::lock_guard<std::recursive_mutex> lock(listenersMutex);
+     auto listenersSet = listeners.find(rt_);
+     if (listenersSet != listeners.end()) {
+       for (auto listener : listenersSet->second) {
+@@ -23,6 +30,7 @@ struct RuntimeLifecycleMonitorObject : public jsi::HostObject {
+ };
+ 
+ void RuntimeLifecycleMonitor::addListener(jsi::Runtime &rt, RuntimeLifecycleListener *listener) {
++  std::lock_guard<std::recursive_mutex> lock(listenersMutex);
+   auto listenersSet = listeners.find(&rt);
+   if (listenersSet == listeners.end()) {
+     // We install a global host object in the provided runtime, this way we can
+@@ -34,15 +42,15 @@ void RuntimeLifecycleMonitor::addListener(jsi::Runtime &rt, RuntimeLifecycleList
+         "__rnaudioapi_runtime_lifecycle_monitor",
+         jsi::Object::createFromHostObject(
+             rt, std::make_shared<RuntimeLifecycleMonitorObject>(&rt)));
+-    std::unordered_set<RuntimeLifecycleListener *> newSet;
+-    newSet.insert(listener);
+-    listeners.emplace(&rt, std::move(newSet));
++    // emplace keeps an entry a finalizer may have added meanwhile; add to whichever set is there
++    listeners.emplace(&rt, std::unordered_set<RuntimeLifecycleListener *>{}).first->second.insert(listener);
+   } else {
+     listenersSet->second.insert(listener);
+   }
+ }
+ 
+ void RuntimeLifecycleMonitor::removeListener(jsi::Runtime &rt, RuntimeLifecycleListener *listener) {
++  std::lock_guard<std::recursive_mutex> lock(listenersMutex);
+   auto listenersSet = listeners.find(&rt);
+   if (listenersSet == listeners.end()) {
+     // nothing to do here
