@@ -105,7 +105,7 @@ export class RoadOverlay implements Scene {
     const s = this.game.state;
     const c = career(s);
     ctx.fillStyle = '#f6ead2';
-    ctx.fillRect(0, 0, W, H);
+    ctx.fillRect(-W, -H, W * 3, H * 3); // the whole screen, past the game view on tall phones
     outlinedText(ctx, 'Road to the World’s Best', W / 2 - 16, 40, 22, '#fff', COLORS.ink, 6);
     text(ctx, 'Nước mắm ngon nhất thế giới', W / 2 - 16, 70, 12, 'rgba(43,33,24,0.65)', 'center', 800);
     this.game.button(ctx, 'road_close', W - 58, 14, 44, 40, 'x', () => this.game.pop(this), { color: '#8a7a66', dark: '#5f5244', size: 18 });
@@ -215,7 +215,7 @@ export class StageUpOverlay implements Scene {
     const final = index === CAREER.length - 1;
     const color = THEME_COLOR[index];
     ctx.fillStyle = `rgba(15,10,5,${0.82 * clamp01(this.t * 3)})`;
-    ctx.fillRect(0, 0, W, H);
+    ctx.fillRect(-W, -H, W * 3, H * 3); // the whole screen, past the game view on tall phones
     ctx.save();
     ctx.translate(W / 2, 290);
     ctx.rotate(this.t * 0.25);

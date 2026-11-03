@@ -1065,7 +1065,7 @@ export class FishingScene implements Scene {
     const r = this.puzzleResult!;
     const p = this.puzzle!;
     ctx.fillStyle = 'rgba(10,30,40,0.6)';
-    ctx.fillRect(0, 0, W, H);
+    ctx.fillRect(-W, -H, W * 3, H * 3); // the whole screen, past the game view on tall phones
     const k = ease.outBack(clamp01(this.t / 0.4));
     ctx.save();
     ctx.translate(W / 2, 360);
@@ -1099,7 +1099,7 @@ export class FishingScene implements Scene {
     if (this.puzzle) return this.drawPuzzleSummary(ctx);
     const s = this.game.state;
     ctx.fillStyle = 'rgba(10,30,40,0.6)';
-    ctx.fillRect(0, 0, W, H);
+    ctx.fillRect(-W, -H, W * 3, H * 3); // the whole screen, past the game view on tall phones
     const k = ease.outBack(clamp01(this.t / 0.4));
     ctx.save();
     ctx.translate(W / 2, 400);

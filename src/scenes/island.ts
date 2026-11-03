@@ -128,7 +128,7 @@ export class IslandScene implements Scene {
     g.addColorStop(0, '#5cc6d8');
     g.addColorStop(1, '#1f8aa6');
     ctx.fillStyle = g;
-    ctx.fillRect(0, 0, W, H);
+    ctx.fillRect(-W, -H, W * 3, H * 3); // the whole screen, past the game view on tall phones
     ctx.strokeStyle = 'rgba(255,255,255,0.25)';
     ctx.lineWidth = 2;
     for (let i = 0; i < 14; i++) {

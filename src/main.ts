@@ -115,33 +115,50 @@ safeProbe.style.cssText =
   'padding-bottom:max(env(safe-area-inset-bottom,0px),var(--safe-area-inset-bottom,0px))';
 document.body.appendChild(safeProbe);
 
-// Fit the 390x844 logical view into the window, crisp on high-DPI screens.
+// Fit the 390x844 game view into the window (inside the safe area), crisp on high-DPI screens. The
+// canvases reach past the view to fill phones of other shapes (no bars); on a desktop window they stop
+// a little past it, so the game keeps its phone shape.
 let scale = 1;
+let view = { ox: 0, oy: 0, cw: W, ch: H };
 function resize(): void {
   const dpr = Math.min(3, window.devicePixelRatio || 1);
   const cs = getComputedStyle(safeProbe);
   const top = parseFloat(cs.paddingTop) || 0;
   const bottom = parseFloat(cs.paddingBottom) || 0;
-  scale = Math.min(window.innerWidth / W, (window.innerHeight - top - bottom) / H);
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  scale = Math.min(vw / W, (vh - top - bottom) / H);
+  const gw = W * scale;
+  const gh = H * scale;
+  const cw = Math.min(vw, gw * 1.25);
+  const ch = Math.min(vh, gh * 1.4);
+  const left = (vw - cw) / 2;
+  const ctop = (vh - ch) / 2;
+  // the game view: centred in the safe area
+  const vx = (vw - gw) / 2;
+  const vy = top + (vh - top - bottom - gh) / 2;
+  view = { ox: vx - left, oy: vy - ctop, cw, ch };
   for (const c of [canvas, worldCanvas]) {
-    c.style.width = `${W * scale}px`;
-    c.style.height = `${H * scale}px`;
-    c.style.top = `${top}px`;
+    c.style.width = `${cw}px`;
+    c.style.height = `${ch}px`;
+    c.style.left = `${left}px`;
+    c.style.top = `${ctop}px`;
+    c.style.transform = 'none';
   }
-  game.world?.resize(W * scale, H * scale, dpr);
+  game.world?.resize(cw, ch, dpr, view.ox, view.oy, scale);
   // The UI layer redraws every frame too: a 2D canvas of this size costs little even at full
   // device resolution, so only the weakest ("low") tier gets a lower cap to save some blit cost.
   const uiDpr = Math.min(dpr, game.world?.quality === 'low' ? 2 : 3);
-  canvas.width = Math.round(W * scale * uiDpr);
-  canvas.height = Math.round(H * scale * uiDpr);
-  ctx.setTransform(scale * uiDpr, 0, 0, scale * uiDpr, 0, 0);
+  canvas.width = Math.round(cw * uiDpr);
+  canvas.height = Math.round(ch * uiDpr);
+  ctx.setTransform(scale * uiDpr, 0, 0, scale * uiDpr, view.ox * uiDpr, view.oy * uiDpr);
 }
 window.addEventListener('resize', resize);
 resize();
 
 function toLogical(e: PointerEvent): [number, number] {
   const r = canvas.getBoundingClientRect();
-  return [((e.clientX - r.left) / r.width) * W, ((e.clientY - r.top) / r.height) * H];
+  return [(e.clientX - r.left - view.ox) / scale, (e.clientY - r.top - view.oy) / scale];
 }
 // Two fingers pinch-zoom (the island overview); one finger taps, holds and drags as before.
 const touches = new Map<number, [number, number]>();
@@ -203,16 +220,24 @@ function frame(now: number): void {
   const dt = (now - last) / 1000;
   last = now;
   tick(dt);
-  ctx.clearRect(0, 0, W, H);
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.restore();
   game.draw(ctx);
   // a brag card wants this frame: copy it now, while the 3D picture is still in its buffer
   if (game.snapshots.length) {
+    // just the game view (brag cards are drawn from a 390x844 frame), from both layers
+    const crop = (c: HTMLCanvasElement) => {
+      const k = c.width / view.cw;
+      return [view.ox * k, view.oy * k, W * scale * k, H * scale * k] as const;
+    };
     const shot = document.createElement('canvas');
-    shot.width = canvas.width;
-    shot.height = canvas.height;
+    shot.width = Math.round(W * scale * (canvas.width / view.cw));
+    shot.height = Math.round(H * scale * (canvas.width / view.cw));
     const sx = shot.getContext('2d')!;
-    sx.drawImage(worldCanvas, 0, 0, shot.width, shot.height);
-    sx.drawImage(canvas, 0, 0);
+    sx.drawImage(worldCanvas, ...crop(worldCanvas), 0, 0, shot.width, shot.height);
+    sx.drawImage(canvas, ...crop(canvas), 0, 0, shot.width, shot.height);
     for (const done of game.snapshots.splice(0)) done(shot);
   }
   requestAnimationFrame(frame);

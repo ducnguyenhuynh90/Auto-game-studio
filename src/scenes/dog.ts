@@ -26,7 +26,7 @@ export class DogOverlay implements Scene {
     const s = this.game.state;
     const d = s.dog;
     ctx.fillStyle = 'rgba(20,15,10,0.5)';
-    ctx.fillRect(0, 0, W, H);
+    ctx.fillRect(-W, -H, W * 3, H * 3); // the whole screen, past the game view on tall phones
     const k = ease.outBack(clamp01(this.t / 0.3));
     ctx.save();
     ctx.translate(W / 2, 470);

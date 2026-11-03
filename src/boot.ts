@@ -51,9 +51,9 @@ export interface Booted {
   game: Game;
   /** Island staff caught up for the time the game was closed or in the background. */
   welcomeBack(): void;
-  /** One frame: rules + 3D world (draw3d false: rules only, the 3D layer keeps its last picture).
-   * The host then draws the UI layer with game.draw(ctx). */
-  tick(dt: number, draw3d?: boolean): void;
+  /** One frame: rules + 3D world; true when the 3D layer drew (draw3d false: rules only, the 3D layer
+   * keeps its last picture). The host then draws the UI with game.draw(ctx). */
+  tick(dt: number, draw3d?: boolean): boolean;
 }
 
 export function bootGame(opts: BootOptions): Booted {
@@ -189,13 +189,14 @@ export function bootGame(opts: BootOptions): Booted {
       since3d += dt;
       if (!draw3d) {
         skipped++;
-        return;
+        return false;
       }
       // the governor judges the 3D layer's frame rate: a smooth UI over a 15 fps world still needs a lower tier
       governor.frame(since3d);
-      game.world?.render(game, Math.min(skipped ? 0.1 : 0.05, since3d) * game.timeScale);
+      const drew = game.world?.render(game, Math.min(skipped ? 0.1 : 0.05, since3d) * game.timeScale) ?? false;
       since3d = 0;
       skipped = 0;
+      return drew;
     },
   };
 }

@@ -15,7 +15,7 @@ export class ConsentOverlay implements Scene {
 
   draw(ctx: Ctx): void {
     ctx.fillStyle = `rgba(20,15,10,${0.5 * clamp01(this.t * 4)})`;
-    ctx.fillRect(0, 0, W, H);
+    ctx.fillRect(-W, -H, W * 3, H * 3); // the whole screen, past the game view on tall phones
     const k = ease.outBack(clamp01(this.t / 0.3));
     const y = H - 360 + (1 - k) * 360;
     panel(ctx, 14, y, W - 28, 340, COLORS.paper, 22);
