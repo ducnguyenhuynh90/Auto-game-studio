@@ -118,27 +118,43 @@ class Water {
 
 class Ripples {
   private list: { m: THREE.Mesh; t: number; life: number; size: number }[] = [];
+  private pool: THREE.Mesh[] = [];
   constructor(private parent: THREE.Object3D) {}
+  private acquire(): THREE.Mesh {
+    return (
+      this.pool.pop() ??
+      new THREE.Mesh(new THREE.RingGeometry(0.8, 1, 32), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8, depthWrite: false }))
+    );
+  }
   spawn(p: THREE.Vector3, size = 1, life = 0.9): void {
-    const m = new THREE.Mesh(new THREE.RingGeometry(0.8, 1, 32), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8, depthWrite: false }));
+    const m = this.acquire();
+    (m.material as THREE.MeshBasicMaterial).opacity = 0.8;
     m.rotation.x = -Math.PI / 2;
     m.position.set(p.x, 0.06, p.z);
     this.parent.add(m);
     this.list.push({ m, t: 0, life, size });
   }
   update(dt: number): void {
+    let expired = false;
     for (const r of this.list) {
       r.t += dt;
       const k = r.t / r.life;
+      if (k >= 1) {
+        expired = true;
+        continue;
+      }
       r.m.scale.setScalar(0.1 + k * r.size);
       (r.m.material as THREE.MeshBasicMaterial).opacity = 0.8 * (1 - k);
     }
-    for (const r of this.list.filter((r) => r.t >= r.life)) {
-      this.parent.remove(r.m);
-      r.m.geometry.dispose();
-      (r.m.material as THREE.Material).dispose();
+    if (!expired) return;
+    const keep: typeof this.list = [];
+    for (const r of this.list) {
+      if (r.t >= r.life) {
+        this.parent.remove(r.m);
+        this.pool.push(r.m);
+      } else keep.push(r);
     }
-    this.list = this.list.filter((r) => r.t < r.life);
+    this.list = keep;
   }
 }
 
@@ -171,6 +187,15 @@ class FishingRig {
   private plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   private zone = '';
   private islands = new THREE.Group();
+  // scratch vectors reused every sync() frame to avoid per-frame GC pressure during the fishing minigame
+  private scratchFish = new THREE.Vector3();
+  private scratchTip = new THREE.Vector3();
+  private scratchLanding = new THREE.Vector3();
+  private scratchBob = new THREE.Vector3();
+  private scratchLineEnd = new THREE.Vector3();
+  private scratchLineMid = new THREE.Vector3();
+  private scratchAlive = new Set<object>();
+  private scratchReticle = new THREE.Vector3();
 
   constructor(private world: World) {
     this.camera.position.set(0, 5.6, 9.6);
@@ -466,8 +491,9 @@ class FishingRig {
     this.boat.rotation.z = Math.sin(t * 1.1) * 0.04;
 
     // shadows → fish meshes
-    const alive = new Set<object>();
-    const tmp = new THREE.Vector3();
+    const alive = this.scratchAlive;
+    alive.clear();
+    const tmp = this.scratchFish;
     for (const sh of f.shadows) {
       alive.add(sh);
       let m = this.fish.get(sh);
@@ -527,18 +553,19 @@ class FishingRig {
     this.fisher.rotation.x = f.phase === 'reel' ? -0.12 - tension * 0.1 : 0;
     this.camera.updateMatrixWorld();
     this.root.updateMatrixWorld(true);
-    const tip = this.rodTip.getWorldPosition(new THREE.Vector3());
+    const tip = this.rodTip.getWorldPosition(this.scratchTip);
 
     // bobber
     const showLine = ['flying', 'waiting', 'bite', 'reel'].includes(f.phase);
-    const landing = this.screenToWater(f.bobber.x, f.bobber.y);
-    let bob = landing.clone();
+    const landing = this.screenToWater(f.bobber.x, f.bobber.y, this.scratchLanding);
+    const bob = this.scratchBob;
     if (f.phase === 'flying') {
       const k = Math.min(1, f.bobber.t);
       const e = 1 - Math.pow(1 - k, 3);
-      bob = tip.clone().lerp(landing, e);
+      bob.copy(tip).lerp(landing, e);
       bob.y += Math.sin(e * Math.PI) * 2.2;
     } else {
+      bob.copy(landing);
       bob.y = 0.06 + Math.sin(t * 3) * 0.03 - f.bobber.dip * 0.12 - (f.phase === 'bite' ? 0.18 + Math.sin(t * 40) * 0.04 : 0);
     }
     this.bobber.visible = showLine && f.phase !== 'reel';
@@ -558,26 +585,34 @@ class FishingRig {
       this.prevNibbles = f.nibbles;
     }
 
-    // line
+    // line (quadratic Bézier tip→mid→end, written straight into the buffer — no per-frame curve/point allocations)
     this.line.visible = showLine;
     if (showLine) {
-      let end = bob;
+      let end: THREE.Vector3 = bob;
       if (f.phase === 'reel' && f.target) {
         const fm = this.fish.get(f.target);
-        if (fm) end = fm.group.position.clone().setY(0.02);
+        if (fm) {
+          end = this.scratchLineEnd.copy(fm.group.position);
+          end.y = 0.02;
+        }
       }
       const sag = f.phase === 'reel' ? (1 - tension) * 0.9 : 0.6;
-      const mid = tip.clone().lerp(end, 0.5);
+      const mid = this.scratchLineMid.copy(tip).lerp(end, 0.5);
       mid.y -= sag;
-      const curve = new THREE.QuadraticBezierCurve3(tip, mid, end);
-      const pts = curve.getPoints(23);
       const jitter = f.reel && f.reel.strain > 0.1 ? f.reel.strain * 0.05 : 0;
       const arr = (this.line.geometry.attributes.position as THREE.BufferAttribute).array as Float32Array;
-      pts.forEach((p, i) => {
-        arr[i * 3] = p.x + (Math.random() - 0.5) * jitter;
-        arr[i * 3 + 1] = p.y;
-        arr[i * 3 + 2] = p.z;
-      });
+      const segs = 23;
+      for (let i = 0; i <= segs; i++) {
+        const u = i / segs;
+        const uu = 1 - u;
+        const a = uu * uu;
+        const b = 2 * uu * u;
+        const c = u * u;
+        const idx = i * 3;
+        arr[idx] = a * tip.x + b * mid.x + c * end.x + (jitter ? (Math.random() - 0.5) * jitter : 0);
+        arr[idx + 1] = a * tip.y + b * mid.y + c * end.y;
+        arr[idx + 2] = a * tip.z + b * mid.z + c * end.z;
+      }
       this.line.geometry.attributes.position.needsUpdate = true;
       const strain = f.reel ? Math.min(1, f.reel.strain / 0.6) : 0;
       (this.line.material as THREE.LineBasicMaterial).color.setRGB(1, 1 - strain * 0.65, 1 - strain * 0.8);
@@ -587,7 +622,7 @@ class FishingRig {
     this.reticle.visible = f.phase === 'aim' || f.phase === 'charging';
     if (this.reticle.visible) {
       const y = f.aimScreenY();
-      const p = this.screenToWater(W / 2, y);
+      const p = this.screenToWater(W / 2, y, this.scratchReticle);
       this.reticle.position.set(p.x, 0.08, p.z);
       const s = f.phase === 'charging' ? 1 : 0.8 + Math.sin(t * 4) * 0.08;
       this.reticle.scale.setScalar(s);
@@ -1358,8 +1393,21 @@ export class World {
     const reveal = visible.find((o) => o.name === 'reveal') as RevealOverlay | undefined;
     if (reveal) {
       this.showcase.sync(reveal, game.time);
+      // The reveal is a near-static hero shot of a single jar/bottle (a handful of low-poly meshes),
+      // so it's cheap to render at the device's real pixel density even on the "low" quality tier,
+      // which otherwise renders everything else at a reduced resolution to keep fishing/village smooth.
+      // Web only: in the app the GL surface has a fixed size the host (mobile/App.tsx) sets the renderer to,
+      // and resolution comes from shrinking the GL view itself (its glFactor), so pixelRatio stays 1 there.
+      if (!platform.native) {
+        const showcaseRatio = Math.min(this.css.dpr, 3);
+        if (Math.abs(this.renderer.getPixelRatio() - showcaseRatio) > 0.001) this.renderer.setPixelRatio(showcaseRatio);
+      }
       this.renderer.render(this.showcase.scene, this.showcase.camera);
       return;
+    }
+    if (!platform.native) {
+      const tierRatio = this.pixelRatioFor(this.css.dpr);
+      if (Math.abs(this.renderer.getPixelRatio() - tierRatio) > 0.001) this.renderer.setPixelRatio(tierRatio);
     }
     this.mode = game.scene.name === 'fishing' ? 'fishing' : game.scene.name === 'map' ? 'map' : 'village';
     this.village.root.visible = this.mode === 'village';

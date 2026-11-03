@@ -144,6 +144,11 @@ function GameView() {
   const booted = useRef<Booted | null>(null);
   const layout = useRef({ scale: 1, ox: 0, oy: 0, glW: 0, glH: 0, f: 1 });
   const [glFactor, setGlFactor] = useState(1);
+  // The GL view's real surface size in pixels. expo-gl sets gl.drawingBufferWidth/Height once, when the
+  // context is made, and never updates them, but the surface itself follows the view when glFactor
+  // shrinks it. Trusting the stale numbers drew the 3D layer magnified from the bottom-left corner,
+  // out of line with the UI (labels off their jars, the caught fish and reveal jar too big and too high).
+  const glPx = useRef({ w: 0, h: 0 });
 
   showAsk = (a) => {
     setAsk(a);
@@ -184,8 +189,10 @@ function GameView() {
         const world = booted.current?.game.world;
         if (!world) return;
         const dpr = PixelRatio.get();
-        // the quality tier's resolution: the GL view is laid out smaller and scaled up to the game's size
-        const f = Math.min(1, world.pixelRatioFor(dpr) / dpr);
+        // the quality tier's resolution: the GL view is laid out smaller and scaled up to the game's size.
+        // Below ~0.6 the upscale reads as visibly blocky on high-density screens (common Android phones
+        // at dpr 2.5-3 on "low"/"medium" tier) — that loss of looks costs more than the fill-rate it saves.
+        const f = Math.min(1, Math.max(0.6, world.pixelRatioFor(dpr) / dpr));
         setGlFactor(f);
       };
       mark('boot');
@@ -235,9 +242,11 @@ function GameView() {
       if (frameMs.length > 6000) frameMs.splice(0, 3000);
       const world = b.game.world;
       // keep three.js's viewport on the GL view's real drawing buffer
-      if (world && (gl.drawingBufferWidth !== bufW || gl.drawingBufferHeight !== bufH)) {
-        bufW = gl.drawingBufferWidth;
-        bufH = gl.drawingBufferHeight;
+      const realW = glPx.current.w || gl.drawingBufferWidth;
+      const realH = glPx.current.h || gl.drawingBufferHeight;
+      if (world && (realW !== bufW || realH !== bufH)) {
+        bufW = realW;
+        bufH = realH;
         world.resize(W, H, 1);
         world.renderer.setPixelRatio(1);
         world.renderer.setSize(bufW, bufH, false);
@@ -373,7 +382,14 @@ function GameView() {
         <>
           {/* the 3D world: laid out at the quality tier's resolution, scaled up to the game's size */}
           <View pointerEvents="none" style={{ position: 'absolute', left: ox + (gw - gw * f) / 2, top: oy + (gh - gh * f) / 2, width: gw * f, height: gh * f, transform: [{ scale: 1 / f }] }}>
-            <GLView style={StyleSheet.absoluteFill} onContextCreate={onContext} />
+            <GLView
+              style={StyleSheet.absoluteFill}
+              onContextCreate={onContext}
+              onLayout={(e: LayoutChangeEvent) => {
+                const dpr = PixelRatio.get();
+                glPx.current = { w: Math.round(e.nativeEvent.layout.width * dpr), h: Math.round(e.nativeEvent.layout.height * dpr) };
+              }}
+            />
           </View>
           {/* the UI layer */}
           <Canvas pointerEvents="none" style={{ position: 'absolute', left: ox, top: oy, width: gw, height: gh }}>

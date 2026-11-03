@@ -138,3 +138,12 @@ Only [PLAYER] entries count as product evidence.
 - [DESIGN] 2026-10-30 · Icon (D-029): readable at 60 px means three shapes at most (face, hat, fish) and
   strong value contrast (pale hat on orange). Unproven: Play store listing experiments will show
   whether it lifts the tap-through rate.
+- [PLAYER] 2026-11-03 · Founder (OnePlus 13, Android app): the 3D layer was out of line with the UI —
+  "Ready!/Fill me!" labels below and left of their jars, the caught fish and the reveal jar too big
+  and too high. Cause: expo-gl sets gl.drawingBufferWidth/Height once at context creation and never
+  updates them, but the GL surface follows the view when glFactor shrinks it, so three.js drew for
+  the old full size and the screen showed the bottom-left part magnified (~1.32×, = 1/glFactor).
+  The app now measures the GL view's own pixel size (mobile/App.tsx). Also: the app never reports
+  device hints, so detectQuality() read every phone as "medium"; it now starts at "high" and lets the
+  FpsGovernor step down. Founder confirmed on the phone that labels, caught fish and jar reveal now
+  look right. Lesson: never trust expo-gl's drawingBuffer numbers after a relayout.

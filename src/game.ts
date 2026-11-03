@@ -347,10 +347,14 @@ export class Game {
     this.particles.update(dt);
     // Toasts wait while a full-screen moment (the reveal) is on screen, so they never cover it.
     const blocking = this.overlays.some((o) => o.opaque);
-    if (!blocking) for (const t of this.toasts) t.t += dt;
-    this.toasts = this.toasts.filter((t) => t.t < 2.6);
-    for (const f of this.floats) f.t += dt;
-    this.floats = this.floats.filter((f) => f.t < 1.3);
+    if (this.toasts.length) {
+      if (!blocking) for (const t of this.toasts) t.t += dt;
+      if (this.toasts.some((t) => t.t >= 2.6)) this.toasts = this.toasts.filter((t) => t.t < 2.6);
+    }
+    if (this.floats.length) {
+      for (const f of this.floats) f.t += dt;
+      if (this.floats.some((f) => f.t >= 1.3)) this.floats = this.floats.filter((f) => f.t < 1.3);
+    }
     this.coinPulse = Math.max(0, this.coinPulse - dt * 2);
     this.tickIsland(dt);
     this.shake = Math.max(0, this.shake - dt * 3);

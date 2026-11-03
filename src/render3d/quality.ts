@@ -65,7 +65,12 @@ export function saveAutoQuality(q: Quality): void {
 
 /** Best guess from device hints. Conservative: a wrong "low" costs looks, a wrong "high" costs players. */
 export function detectQuality(): Quality {
-  const nav = navigator as Navigator & { deviceMemory?: number };
+  const nav = navigator as Navigator & { deviceMemory?: number; product?: string };
+  // The app (React Native) never reports hardwareConcurrency/deviceMemory/userAgent, so the
+  // browser heuristic below would always read as "4 cores, 4GB, not mobile" and settle on
+  // "medium" for every phone, weak or flagship — visibly soft on today's high-density screens.
+  // Start optimistic there instead; the FpsGovernor steps a genuinely weak device down live.
+  if (nav.product === 'ReactNative') return 'high';
   const cores = nav.hardwareConcurrency ?? 4;
   const mem = nav.deviceMemory ?? 4;
   const mobile = /Android|iPhone|iPad|iPod|Mobile/i.test(nav.userAgent);

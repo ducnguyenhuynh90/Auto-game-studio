@@ -21,13 +21,17 @@ const browserHost: GlHost = {
     return shared;
   },
   snapshot(renderer, scene, camera, size) {
+    // Render at 2x and downsample into the cached canvas: free supersampling that smooths edges
+    // on these baked icons/portraits without growing their cached size or cost anywhere they're drawn.
+    const ss = 2;
+    renderer.setPixelRatio(ss);
     renderer.setSize(size, size, false);
     renderer.setClearColor(0x000000, 0);
     renderer.render(scene, camera);
     const out = platform.makeCanvas();
     out.width = size;
     out.height = size;
-    out.getContext('2d')!.drawImage(renderer.domElement, 0, 0);
+    out.getContext('2d')!.drawImage(renderer.domElement, 0, 0, size, size);
     return out;
   },
   canvasTexture(c) {

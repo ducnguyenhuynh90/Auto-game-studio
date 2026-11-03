@@ -495,6 +495,7 @@ export class Particles {
   }
 
   update(dt: number): void {
+    let expired = false;
     for (const p of this.list) {
       p.life -= dt;
       p.vy += p.g * dt;
@@ -502,8 +503,9 @@ export class Particles {
       p.y += p.vy * dt;
       p.vx *= 1 - dt * 1.2;
       p.rot += dt * 6;
+      if (p.life <= 0) expired = true;
     }
-    this.list = this.list.filter((p) => p.life > 0);
+    if (expired) this.list = this.list.filter((p) => p.life > 0);
   }
 
   draw(ctx: Ctx): void {

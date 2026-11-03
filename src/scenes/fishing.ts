@@ -493,8 +493,14 @@ export class FishingScene implements Scene {
     this.earlyTapT = Math.max(0, this.earlyTapT - dt);
     for (const sh of this.shadows) this.updateShadow(sh, dt);
     if (this.phase === 'aim' || this.phase === 'charging') this.refreshLocks();
-    this.shadows = this.shadows.filter((sh) => !(sh.state === 'flee' && (sh.x < -100 || sh.x > W + 100)));
-    if (!this.puzzle) while (this.shadows.filter((s) => s.state === 'swim' || s.state === 'approach').length < 5) this.spawnShadow();
+    let active = 0;
+    let fled = false;
+    for (const sh of this.shadows) {
+      if (sh.state === 'flee' && (sh.x < -100 || sh.x > W + 100)) fled = true;
+      else if (sh.state === 'swim' || sh.state === 'approach') active++;
+    }
+    if (fled) this.shadows = this.shadows.filter((sh) => !(sh.state === 'flee' && (sh.x < -100 || sh.x > W + 100)));
+    if (!this.puzzle) while (active < 5) { this.spawnShadow(); active++; }
     if (this.card) this.card.t += dt;
     // arriving in a new sea starts its chapter
     if (!this.storyChecked && this.phase === 'aim' && this.t > 0.5) {

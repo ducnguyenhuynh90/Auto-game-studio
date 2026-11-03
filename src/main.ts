@@ -129,8 +129,9 @@ function resize(): void {
     c.style.top = `${top}px`;
   }
   game.world?.resize(W * scale, H * scale, dpr);
-  // The UI layer redraws every frame too: cap its resolution (text stays crisp at 2x).
-  const uiDpr = Math.min(dpr, game.world?.quality === 'low' ? 1.5 : 2);
+  // The UI layer redraws every frame too: a 2D canvas of this size costs little even at full
+  // device resolution, so only the weakest ("low") tier gets a lower cap to save some blit cost.
+  const uiDpr = Math.min(dpr, game.world?.quality === 'low' ? 2 : 3);
   canvas.width = Math.round(W * scale * uiDpr);
   canvas.height = Math.round(H * scale * uiDpr);
   ctx.setTransform(scale * uiDpr, 0, 0, scale * uiDpr, 0, 0);
