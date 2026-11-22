@@ -106,41 +106,42 @@ export function why(run: Run, i: number, subject: Subject): Why {
 }
 
 // ---------- events ----------
-export interface GameEvent { t: number; text: string; tone: 'good' | 'bad' | 'info' }
+export interface GameEvent { t: number; text: string; tone: 'good' | 'bad' | 'info'; icon: string; short: string }
 
 export function events(run: Run): GameEvent[] {
   const out: GameEvent[] = [];
   const g = run.level.goal;
   const seen = new Set<string>();
-  const once = (key: string, t: number, text: string, tone: GameEvent['tone']) => {
+  const once = (key: string, t: number, text: string, tone: GameEvent['tone'], icon = '', short = '') => {
     if (seen.has(key)) return;
     seen.add(key);
-    out.push({ t, text, tone });
+    out.push({ t, text, tone, icon, short });
   };
   const snaps = run.snaps;
   for (let i = 1; i < snaps.length; i++) {
     const a = snaps[i - 1];
     const s = snaps[i];
-    if (s.recruits >= 25) once(`brood${s.year}`, i, `Lứa ếch con lớn: ${Math.round(s.recruits)} con lên bờ`, 'good');
-    if (s.season === 1 && s.recruits < 4) once(`nobrood${s.year}`, i, 'Gần như không có ếch con nào sống sót', 'bad');
-    if (a.frogs < g.frogsMin && s.frogs >= g.frogsMin) once('frogGoal', i, `Ếch vượt mục tiêu ${g.frogsMin}`, 'good');
-    if (s.frogs < 12 && a.frogs >= 12) once('frogLow', i, 'Ếch sắp biến mất khỏi ao', 'bad');
-    if (s.mosquito > 60 && a.mosquito <= 60) once(`mosq${s.year}`, i, 'Muỗi bùng phát', 'bad');
-    if (s.dragonflies >= 8 && a.dragonflies < 8) once('drag', i, 'Chuồn chuồn kéo đến đẻ trứng', 'good');
-    if (s.clarity < 0.5 && a.clarity >= 0.5) once(`bloom${s.year}`, i, 'Tảo nở hoa, nước xanh đục', 'bad');
-    if (s.clarity >= 0.8 && a.clarity < 0.8) once('clear', i, 'Nước trong trở lại', 'good');
-    if (s.shallowDry >= 0.4) once(`dry${s.year}`, i, `Vùng nước nông khô ${Math.round(s.shallowDry * 100)}%`, 'bad');
-    if (s.plants >= 0.3 && a.plants < 0.3) once('plants', i, 'Cây nước phủ kín vùng nông', 'good');
+    if (s.recruits >= 25) once(`brood${s.year}`, i, `Lứa ếch con lớn: ${Math.round(s.recruits)} con lên bờ`, 'good', '🐸', `+${Math.round(s.recruits)}`);
+    if (s.season === 1 && s.recruits < 4) once(`nobrood${s.year}`, i, 'Gần như không có ếch con nào sống sót', 'bad', '🥚', '×');
+    if (a.frogs < g.frogsMin && s.frogs >= g.frogsMin) once('frogGoal', i, `Ếch vượt mục tiêu ${g.frogsMin}`, 'good', '⭐', '');
+    if (s.frogs < 12 && a.frogs >= 12) once('frogLow', i, 'Ếch sắp biến mất khỏi ao', 'bad', '🐸', '↓');
+    if (s.mosquito > 60 && a.mosquito <= 60) once(`mosq${s.year}`, i, 'Muỗi bùng phát', 'bad', '🦟', '!');
+    if (s.dragonflies >= 8 && a.dragonflies < 8) once('drag', i, 'Chuồn chuồn kéo đến đẻ trứng', 'good', '🪰', '+');
+    if (s.clarity < 0.5 && a.clarity >= 0.5) once(`bloom${s.year}`, i, 'Tảo nở hoa, nước xanh đục', 'bad', '🟢', '!');
+    if (s.clarity >= 0.8 && a.clarity < 0.8) once('clear', i, 'Nước trong trở lại', 'good', '💧', '✓');
+    if (s.shallowDry >= 0.4) once(`dry${s.year}`, i, `Vùng nước nông khô ${Math.round(s.shallowDry * 100)}%`, 'bad', '🏜️', '');
+    if (s.plants >= 0.3 && a.plants < 0.3) once('plants', i, 'Cây nước phủ kín vùng nông', 'good', '🌿', '+');
   }
   const last = snaps[snaps.length - 1];
   const ok = checkGoals(run.level, last).every((c) => c.ok);
-  out.push({ t: snaps.length - 1, text: ok ? 'Đạt mọi mục tiêu sau 5 năm' : 'Chưa đạt mục tiêu sau 5 năm', tone: ok ? 'good' : 'bad' });
+  out.push({ t: snaps.length - 1, text: ok ? 'Đạt mọi mục tiêu sau 5 năm' : 'Chưa đạt mục tiêu sau 5 năm', tone: ok ? 'good' : 'bad', icon: ok ? '🏆' : '', short: '' });
   return out.sort((x, y) => x.t - y.t);
 }
 
 // ---------- discoveries (Nature Discovery Journal, GDD 8.1) ----------
 export interface Discovery {
   id: string;
+  icon: string;
   concept: string;
   observation: string;
   evidence: (run: Run) => string;
@@ -156,6 +157,7 @@ const has = (run: Run, a: string) => run.actions.includes(a as never);
 export const DISCOVERIES: Discovery[] = [
   {
     id: 'predation',
+    icon: '🐟',
     concept: 'Săn mồi',
     observation: 'Ếch đẻ trứng mỗi xuân, nhưng gần như không có ếch con.',
     evidence: (r) => `Cá ăn tới ${pct(max(r, 'fishPred'))} số nòng nọc.`,
@@ -165,6 +167,7 @@ export const DISCOVERIES: Discovery[] = [
   },
   {
     id: 'refuge',
+    icon: '🌾',
     concept: 'Nơi ẩn náu',
     observation: 'Có cây nước ở vùng nông, nhiều nòng nọc sống sót hơn dù cá vẫn còn.',
     evidence: (r) => `Cây nước che chở ${pct(max(r, 'refuge'))} nòng nọc; lứa lớn nhất ${Math.round(max(r, 'recruits'))} ếch con.`,
@@ -174,6 +177,7 @@ export const DISCOVERIES: Discovery[] = [
   },
   {
     id: 'root-cause',
+    icon: '🩺',
     concept: 'Sửa nguyên nhân, không sửa triệu chứng',
     observation: 'Thả thêm ếch, nhưng vài năm sau ếch lại giảm.',
     evidence: (r) => `Bắt đầu 55 ếch, sau 5 năm còn ${Math.round(last(r).frogs)}.`,
@@ -183,6 +187,7 @@ export const DISCOVERIES: Discovery[] = [
   },
   {
     id: 'side-effect',
+    icon: '🦟',
     concept: 'Hệ quả ngoài ý muốn',
     observation: 'Bớt cá thì ếch tăng, nhưng muỗi cũng tăng.',
     evidence: (r) => `Muỗi lên tới ${Math.round(max(r, 'mosquito'))} khi cá ít đi.`,
@@ -192,6 +197,7 @@ export const DISCOVERIES: Discovery[] = [
   },
   {
     id: 'eutrophication',
+    icon: '🟢',
     concept: 'Phú dưỡng',
     observation: 'Cho cá ăn, nước chuyển xanh đục.',
     evidence: (r) => `Nước trong thấp nhất ${pct(Math.min(...r.snaps.map((s) => s.clarity)))}.`,
@@ -201,6 +207,7 @@ export const DISCOVERIES: Discovery[] = [
   },
   {
     id: 'biocontrol',
+    icon: '🪰',
     concept: 'Thiên địch',
     observation: 'Chuồn chuồn kéo đến và giữ muỗi ở mức thấp.',
     evidence: (r) => `Cao nhất ${Math.round(max(r, 'dragonflies'))} chuồn chuồn; ấu trùng ăn tới ${pct(max(r, 'mosqByDragon'))} bọ gậy.`,
@@ -210,6 +217,7 @@ export const DISCOVERIES: Discovery[] = [
   },
   {
     id: 'trade-off',
+    icon: '⚖️',
     concept: 'Đánh đổi',
     observation: 'Vùng nông có cây giúp ếch, nhưng ao còn ít chỗ cho cá.',
     evidence: (r) => `Sức chứa cá còn ${Math.round(last(r).fishCap)} (ban đầu 60).`,
@@ -219,6 +227,7 @@ export const DISCOVERIES: Discovery[] = [
   },
   {
     id: 'microclimate',
+    icon: '🌳',
     concept: 'Vi khí hậu',
     observation: 'Màn khô: cây ven bờ che bóng, vùng nông khô chậm hơn.',
     evidence: (r) => `Vùng nông khô tối đa ${pct(max(r, 'shallowDry'))}.`,
