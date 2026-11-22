@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>WILDROOT Ao Ếch</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: field-lab bench. Problem + goals on top, two pond worlds side by side, one shared timeline under them. */
+:root {
+  --bg: #e9efe8;
+  --panel: #f7faf5;
+  --ink: #15302b;
+  --muted: #5b6f69;
+  --line: #c9d6cc;
+  --a: #12776a;      /* world A */
+  --b: #b8640a;      /* world B */
+  --good: #2f7d32;
+  --bad: #b3261e;
+  --focus: #0b5cad;
+  /* canvas palette */
+  --land: #a9c48a; --land2: #9dba7e; --deep: #2d6f8e; --shallow: #5fa3b5; --reed: #3d7d45;
+  --tree: #2f5d32; --log: #7a5a3a; --algae: #6f9a2a; --mud: #a08c66;
+  --frog: #7bc043; --fish: #f08a3c; --dragon: #1e5bd8; --mosq: #2a2a2a;
+  --font-display: 'Bricolage Grotesque', 'Be Vietnam Pro', system-ui, sans-serif;
+  --font-body: 'Be Vietnam Pro', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-data: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1a18; --panel: #16241f; --ink: #e2ece6; --muted: #93a8a0; --line: #2a3d36;
+    --a: #3fbfa9; --b: #f0a140; --good: #6cc070; --bad: #f2867d; --focus: #7ab8ff;
+    --land: #4f6b3c; --land2: #48633a; --deep: #1d4a60; --shallow: #33738a; --reed: #4e9a57;
+    --tree: #6aa36e; --log: #a0784f; --algae: #7fae33; --mud: #6f6248;
+    --frog: #9be05e; --fish: #ff9d55; --dragon: #6d9cff; --mosq: #d7d7d7;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1a18; --panel: #16241f; --ink: #e2ece6; --muted: #93a8a0; --line: #2a3d36;
+  --a: #3fbfa9; --b: #f0a140; --good: #6cc070; --bad: #f2867d; --focus: #7ab8ff;
+  --land: #4f6b3c; --land2: #48633a; --deep: #1d4a60; --shallow: #33738a; --reed: #4e9a57;
+  --tree: #6aa36e; --log: #a0784f; --algae: #7fae33; --mud: #6f6248;
+  --frog: #9be05e; --fish: #ff9d55; --dragon: #6d9cff; --mosq: #d7d7d7;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 var(--font-body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 16px 48px;
+}
+.wrap { max-width: 980px; margin: 0 auto; display: grid; gap: 16px; }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(26px, 5vw, 38px); font-weight: 800; letter-spacing: -0.01em; line-height: 1.1; }
+h2 { font-size: 18px; font-weight: 600; }
+.eyebrow { font: 500 12px var(--font-data); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+p { margin: 0; }
+button { font: inherit; color: inherit; cursor: pointer; }
+button:focus-visible, input:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+header { display: grid; gap: 8px; }
+.levels { display: flex; gap: 8px; flex-wrap: wrap; }
+.levels button { border: 1px solid var(--line); background: var(--panel); border-radius: 999px; padding: 4px 12px; font-size: 13px; }
+.levels button[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.problem { max-width: 65ch; color: var(--muted); }
+.goals { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; }
+.goals span { font-family: var(--font-data); }
+.how { font-size: 13px; color: var(--muted); }
+
+.bench { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.world { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px; display: grid; gap: 8px; min-width: 0; align-content: start; }
+.world[data-w="0"] { border-top: 4px solid var(--a); }
+.world[data-w="1"] { border-top: 4px solid var(--b); }
+.whead { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.whead h2 small { font: 500 12px var(--font-data); color: var(--muted); margin-left: 4px; }
+.budget { font: 500 12px var(--font-data); color: var(--muted); }
+canvas.pond { width: 100%; aspect-ratio: 1; max-width: 100%; border-radius: 6px; display: block; touch-action: manipulation; }
+.actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.act { border: 1px solid var(--line); background: transparent; border-radius: 8px; padding: 5px 8px; font-size: 13px; text-align: left; line-height: 1.25; }
+.act b { font: 500 11px var(--font-data); color: var(--muted); margin-left: 4px; }
+.act[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.act[aria-pressed="true"] b { color: inherit; opacity: 0.8; }
+.act:disabled { opacity: 0.4; cursor: not-allowed; }
+.status { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 10px; font-size: 12.5px; }
+.status div { display: flex; justify-content: space-between; gap: 6px; border-bottom: 1px dashed var(--line); padding-bottom: 2px; }
+.status .ok { color: var(--good); } .status .no { color: var(--bad); }
+.status span:last-child { font-family: var(--font-data); white-space: nowrap; }
+.species { display: flex; flex-wrap: wrap; gap: 4px; }
+.species button { border: 0; background: var(--bg); border-radius: 999px; padding: 3px 9px; font-size: 12.5px; }
+.species button:hover { background: var(--line); }
+.species .lbl { font-size: 12px; color: var(--muted); align-self: center; margin-right: 2px; }
+
+.timeline { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; display: grid; gap: 10px; }
+.trow { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.run { background: var(--ink); color: var(--bg); border: 0; border-radius: 8px; padding: 9px 16px; font-weight: 600; }
+.ghost { background: transparent; border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px; font-size: 13px; }
+.when { font: 500 14px var(--font-data); min-width: 110px; }
+input[type="range"] { flex: 1; min-width: 160px; accent-color: var(--ink); }
+.ticks { display: grid; grid-template-columns: repeat(5, 1fr); font: 500 11px var(--font-data); color: var(--muted); margin-top: -6px; }
+.ticks span { border-left: 1px solid var(--line); padding-left: 4px; }
+.metrics { display: flex; gap: 6px; flex-wrap: wrap; }
+.metrics button { border: 1px solid var(--line); background: transparent; border-radius: 999px; padding: 3px 10px; font-size: 12.5px; }
+.metrics button[aria-pressed="true"] { border-color: var(--ink); background: var(--bg); font-weight: 600; }
+canvas.chart { width: 100%; height: 170px; display: block; }
+.legend { display: flex; gap: 14px; font-size: 12.5px; color: var(--muted); flex-wrap: wrap; }
+.legend i { display: inline-block; width: 18px; height: 3px; vertical-align: middle; margin-right: 5px; border-radius: 2px; }
+
+.lower { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; display: grid; gap: 8px; align-content: start; min-width: 0; }
+.log { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 13px; max-height: 260px; overflow: auto; }
+.log li { display: grid; grid-template-columns: 92px 1fr; gap: 6px; opacity: 0.35; }
+.log li.past { opacity: 1; }
+.log time { font: 500 11.5px var(--font-data); color: var(--muted); padding-top: 2px; }
+.log .A { color: var(--a); font-weight: 700; } .log .B { color: var(--b); font-weight: 700; }
+.log .good::before { content: '▲ '; color: var(--good); } .log .bad::before { content: '▼ '; color: var(--bad); }
+.log .info::before { content: '● '; color: var(--muted); }
+.journal { display: grid; gap: 10px; }
+.disc { border-left: 3px solid var(--ink); padding-left: 10px; display: grid; gap: 2px; font-size: 13.5px; }
+.disc h3 { font-size: 15px; }
+.disc .k { font: 500 11px var(--font-data); text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.disc .real { color: var(--muted); font-size: 12.5px; }
+.empty { color: var(--muted); font-size: 13px; }
+.locked { font: 500 12px var(--font-data); color: var(--muted); }
+
+dialog { border: 1px solid var(--line); border-radius: 12px; background: var(--panel); color: var(--ink); max-width: min(520px, calc(100vw - 32px)); padding: 16px; }
+dialog::backdrop { background: rgb(0 0 0 / 0.35); }
+.why { display: grid; gap: 10px; }
+.cause { display: grid; gap: 3px; font-size: 13.5px; }
+.bar { height: 8px; border-radius: 4px; background: var(--bg); overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--ink); }
+.cause small { color: var(--muted); }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-size: 14px; max-width: calc(100vw - 32px); box-shadow: 0 6px 24px rgb(0 0 0 / 0.25); }
+footer { font-size: 12px; color: var(--muted); max-width: 70ch; }
+
+@media (max-width: 640px) {
+  .bench { gap: 8px; }
+  .world { padding: 8px; }
+  .act { font-size: 12px; padding: 4px 6px; }
+  .status { grid-template-columns: 1fr; }
+  .lower { grid-template-columns: 1fr; }
+  .log li { grid-template-columns: 78px 1fr; }
+}
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">WILDROOT · bản thử nghiệm</div>
+    <h1 id="title">Ếch đi đâu mất?</h1>
+    <div class="levels" id="levels"></div>
+    <p class="problem" id="problem"></p>
+    <div class="goals" id="goals"></div>
+    <p class="how">Cùng một cái ao, hai thế giới. Chọn hành động khác nhau cho mỗi bên, chạy 5 năm, rồi kéo thanh thời gian để so sánh. Bấm vào một loài để hỏi <b>Vì sao?</b></p>
+  </header>
+
+  <section class="bench" aria-label="Hai thế giới">
+    <article class="world" data-w="0"></article>
+    <article class="world" data-w="1"></article>
+  </section>
+
+  <section class="timeline" aria-label="Thời gian">
+    <div class="trow">
+      <button class="run" id="run">Chạy 5 năm</button>
+      <button class="ghost" id="play" disabled>Dừng</button>
+      <span class="when" id="when">Bắt đầu</span>
+      <input type="range" id="scrub" min="0" max="20" value="0" step="1" disabled aria-label="Thời gian">
+    </div>
+    <div class="ticks" aria-hidden="true"><span>Năm 1</span><span>Năm 2</span><span>Năm 3</span><span>Năm 4</span><span>Năm 5</span></div>
+    <div class="trow" style="justify-content: space-between">
+      <div class="metrics" id="metrics"></div>
+      <div class="legend"><span><i style="background: var(--a)"></i>Thế giới A</span><span><i style="background: var(--b)"></i>Thế giới B</span><span><i style="background: var(--muted)"></i>Mục tiêu</span></div>
+    </div>
+    <canvas class="chart" id="chart" aria-label="Biểu đồ so sánh hai thế giới"></canvas>
+    <div class="trow"><button class="ghost" id="reseed">Đổi thời tiết (seed khác)</button><span class="locked" id="seed"></span></div>
+  </section>
+
+  <section class="lower">
+    <div class="panel">
+      <h2>Chuyện gì đã xảy ra</h2>
+      <ul class="log" id="log"><li class="past"><time>—</time><span class="empty">Chạy 5 năm để xem diễn biến.</span></li></ul>
+    </div>
+    <div class="panel">
+      <h2>Sổ khám phá <span class="locked" id="jcount"></span></h2>
+      <div class="journal" id="journal"><p class="empty">Chưa có khám phá nào. Thử nghiệm để mở khóa.</p></div>
+    </div>
+  </section>
+
+  <footer>Mô hình trong game đã được giản lược để dễ chơi; các con số không phải tham số sinh thái đã kiểm chứng. Mỗi khám phá có phần "Ngoài đời thực" để phân biệt. Cùng seed và cùng hành động luôn cho cùng kết quả.</footer>
+</div>
+
+<dialog id="whyDlg" aria-labelledby="whyTitle">
+  <div class="why">
+    <div class="eyebrow" id="whyWhere"></div>
+    <h2 id="whyTitle"></h2>
+    <p id="whyHead"></p>
+    <div id="whyCauses" class="why"></div>
+    <button class="ghost" id="whyClose">Đóng</button>
+  </div>
+</dialog>
+<div class="toast" id="toast" hidden role="status"></div>
+<script type="module" src="./src/main.ts"></script>
+</body>
+</html>

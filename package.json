@@ -20,7 +20,12 @@
     "phone": "cd mobile && npx expo run:android --variant release",
     "phone:live": "cd mobile && npx expo run:android",
     "phone:test": "node tools/phone-test.mjs",
-    "phone:logs": "adb logcat -v time -s ReactNativeJS:* ReactNative:* AndroidRuntime:E"
+    "phone:logs": "adb logcat -v time -s ReactNativeJS:* ReactNative:* AndroidRuntime:E",
+    "wr:dev": "vite --config wildroot/vite.config.ts --host",
+    "wr:test": "vitest run --config wildroot/vite.config.ts",
+    "wr:solve": "vite-node wildroot/tools/solve.ts",
+    "wr:artifact": "node wildroot/tools/build-artifact.mjs",
+    "wr:shots": "node wildroot/tools/shots.mjs"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.11",
