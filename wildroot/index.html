@@ -184,10 +184,37 @@ input.scrub { position: absolute; inset: 0; opacity: 0; width: 100%; cursor: ew-
   .chip .v { font-size: 11px; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+/* single-island lesson UI */
+.tag { padding: 4px 8px; }
+.tag .lock { width: 30px; height: 30px; border-radius: 50%; background: #eef3f0; font-size: 17px; display: grid; place-items: center; opacity: 0.85; }
+.goalbar .gl { color: var(--muted); font-size: 12px; margin-right: 2px; }
+.card { position: relative; }
+.card.new { box-shadow: 0 0 0 3px var(--gold), var(--shadow); animation: bob 1.6s ease-in-out infinite; }
+@keyframes bob { 50% { transform: translateY(-5px); } }
+.newtag { position: absolute; top: -8px; left: 50%; transform: translateX(-50%); background: var(--gold); color: var(--ink); font: 800 10px var(--font-body); letter-spacing: 0.06em; padding: 2px 6px; border-radius: 6px; }
+.res1 { display: grid; justify-items: center; gap: 4px; }
+.res1 .stars { font-size: 40px; }
+.takeaway, .tip { display: flex; gap: 10px; align-items: center; border-radius: 14px; padding: 12px; font-size: 15px; }
+.takeaway { background: #fff6d8; box-shadow: inset 0 0 0 2px #f1c95a; }
+.tip { background: #fde9e6; box-shadow: inset 0 0 0 2px #f2b3ab; font-weight: 600; }
+.takeaway .ci, .tip .ci { font-size: 28px; flex: 0 0 auto; }
+.intro { display: grid; justify-items: center; text-align: center; gap: 8px; }
+.intro .eyebrow { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.intro .big-ic { font-size: 64px; line-height: 1; }
+.intro p { margin: 0; font-size: 16px; font-weight: 500; max-width: 34ch; }
+.goalrow { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.goalrow span { background: #eef3f0; border-radius: 999px; padding: 4px 10px; font-variant-numeric: tabular-nums; }
+.newcard { display: flex; gap: 12px; align-items: center; background: #f3f7f4; border-radius: 16px; padding: 12px 14px; text-align: left; font-weight: 500; font-size: 14px; }
+.newcard .card { animation: none; flex: 0 0 auto; }
+.lvl.cur { box-shadow: inset 0 0 0 2px var(--ink); }
+.lvl .n { background: #fff; font-size: 24px; box-shadow: inset 0 0 0 2px var(--line); }
+.chip .tg { font-size: 10px; font-weight: 700; color: var(--muted); line-height: 1; }
+.btn.wide { width: 100%; flex: none; height: 56px; font-size: 17px; }
+.dcards.one { grid-template-columns: minmax(0, 220px); justify-content: center; }
 </style>
 </head>
 <body>
-<canvas id="world" aria-label="Hai hòn đảo ao: thế giới A và B"></canvas>
+<canvas id="world" aria-label="Hòn đảo có cái ao"></canvas>
 <div class="hud">
   <div class="top">
     <button class="pill level" id="levelBtn" aria-label="Chọn màn"></button>
@@ -222,7 +249,7 @@ input.scrub { position: absolute; inset: 0; opacity: 0; width: 100%; cursor: ew-
 <div class="title" id="titleScreen">
   <div>
     <h1>WILDROOT</h1>
-    <p>Cùng một cái ao. Hai lựa chọn. Xem chúng khác nhau thế nào.</p>
+    <p>Một cái ao nhỏ. Mọi thứ đều liên quan đến nhau.</p>
     <button class="btn primary" id="start">Chơi</button>
   </div>
 </div>

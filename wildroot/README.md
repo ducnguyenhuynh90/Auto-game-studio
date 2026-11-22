@@ -1,11 +1,10 @@
 # WILDROOT MVP (prototype)
 
-Playable prototype for the WILDROOT GDD v0.1: one pond, two parallel worlds, one shared timeline.
-Rendered as two low-poly 3D island dioramas (three.js, the studio's engine in Mắm Village), played with
-cards: drag a card onto an island (or tap card → tap island), press ▶, watch 5 years of seasons, earn
-stars, collect winning strategies and discovery cards. Tap a goal chip under an island to ask Why?
-It tests the riskiest question first: does the "fork → intervene → scrub → compare → why?" loop
-make people understand cause and effect and want to retry? Not production code, not final art.
+Playable prototype for the WILDROOT GDD v0.1: one low-poly 3D pond island (three.js, the studio's engine
+in Mắm Village), played with cards. A path of 6 short lessons adds one card and one idea at a time
+(watch → hide → release? → green water → winter → mosquitoes), then 2 open challenges. Each level opens
+with an intro card, guides one step at a time, ends with stars, a one-line takeaway (or a hint naming the
+biggest cause on failure) and a flip-over knowledge card. Tap a goal chip to ask Why?
 
 ## Run
 - `npm run wr:dev`: dev server (open the printed URL)
@@ -28,10 +27,10 @@ make people understand cause and effect and want to retry? Not production code, 
 - Telemetry stays local in `window.__wildroot` (GDD 18.1 names + `world_forked`, `timeline_scrubbed`).
   No PostHog key is wired in yet.
 
-## Levels (solver results, 40 seeds)
-- **Màn 1, Ếch đi đâu mất?** (budget 3): 4 minimal winners: reeds+logs, reeds+removeFish,
-  reeds+addFrogs, removeFish+addFrogs+logs. Doing nothing, releasing frogs alone and feeding fish lose.
-- **Màn 2, Mùa khô kéo dài** (budget 4): 7 winners; shade (useless in level 1) now matters because it
-  slows the shallow water drying out.
+## Levels (solver, 40 seeds)
+- Lessons: each is won only by its lesson card ("release" is the trap: releasing frogs alone loses;
+  "green" has two answers, shade or reeds). Doing nothing loses every lesson.
+- **Ếch đi đâu mất?** (budget 3, all cards): 4 minimal winners, no dominant action.
+- **Mùa khô** (budget 4): 7 winners; shade (useless in the first challenge) matters because it slows drying.
 
 All numbers are gameplay values, not verified ecological parameters. [SIM] only: no player has played it yet.

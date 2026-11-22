@@ -4,18 +4,18 @@ import { ACTIONS, cost, simulate, won, type ActionId, type Level } from './sim';
 
 export interface StrategyResult { actions: ActionId[]; cost: number; winRate: number }
 
-export function allActionSets(budget: number): ActionId[][] {
+export function allActionSets(budget: number, cards: readonly ActionId[] = ACTIONS.map((a) => a.id)): ActionId[][] {
   const out: ActionId[][] = [];
-  const n = ACTIONS.length;
+  const n = cards.length;
   for (let mask = 0; mask < 1 << n; mask++) {
-    const set = ACTIONS.filter((_, i) => mask & (1 << i)).map((a) => a.id);
-    if (cost(set) <= budget) out.push(set);
+    const set = cards.filter((_, i) => mask & (1 << i));
+    if (cost(set) <= budget) out.push([...set]);
   }
   return out;
 }
 
 export function solve(level: Level, seeds = 40): StrategyResult[] {
-  return allActionSets(level.budget)
+  return allActionSets(level.budget, level.cards)
     .map((actions) => {
       let wins = 0;
       for (let s = 1; s <= seeds; s++) if (won(simulate(level, s, actions))) wins++;

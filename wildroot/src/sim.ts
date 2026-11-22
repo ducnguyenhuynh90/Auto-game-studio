@@ -22,10 +22,16 @@ export const ACTIONS: ActionDef[] = [
 
 export const actionDef = (id: ActionId): ActionDef => ACTIONS.find((a) => a.id === id)!;
 
+export type GoalKey = 'frogsMin' | 'clarityMin' | 'mosquitoMax' | 'fishMin';
+
 export interface Level {
   id: string;
+  /** 'lesson' teaches one idea with few cards; 'challenge' opens every card. */
+  kind: 'lesson' | 'challenge';
   title: string;
   problem: string;
+  /** Big icon for the intro card. */
+  icon: string;
   budget: number;
   years: number;
   /** Rain multiplier range half-width (0.25 → 0.75..1.25). Bigger = harsher years. */
@@ -33,30 +39,81 @@ export interface Level {
   /** Dry level: shallow water dries out in summer when rain is low. */
   dry: boolean;
   goal: { frogsMin: number; clarityMin: number; mosquitoMax: number; fishMin: number };
+  /** Goals that count in this level (lessons check fewer things). */
+  checks: GoalKey[];
+  /** Cards the player can use. */
+  cards: ActionId[];
+  /** Already on the map when the level starts (free, cannot be removed). */
+  preset: ActionId[];
+  /** Card introduced by this lesson, highlighted in the tray. */
+  newCard?: ActionId;
+  /** Observe-only lesson: no cards, the task is to watch and ask Why?. */
+  observe?: boolean;
+  /** One-line takeaway shown when the level is cleared. */
+  lesson: string;
 }
+
+const ALL: ActionId[] = ['reeds', 'removeFish', 'addFrogs', 'feedFish', 'shade', 'logs'];
+const GOAL = { frogsMin: 60, clarityMin: 0.5, mosquitoMax: 55, fishMin: 10 };
+const base = { rainSwing: 0.2, dry: false, preset: [] as ActionId[], goal: GOAL };
 
 export const LEVELS: Level[] = [
   {
-    id: 'missing-frogs',
-    title: 'Ếch đi đâu mất?',
-    problem: 'Ao có nhiều cá, ếch giảm dần mỗi năm. Hãy đưa ếch trở lại mà ao vẫn khỏe.',
-    budget: 3,
-    years: 5,
-    rainSwing: 0.2,
-    dry: false,
-    goal: { frogsMin: 60, clarityMin: 0.5, mosquitoMax: 55, fishMin: 10 },
+    ...base, id: 'watch', kind: 'lesson', icon: '👀', title: 'Nhìn ao',
+    problem: 'Ao này đang mất dần ếch. Bấm ▶ xem 2 năm, rồi hỏi ếch vì sao.',
+    budget: 0, years: 2, checks: [], cards: [], observe: true,
+    lesson: 'Cá ăn gần hết nòng nọc, nên ếch không có con.',
   },
   {
-    id: 'dry-pond',
-    title: 'Mùa khô kéo dài',
-    problem: 'Vẫn ao đó, nhưng hè nào cũng khô: vùng nước nông cạn trơ. Cách nào còn hiệu quả?',
-    budget: 4,
-    years: 5,
-    rainSwing: 0.2,
-    dry: true,
-    goal: { frogsMin: 40, clarityMin: 0.5, mosquitoMax: 55, fishMin: 10 },
+    ...base, id: 'hide', kind: 'lesson', icon: '🌾', title: 'Chỗ trốn',
+    problem: 'Nòng nọc cần chỗ trốn cá. Kéo thẻ 🌾 lên đảo rồi bấm ▶.',
+    budget: 2, years: 3, checks: ['frogsMin'], cards: ['reeds'], newCard: 'reeds',
+    goal: { ...GOAL, frogsMin: 30 },
+    lesson: 'Cỏ nước ở vùng nông che chở nòng nọc khỏi cá.',
+  },
+  {
+    ...base, id: 'release', kind: 'lesson', icon: '🐸', title: 'Thả thêm ếch?',
+    problem: 'Chỉ chọn được một thẻ. Thả thêm ếch, hay sửa nguyên nhân?',
+    budget: 2, years: 3, checks: ['frogsMin'], cards: ['addFrogs', 'reeds'], newCard: 'addFrogs',
+    goal: { ...GOAL, frogsMin: 30 },
+    lesson: 'Thả thêm không giúp lâu dài nếu nguyên nhân vẫn còn.',
+  },
+  {
+    ...base, id: 'green', kind: 'lesson', icon: '💧', title: 'Nước xanh',
+    problem: 'Hàng xóm cho cá ăn mỗi ngày, nước đang xanh đục. Làm nước trong lại.',
+    budget: 2, years: 3, checks: ['clarityMin'], cards: ['shade', 'reeds'], newCard: 'shade', preset: ['feedFish'],
+    goal: { ...GOAL, clarityMin: 0.6 },
+    lesson: 'Thức ăn thừa làm nước giàu dinh dưỡng, tảo mọc dày. Cây và bóng mát kìm tảo.',
+  },
+  {
+    ...base, id: 'winter', kind: 'lesson', icon: '❄️', title: 'Mùa đông',
+    problem: 'Bờ cỏ đã có sẵn. Ếch vẫn chết nhiều mỗi đông. Chúng cần gì?',
+    budget: 1, years: 3, checks: ['frogsMin'], cards: ['logs', 'shade'], newCard: 'logs', preset: ['reeds'],
+    goal: { ...GOAL, frogsMin: 45 },
+    lesson: 'Gỗ mục cho ếch chỗ trú đông, nhiều con sống qua mùa lạnh.',
+  },
+  {
+    ...base, id: 'mosquito', kind: 'lesson', icon: '🦟', title: 'Ít cá, nhiều muỗi',
+    problem: 'Bắt bớt cá giúp ếch. Nhưng cá cũng ăn bọ gậy. Giữ muỗi ở mức thấp!',
+    budget: 3, years: 5, checks: ['frogsMin', 'mosquitoMax'], cards: ['removeFish', 'addFrogs', 'logs'], newCard: 'removeFish',
+    lesson: 'Bớt một loài săn mồi thì con mồi của nó tăng. Ếch đông lại giúp ăn muỗi.',
+  },
+  {
+    ...base, id: 'missing-frogs', kind: 'challenge', icon: '🏆', title: 'Ếch đi đâu mất?',
+    problem: 'Thử thách: mọi thẻ, 3 điểm. Đưa ếch về mà ao vẫn khỏe.',
+    budget: 3, years: 5, checks: ['frogsMin', 'clarityMin', 'mosquitoMax', 'fishMin'], cards: ALL,
+    lesson: 'Có nhiều cách thắng. Bạn tìm được mấy cách?',
+  },
+  {
+    ...base, id: 'dry-pond', kind: 'challenge', icon: '🏜️', title: 'Mùa khô',
+    problem: 'Thử thách: hè nào cũng khô, vùng nông cạn trơ. Cách cũ còn hiệu quả?',
+    budget: 4, years: 5, dry: true, checks: ['frogsMin', 'clarityMin', 'mosquitoMax', 'fishMin'], cards: ALL,
+    goal: { ...GOAL, frogsMin: 40 },
+    lesson: 'Cùng một hành động, bối cảnh khác thì kết quả khác.',
   },
 ];
+
+export const levelById = (id: string) => LEVELS.find((l) => l.id === id)!;
 
 // ---------- deterministic RNG ----------
 export function mulberry32(seed: number): () => number {
@@ -155,7 +212,7 @@ const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v
 const r1 = (v: number) => Math.round(v * 1000) / 1000;
 
 export function simulate(level: Level, seed: number, actionsIn: readonly ActionId[]): Run {
-  const actions = [...new Set(actionsIn)].sort() as ActionId[];
+  const actions = [...new Set([...actionsIn, ...level.preset])].sort() as ActionId[];
   const map = buildMap(actions);
   const h = habitat(map);
   const rng = mulberry32(seed * 7919 + 13);
@@ -268,18 +325,19 @@ export function simulate(level: Level, seed: number, actionsIn: readonly ActionI
 }
 
 // ---------- goals ----------
-export interface GoalCheck { key: keyof Level['goal']; label: string; ok: boolean; value: string }
+export interface GoalCheck { key: GoalKey; label: string; ok: boolean; value: string }
 
 export function checkGoals(level: Level, s: Snapshot): GoalCheck[] {
   const g = level.goal;
-  return [
+  const all: GoalCheck[] = [
     { key: 'frogsMin', label: `Ếch ≥ ${g.frogsMin}`, ok: s.frogs >= g.frogsMin, value: `${Math.round(s.frogs)}` },
     { key: 'clarityMin', label: `Nước trong ≥ ${Math.round(g.clarityMin * 100)}%`, ok: s.clarity >= g.clarityMin, value: `${Math.round(s.clarity * 100)}%` },
     { key: 'mosquitoMax', label: `Muỗi ≤ ${g.mosquitoMax}`, ok: s.mosquito <= g.mosquitoMax, value: `${Math.round(s.mosquito)}` },
     { key: 'fishMin', label: `Vẫn còn cá ≥ ${g.fishMin}`, ok: s.fish >= g.fishMin, value: `${Math.round(s.fish)}` },
   ];
+  return all.filter((c) => level.checks.includes(c.key));
 }
 
-export const won = (run: Run) => checkGoals(run.level, run.snaps[run.snaps.length - 1]).every((g) => g.ok);
+export const won = (run: Run) => !run.level.observe && checkGoals(run.level, run.snaps[run.snaps.length - 1]).every((g) => g.ok);
 
 export const cost = (actions: readonly ActionId[]) => actions.reduce((n, a) => n + actionDef(a).cost, 0);

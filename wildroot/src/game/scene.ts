@@ -421,7 +421,7 @@ export class World3D {
       mosq: new THREE.MeshBasicMaterial({ color: '#2b2b2b' }),
       hit: new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, colorWrite: false }),
     };
-    this.worlds = [new Diorama(mats), new Diorama(mats)];
+    this.worlds = [new Diorama(mats)];
     for (const w of this.worlds) this.scene.add(w.group);
 
     const snowGeo = new THREE.BufferGeometry();
@@ -433,18 +433,13 @@ export class World3D {
     this.resize();
   }
 
-  /** Place the islands side by side (landscape) or stacked (portrait) and fit the camera. */
+  /** Centre the island and fit the camera into the free screen area. */
   resize() {
     const W = this.renderer.domElement.clientWidth || innerWidth;
     const H = this.renderer.domElement.clientHeight || innerHeight;
     this.renderer.setSize(W, H, false);
     this.portrait = H > W * 1.05;
-    const gap = this.portrait ? 21 : 11.5;
-    const across = new THREE.Vector3(1, 0, -1).normalize();
-    const depth = new THREE.Vector3(1, 0, 1).normalize();
-    const off = this.portrait ? depth.multiplyScalar(gap) : across.multiplyScalar(gap);
-    this.worlds[0].group.position.copy(off).multiplyScalar(-1);
-    this.worlds[1].group.position.copy(off);
+    this.worlds[0].group.position.set(0, 0, 0);
 
     this.camera.position.set(30, 30, 30);
     this.camera.up.set(0, 1, 0);

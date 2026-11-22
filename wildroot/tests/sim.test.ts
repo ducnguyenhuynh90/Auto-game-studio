@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { LEVELS, simulate, won, type ActionId } from '../src/sim';
+import { LEVELS, levelById, simulate, won, type ActionId } from '../src/sim';
 import { DISCOVERIES, SUBJECTS, events, why } from '../src/explain';
 import { dominantActions, minimalWinners, solve } from '../src/solver';
 
-const [frogs, dry] = LEVELS;
+const frogs = levelById('missing-frogs');
+const dry = levelById('dry-pond');
 const end = (lv = frogs, a: ActionId[] = [], seed = 1) => simulate(lv, seed, a).snaps.at(-1)!;
 
 describe('determinism (GDD 15.4 #2)', () => {
@@ -26,16 +27,37 @@ describe('determinism (GDD 15.4 #2)', () => {
 });
 
 describe('level design gates (solver)', () => {
-  for (const lv of LEVELS) {
+  for (const lv of LEVELS.filter((l) => l.kind === 'challenge')) {
     it(`${lv.id}: at least 2 different winning strategies and no dominant action`, () => {
       const res = solve(lv, 30);
       expect(minimalWinners(res).length).toBeGreaterThanOrEqual(2);
       expect(dominantActions(res)).toEqual([]);
     });
+  }
+  for (const lv of LEVELS.filter((l) => !l.observe)) {
     it(`${lv.id}: doing nothing loses`, () => {
       expect(won(simulate(lv, 1, []))).toBe(false);
     });
   }
+  it('every lesson is winnable, and the lesson card is part of every winning answer', () => {
+    for (const lv of LEVELS.filter((l) => l.kind === 'lesson' && !l.observe)) {
+      const w = minimalWinners(solve(lv, 20));
+      expect(w.length, lv.id).toBeGreaterThan(0);
+      if (lv.id !== 'green' && lv.id !== 'release') for (const r of w) expect(r.actions, lv.id).toContain(lv.newCard);
+    }
+  });
+  it('the "release frogs" lesson: releasing alone loses, fixing the cause wins', () => {
+    const lv = levelById('release');
+    expect(won(simulate(lv, 1, ['addFrogs']))).toBe(false);
+    expect(won(simulate(lv, 1, ['reeds']))).toBe(true);
+  });
+  it('lessons only use the cards they introduce so far', () => {
+    const seen = new Set<ActionId>();
+    for (const lv of LEVELS.filter((l) => l.kind === 'lesson')) {
+      if (lv.newCard) seen.add(lv.newCard);
+      for (const c of lv.cards) expect(seen.has(c), `${lv.id}:${c}`).toBe(true);
+    }
+  });
   it('context matters: shade is in no level-1 winner but in a level-2 winner', () => {
     const w1 = minimalWinners(solve(frogs, 30)).flatMap((r) => r.actions);
     const w2 = minimalWinners(solve(dry, 30)).flatMap((r) => r.actions);
